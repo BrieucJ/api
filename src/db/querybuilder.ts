@@ -145,7 +145,6 @@ function castFilterValue(col: Column<any>, lookup: string, rawValue: any) {
 export function createQueryBuilder<T extends Table>(table: T) {
   const columns = getTableColumns(table);
   const colNames = Object.keys(columns);
-  console.log("columns", columns);
   const baseQuery = (qb: any) => {
     // global filter: soft delete
     if ((table as any).deleted_at) {
@@ -153,6 +152,12 @@ export function createQueryBuilder<T extends Table>(table: T) {
     }
     return qb;
   };
+
+  const visibleColumns = Object.fromEntries(
+    Object.entries(columns).filter(
+      ([key]) => !["embedding", "deleted_at"].includes(key)
+    )
+  );
 
   return {
     list: async (options: {
@@ -172,7 +177,7 @@ export function createQueryBuilder<T extends Table>(table: T) {
         order = "asc",
       } = options;
 
-      let qb = baseQuery(db.select().from(table as any));
+      let qb = baseQuery(db.select(visibleColumns).from(table as any));
       let countQb = baseQuery(
         db
           .select({ count: sql<number>`count(*)`.mapWith(Number) })

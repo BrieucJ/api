@@ -14,7 +14,7 @@ import { logger } from "../utils/logger";
 
 const app = new OpenAPIHono({
   defaultHook,
-});
+}).basePath("/api/v1");
 
 app
   .use(requestId())
@@ -96,7 +96,7 @@ app.doc("/doc", {
 app.get(
   "/scalar",
   Scalar({
-    url: "/doc",
+    url: "/api/v1/doc",
     layout: "classic",
     defaultHttpClient: {
       targetKey: "js",
