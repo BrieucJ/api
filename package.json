@@ -1,0 +1,36 @@
+{
+  "name": "api",
+  "module": "index.ts",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "bun --watch src/local.ts",
+    "start": "bun src/lambda.ts",
+    "test": "bun test tests",
+    "db:up": "drizzle-kit push",
+    "db:down": "drizzle-kit migrate down",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.159",
+    "@types/bun": "latest",
+    "@types/pg": "^8.15.6"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "^1.1.5",
+    "@scalar/hono-api-reference": "^0.9.27",
+    "dotenv-expand": "^12.0.3",
+    "drizzle-kit": "^0.31.8",
+    "drizzle-orm": "^0.45.0",
+    "drizzle-zod": "^0.8.3",
+    "hono": "^4.10.8",
+    "pg": "^8.16.3",
+    "postgres": "^3.4.7",
+    "zod": "^4.1.13"
+  }
+}
