@@ -1,0 +1,32 @@
+# -------------------------
+# 1️⃣ Build stage: Bun + TypeScript bundle
+FROM oven/bun:debian AS build
+WORKDIR /var/task
+
+COPY package.json bun.lock tsconfig.json ./
+RUN bun install --frozen-lockfile
+
+COPY src ./src
+COPY infra ./infra
+COPY drizzle.config.ts ./
+
+# Bundle everything for Lambda
+RUN bun build src/servers/lambda.ts \
+    --target=node \
+    --format=esm \
+    --outdir=dist \
+    --minify \
+    --sourcemap
+
+# -------------------------
+# 2️⃣ Production Lambda image
+FROM public.ecr.aws/lambda/nodejs:20
+WORKDIR /var/task
+
+# Copy production deps + bundled file
+COPY --from=build /var/task/package.json ./package.json
+COPY --from=build /var/task/node_modules ./node_modules
+COPY --from=build /var/task/dist/lambda.js ./dist/lambda.js
+
+# Lambda handler
+CMD ["dist/lambda.handler"]

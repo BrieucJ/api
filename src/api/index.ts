@@ -11,8 +11,13 @@ import { languageDetector } from "hono/language";
 import { timing } from "hono/timing";
 import { z } from "zod";
 import { logger } from "../utils/logger";
+import env from "../env";
 
-const app = new OpenAPIHono({
+export type Bindings = { SECRET_KEY: string };
+
+logger.info(`🚀 Server is running on http://localhost:${env.PORT}`);
+
+const app = new OpenAPIHono<{ Bindings: Bindings }>({
   defaultHook,
 }).basePath("/api/v1");
 
@@ -104,4 +109,5 @@ app.get(
     },
   })
 );
+
 export default app;

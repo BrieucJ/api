@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "rootDir": "infra/src", // Pulumi entry point root
+    "moduleResolution": "node",
+    "module": "ESNext",
+    "target": "ES2022",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["infra/src"]
+}

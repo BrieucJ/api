@@ -1,0 +1,5 @@
+name: multi-platform-api
+description: "Pulumi infrastructure for multi-platform API"
+runtime:
+  name: nodejs
+main: src/index.ts
