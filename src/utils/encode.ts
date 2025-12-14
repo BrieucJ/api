@@ -3,5 +3,5 @@ export const stringToVector = (str: string, dim = 16): number[] => {
   for (let i = 0; i < str.length; i++) {
     vec[str.charCodeAt(i) % dim] += 1;
   }
-  return vec.map((x) => x / str.length); // normalize
+  return vec.map((x) => x / str.length);
 };

@@ -143,6 +143,7 @@ function castFilterValue(col: Column<any>, lookup: string, rawValue: any) {
 }
 
 export function createQueryBuilder<T extends Table>(table: T) {
+  const columnsToExclude = ["embedding", "deleted_at"];
   const columns = getTableColumns(table);
   const colNames = Object.keys(columns);
   const baseQuery = (qb: any) => {
@@ -154,10 +155,8 @@ export function createQueryBuilder<T extends Table>(table: T) {
   };
 
   const visibleColumns = Object.fromEntries(
-    Object.entries(columns).filter(
-      ([key]) => !["embedding", "deleted_at"].includes(key)
-    )
-  );
+    Object.entries(columns).filter(([key]) => !columnsToExclude.includes(key))
+  ) as typeof columns;
 
   return {
     list: async (options: {
@@ -228,7 +227,9 @@ export function createQueryBuilder<T extends Table>(table: T) {
     },
 
     get: async (id: number): Promise<T["$inferSelect"] | null> => {
-      const [item] = await baseQuery(db.select().from(table as any))
+      const [item] = await baseQuery(
+        db.select(visibleColumns).from(table as any)
+      )
         .where(eq((table as any).id, id))
         .limit(1);
       return (item as T["$inferSelect"]) || null;
@@ -238,7 +239,7 @@ export function createQueryBuilder<T extends Table>(table: T) {
       const [created] = await db
         .insert(table)
         .values({ ...data, embedding: generateRowEmbedding(data) })
-        .returning();
+        .returning(visibleColumns);
       return created as T["$inferSelect"];
     },
 
@@ -254,8 +255,16 @@ export function createQueryBuilder<T extends Table>(table: T) {
       if (!existing[0]) return null;
 
       const mergedData = { ...existing[0], ...data };
+      const {
+        id: _ignored,
+        created_at,
+        deleted_at,
+        updated_at,
+        ...safeData
+      } = mergedData;
+
       const updatedData = {
-        ...mergedData,
+        ...safeData,
         embedding: generateRowEmbedding(mergedData),
       };
 
@@ -263,7 +272,7 @@ export function createQueryBuilder<T extends Table>(table: T) {
         .update(table)
         .set(updatedData)
         .where(eq((table as any).id, id))
-        .returning();
+        .returning(visibleColumns);
       return (updated as T["$inferSelect"]) || null;
     },
 
@@ -278,7 +287,7 @@ export function createQueryBuilder<T extends Table>(table: T) {
           .update(table)
           .set({ deleted_at: new Date() })
           .where(eq((table as any).id, id))
-          .returning();
+          .returning(visibleColumns);
         return deleted || null;
       } else {
         const deleted = await db
