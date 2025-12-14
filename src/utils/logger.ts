@@ -1,4 +1,5 @@
 import env from "../env";
+import type { streamText } from "hono/streaming";
 
 const COLORS = {
   debug: "\x1b[35m", // magenta
@@ -32,6 +33,14 @@ const levelPriority: Record<BunLoggerLevel, number> = {
 const envLevel = (env && env.LOG_LEVEL) || "info";
 const envPriority = levelPriority[envLevel] ?? 4;
 
+export const activeStreams = new Set<any>();
+
+function broadcastLog(message: string) {
+  for (const s of activeStreams) {
+    s.writeln(message).catch(() => activeStreams.delete(s));
+  }
+}
+
 const format = (
   level: keyof typeof COLORS,
   namespace: string,
@@ -42,6 +51,12 @@ const format = (
   const time = new Date().toISOString();
   const color = COLORS[level] || COLORS.info;
   const formattedArgs = args.map(formatArg);
+  const textMessage = `${time} [${level.toUpperCase()}][${namespace}] ${formattedArgs.join(
+    " "
+  )}`;
+
+  broadcastLog(textMessage);
+
   return [
     `${time} ${color}${level.toUpperCase()}${COLORS.reset} ${
       COLORS[namespace as keyof typeof COLORS]

@@ -1,0 +1,38 @@
+# -------------------------
+# Bun-native ECS image, minimal & optimized
+FROM oven/bun:debian AS builder
+WORKDIR /app
+
+# Copy only dependency descriptors first for caching
+COPY package.json bun.lock tsconfig.json ./
+
+# Install dependencies (frozen lockfile)
+RUN bun install --frozen-lockfile
+
+# Copy source code
+COPY src ./src
+COPY drizzle.config.ts ./
+
+# Optional: bundle your server
+RUN bun build src/servers/http.ts \
+    --target=node \
+    --format=esm \
+    --outdir=dist \
+    --minify \
+    --sourcemap
+
+# -------------------------
+# Production runtime stage
+FROM oven/bun:debian AS runtime
+WORKDIR /app
+
+# Copy built files and dependencies
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+# Expose HTTP port for ECS
+EXPOSE 3000
+
+# Start Bun server directly
+CMD ["bun", "run", "dist/http.js"]

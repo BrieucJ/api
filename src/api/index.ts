@@ -10,8 +10,9 @@ import { csrf } from "hono/csrf";
 import { languageDetector } from "hono/language";
 import { timing } from "hono/timing";
 import { z } from "zod";
-import { logger } from "../utils/logger";
+import { logger, activeStreams } from "../utils/logger";
 import env from "../env";
+import { streamText } from "hono/streaming";
 
 export type Bindings = { SECRET_KEY: string };
 
@@ -83,6 +84,30 @@ app.openapi(
   },
   (c) => c.json({ ok: true })
 );
+
+app.get("/logs", (c) => {
+  return streamText(c, async (s) => {
+    // Add this stream to the active set
+    activeStreams.add(s);
+
+    // Remove on abort
+    s.onAbort(() => {
+      activeStreams.delete(s);
+    });
+
+    // Function to send logs as JSON line
+    function sendLog(entry: Record<string, any>) {
+      s.writeln(JSON.stringify(entry)).catch(() => {
+        activeStreams.delete(s);
+      });
+    }
+
+    // Keep stream alive indefinitely
+    while (!s.aborted) {
+      await s.sleep(1000);
+    }
+  });
+});
 
 app.route("/users", users);
 
