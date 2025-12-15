@@ -1,0 +1,49 @@
+{
+  "name": "api",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "bun --watch src/servers/http.ts",
+    "test": "LOG_LEVEL=silent bun test tests",
+    "db:up": "drizzle-kit push",
+    "db:down": "drizzle-kit migrate down",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio",
+    "infra:deploy:lambda:staging": "bash ../../infra/pulumi-run.sh lambda staging up",
+    "infra:destroy:lambda:staging": "bash ../../infra/pulumi-run.sh lambda staging destroy",
+    "infra:deploy:lambda:prod": "bash ../../infra/pulumi-run.sh lambda prod up",
+    "infra:destroy:lambda:prod": "bash ../../infra/pulumi-run.sh lambda prod destroy",
+    "infra:deploy:ecs:staging": "bash ../../infra/pulumi-run.sh ecs staging up",
+    "infra:destroy:ecs:staging": "bash ../../infra/pulumi-run.sh ecs staging destroy",
+    "infra:deploy:ecs:prod": "bash ../../infra/pulumi-run.sh ecs prod up",
+    "infra:destroy:ecs:prod": "bash ../../infra/pulumi-run.sh ecs prod destroy"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.159",
+    "@types/bun": "latest",
+    "@types/geoip-lite": "^1.4.4",
+    "@types/pg": "^8.15.6",
+    "ts-node": "^10.9.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "^1.1.5",
+    "@pulumi/aws": "^7.14.0",
+    "@pulumi/cloudflare": "^6.11.0",
+    "@pulumi/command": "^1.1.3",
+    "@pulumi/pulumi": "^3.212.0",
+    "@scalar/hono-api-reference": "^0.9.27",
+    "dotenv-expand": "^12.0.3",
+    "drizzle-kit": "^0.31.8",
+    "drizzle-orm": "^0.45.0",
+    "drizzle-zod": "^0.8.3",
+    "geoip-lite": "^1.4.10",
+    "hono": "^4.10.8",
+    "pg": "^8.16.3",
+    "postgres": "^3.4.7",
+    "zod": "^4.1.13"
+  }
+}
