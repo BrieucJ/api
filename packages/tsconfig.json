@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "paths": {
+      "@backend/api": ["../apps/backend/dist/api"]
+    }
+  },
+  "references": [{ "path": "../apps/backend" }],
+  "include": ["src"]
+}

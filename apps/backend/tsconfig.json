@@ -1,6 +1,9 @@
 {
-  // "extends": "../../tsconfig.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "declaration": true,
+    "composite": true,
+    "declarationMap": true,
     "lib": ["ESNext"],
     "target": "ES2022",
     "module": "ESNext",
@@ -22,7 +25,7 @@
     "noPropertyAccessFromIndexSignature": false,
     "resolveJsonModule": true,
     "baseUrl": "./",
-    "paths": { "@/*": ["src/*"], "@shared/*": ["packages/shared/src/*"] },
+    "paths": { "@/*": ["src/*"], "@shared/*": ["../../packages/src/*"] },
     "rootDir": "src",
     "outDir": "dist"
   },

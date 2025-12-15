@@ -140,3 +140,4 @@ app.get(
 );
 
 export default app;
+export type AppType = typeof app;

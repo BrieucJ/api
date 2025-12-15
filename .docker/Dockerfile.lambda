@@ -3,12 +3,11 @@
 FROM oven/bun:debian AS build
 WORKDIR /var/task
 
-COPY package.json bun.lock tsconfig.json ./
+COPY apps/backend/package.json apps/backend/bun.lock apps/backend/tsconfig.json ./
 RUN bun install --frozen-lockfile
 
-COPY src ./src
-COPY infra ./infra
-COPY drizzle.config.ts ./
+COPY apps/backend/src ./src
+COPY apps/backend/drizzle.config.ts ./
 
 # Bundle everything for Lambda
 RUN bun build src/servers/lambda.ts \

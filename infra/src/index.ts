@@ -1,13 +1,10 @@
 import * as pulumi from "@pulumi/pulumi";
-import { deploy as lambdaDeploy } from "./lambda.ts";
-import { deploy as ecsDeploy } from "./ecs.ts";
+import { deploy as lambdaDeploy } from "./lambda";
+import { deploy as ecsDeploy } from "./ecs";
 import * as dotenv from "dotenv";
 import path from "node:path";
-import * as url from "node:url";
 
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../apps/backend/.env") });
 
 const stack = pulumi.getStack(); // e.g. lambda-prod
 const [platform, env] = stack.split("-");
@@ -24,7 +21,7 @@ let outputs: Record<string, any> = {};
 if (platform === "lambda") {
   outputs = lambdaDeploy(env) || {};
   outputs.apiLambdaArn.apply((arn: string) => {
-    console.log("arn:", arn);
+    console.log("arn", arn);
   });
   outputs.apiLambdaName.apply((name: string) => {
     console.log("name:", name);

@@ -1,17 +1,16 @@
 {
   "compilerOptions": {
-    "rootDir": "infra/src",
-    "moduleResolution": "node",
+    "rootDir": "src",
     "module": "ESNext",
     "target": "ES2022",
-    "allowJs": true,
-    "esModuleInterop": true,
+    "moduleResolution": "node",
     "strict": true,
-    "noEmit": true,
-    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noEmit": true
   },
-  "include": ["infra/src"]
+  "include": ["src"]
 }
