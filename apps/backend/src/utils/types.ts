@@ -29,3 +29,9 @@ export type RouteOutput<
   R extends { responses: Record<number, any> },
   S extends number
 > = InferResponse<R["responses"][S]>;
+
+declare module "hono" {
+  interface HonoRequest {
+    id: string;
+  }
+}

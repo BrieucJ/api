@@ -35,7 +35,7 @@ import {
   PgBigInt53,
   PgBoolean,
 } from "drizzle-orm/pg-core";
-import { stringToVector } from "@/utils/encode";
+import { stringToVector, generateRowEmbedding } from "@/utils/encode";
 
 type Col = Column<any>;
 type Val = unknown;
@@ -80,17 +80,6 @@ export const LOOKUP_MAP: Record<string, (col: Col, value: Val) => SQL | any> = {
   arraycontained: (col, v) => arrayContained(col, v as any[]),
   arrayoverlaps: (col, v) => arrayOverlaps(col, v as any[]),
 };
-
-function generateRowEmbedding<T extends Table>(
-  data: Partial<T["$inferInsert"]>
-): number[] {
-  // Convert all values to strings and concatenate
-  const combined = Object.values(data)
-    .map((v) => (v === null || v === undefined ? "" : String(v)))
-    .join(" | "); // separator between fields
-
-  return stringToVector(combined, 16); // same dimension as before
-}
 
 function castValueForColumn(col: Column<any>, value: any): any {
   if (value === null || value === undefined) return null;

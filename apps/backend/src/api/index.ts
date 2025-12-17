@@ -13,7 +13,7 @@ configureOpenAPI(app);
 const routes = [users] as const;
 
 routes.forEach((route) => {
-  app.route("/", route);
+  app.route("/api/v1", route);
 });
 
 export default app;
