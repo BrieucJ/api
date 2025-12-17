@@ -2,8 +2,13 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
     "paths": {
-      "@backend/api": ["../apps/backend/dist/api"]
+      "@backend/api": ["../apps/backend/src/api"]
     }
   },
   "references": [{ "path": "../apps/backend" }],

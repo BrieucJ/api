@@ -5,6 +5,7 @@ import { dbLogger } from "@/utils/logger";
 
 const client = postgres(env.DATABASE_URL!, {
   max: 1, // Lambda-friendly
+  idle_timeout: 60000,
 });
 
 export const db = drizzle(client, {

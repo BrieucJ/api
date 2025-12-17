@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.json",
+  "references": [{ "path": "../../packages" }],
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "lib": ["ESNext", "DOM"],
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": false,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"],
+      "@shared/*": ["../../packages/src/*"]
+    }
+  },
+  "include": ["src"]
+}

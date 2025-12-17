@@ -1,5 +1,8 @@
 {
   "private": true,
+  "dependencies": {
+    "hono": "^4.10.8"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

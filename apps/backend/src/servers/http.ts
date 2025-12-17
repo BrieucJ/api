@@ -6,4 +6,5 @@ const port = env.PORT;
 Bun.serve({
   fetch: app.fetch,
   port,
+  idleTimeout: 255,
 });
