@@ -143,8 +143,31 @@ export function paginationWithOrderingSchema<T extends z.ZodObject<any>>(
   schema: T
 ) {
   return z.object({
-    limit: z.number().int().min(1).max(100).default(20),
-    offset: z.number().int().min(0).default(0),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .openapi({
+        param: {
+          name: "limit",
+          in: "query",
+        },
+        example: 20,
+      })
+      .default(20),
+    offset: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .openapi({
+        param: {
+          name: "offset",
+          in: "query",
+        },
+        example: 0,
+      })
+      .default(0),
     order_by: enumFromSchema(schema).default("id"),
     order: z.enum(["asc", "desc"]).default("asc"),
     search: z.string().optional(),

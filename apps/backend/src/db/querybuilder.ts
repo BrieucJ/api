@@ -25,6 +25,7 @@ import {
   sql,
   isNull,
   cosineDistance,
+  or,
   type Column,
   type SQL,
 } from "drizzle-orm";
@@ -195,16 +196,115 @@ export function createQueryBuilder<T extends Table>(table: T) {
         countQb = countQb.where(clause);
       }
 
+      // Hybrid search: Combine keyword (text) search with vector (semantic) search
       if (search && columns.embedding) {
-        const searchVector = stringToVector(search, 16); // match your embedding dimension
-        qb = qb.orderBy(cosineDistance(columns.embedding, searchVector));
+        const searchVector = stringToVector(search, 16);
+        const distance = cosineDistance(columns.embedding, searchVector);
+        const searchPattern = `%${search}%`;
+
+        // Find text-searchable columns (message, source, level for logs)
+        const textSearchableColumns: Column<any>[] = [];
+        if (columns.message) textSearchableColumns.push(columns.message);
+        if (columns.source) textSearchableColumns.push(columns.source);
+        if (columns.level) textSearchableColumns.push(columns.level);
+
+        // Build keyword search conditions (ILIKE for case-insensitive)
+        // Use OR to combine multiple column searches
+        const keywordConditions: SQL[] = [];
+        for (const col of textSearchableColumns) {
+          keywordConditions.push(ilike(col, searchPattern));
+        }
+        const keywordSearch =
+          keywordConditions.length > 0 ? or(...keywordConditions)! : sql`false`;
+
+        // Get candidates with both keyword match score and vector distance
+        // Score: 0 = keyword match, 1 = vector distance (lower is better)
+        const candidateQb = baseQuery(
+          db
+            .select({
+              ...visibleColumns,
+              hasKeywordMatch: sql<boolean>`${keywordSearch}`.as(
+                "has_keyword_match"
+              ),
+              vectorDistance: distance.as("vector_distance"),
+            })
+            .from(table as any)
+        );
+
+        // Apply existing filters
+        for (const clause of whereClauses) {
+          candidateQb.where(clause);
+        }
+
+        // Get more candidates than needed for better ranking
+        const candidates = (await candidateQb.limit(
+          Math.max(limit * 3, 100)
+        )) as Array<
+          T["$inferSelect"] & {
+            hasKeywordMatch: boolean;
+            vectorDistance: number;
+          }
+        >;
+
+        if (candidates.length === 0) {
+          return { data: [], total: 0 };
+        }
+
+        // Rank and filter results:
+        // 1. Keyword matches first (exact/partial text matches)
+        // 2. Then vector similarity (semantic matches)
+        // 3. Only return if there are meaningful matches
+        const keywordMatches = candidates.filter((c) => c.hasKeywordMatch);
+        const vectorMatches = candidates
+          .filter((c) => !c.hasKeywordMatch) // Don't duplicate keyword matches
+          .sort((a, b) => a.vectorDistance - b.vectorDistance); // Sort by distance
+
+        // Combine: keyword matches first, then best vector matches
+        // Only include vector matches if they're reasonably similar (distance < 1.0)
+        const relevantVectorMatches = vectorMatches.filter(
+          (c) => c.vectorDistance < 0.6
+        );
+
+        const combinedResults = [
+          ...keywordMatches,
+          ...relevantVectorMatches.slice(
+            0,
+            Math.max(0, limit - keywordMatches.length)
+          ),
+        ].slice(0, limit);
+
+        // Remove computed fields
+        const finalResults = combinedResults.map(
+          ({ hasKeywordMatch: _, vectorDistance: __, ...item }) => item
+        ) as T["$inferSelect"][];
+
+        // Count total relevant results (keyword + reasonable vector matches)
+        const countQb = baseQuery(
+          db
+            .select({ count: sql<number>`count(*)`.mapWith(Number) })
+            .from(table as any)
+        );
+
+        for (const clause of whereClauses) {
+          countQb.where(clause);
+        }
+
+        // Count: keyword matches OR vector matches with distance < 1.0
+        countQb.where(or(keywordSearch, sql`${distance} < 1.0`)!);
+
+        const [countRow] = await countQb;
+
+        return {
+          data: finalResults,
+          total: countRow?.count || 0,
+        };
+      } else {
+        // When not searching, use the default ordering
+        const orderFn = order === "asc" ? asc : desc;
+        qb = qb.orderBy(orderFn((table as any)[order_by]));
       }
 
-      const orderFn = order === "asc" ? asc : desc;
-      qb = qb
-        .orderBy(orderFn((table as any)[order_by]))
-        .limit(limit)
-        .offset(offset);
+      qb = qb.limit(limit).offset(offset);
 
       const [totalRow] = await countQb;
       const items = await qb;

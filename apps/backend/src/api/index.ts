@@ -6,6 +6,11 @@ import configureOpenAPI from "@/utils/openApi";
 import users from "@/api/routes/public/users/users.index";
 // PRIVATE ROUTES
 import logs from "@/api/routes/private/logs/logs.index";
+import info from "@/api/routes/private/info/info.index";
+import health from "@/api/routes/private/health/health.index";
+
+// Store server start time for uptime calculation
+export const SERVER_START_TIME = Date.now();
 
 logger.info(`🚀 Server is running on http://localhost:${env.PORT}`);
 
@@ -15,7 +20,7 @@ configureOpenAPI(app);
 
 const publicRoutes = [users] as const;
 
-const privateRoutes = [logs] as const;
+const privateRoutes = [logs, info, health] as const;
 
 const allRoutes = [...publicRoutes, ...privateRoutes] as const;
 

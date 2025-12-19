@@ -19,30 +19,21 @@ export default function LogsCard() {
   const lastLog = logs[0]?.created_at;
 
   return (
-    <Card className="hover:shadow-lg transition w-full">
+    <Card className="hover:shadow-lg transition w-full overflow-hidden">
       <CardHeader>
-        <CardTitle>
-          <Button
-            variant="link"
-            className="flex items-center text-base font-semibold cursor-pointer"
-            onClick={() => navigate("/logs")}
-          >
-            Logs
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </CardTitle>
+        <CardTitle>Logs</CardTitle>
+        <CardDescription className="flex flex-row gap-2 p-0 m-0">
+          <div className="text-xs">{logs.length} entries</div>
+          <div className="text-xs">
+            Dernier log: {lastLog && new Date(lastLog).toISOString()}
+          </div>
+        </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="max-h-96 sm:max-h-80 overflow-y-auto">
+      <CardContent className="flex flex-col min-h-0">
+        <div className="flex-1 min-h-0 max-h-96 sm:max-h-80 mx-0 px-0 flex flex-col w-full min-w-0">
           <LogsCardContent />
         </div>
       </CardContent>
-      <CardFooter className="flex flex-row gap-2 pt-0 mt-0">
-        <div className="text-xs">{logs.length} entries</div>
-        <div className="text-xs">
-          Dernier log: {lastLog && new Date(lastLog).toISOString()}
-        </div>
-      </CardFooter>
     </Card>
   );
 }
