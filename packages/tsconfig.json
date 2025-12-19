@@ -8,7 +8,7 @@
     "noEmit": false,
     "allowImportingTsExtensions": false,
     "paths": {
-      "@backend/api": ["../apps/backend/src/api"]
+      "@backend/*": ["../apps/backend/src/*"]
     }
   },
   "references": [{ "path": "../apps/backend" }],

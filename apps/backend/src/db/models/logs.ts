@@ -10,7 +10,7 @@ extendZodWithOpenApi(z);
 export const logs = pgTable(
   "logs",
   {
-    source: text().notNull(), // e.g., 'API', 'DB', 'worker'
+    source: text().notNull(), // e.g., 'API', 'DB', 'WORKER'
     level: text().notNull(), // debug, info, warn, error
     message: text().notNull(),
     meta: jsonb(), // structured context
@@ -24,9 +24,7 @@ export const logs = pgTable(
 
 // Reusable fields
 const sourceField = z.string().openapi({ example: "API" });
-const levelField = z
-  .enum(["fatal", "error", "warn", "info", "debug", "trace"])
-  .openapi({ example: "info" });
+const levelField = z.string().openapi({ example: "info" });
 const messageField = z.string().min(1).openapi({ example: "Server started" });
 
 // SELECT schema

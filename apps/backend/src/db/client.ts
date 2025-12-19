@@ -10,6 +10,6 @@ const client = postgres(env.DATABASE_URL!, {
 
 export const db = drizzle(client, {
   logger: {
-    logQuery: (query, params) => dbLogger.info(query, params),
+    logQuery: (query, params) => dbLogger.debug(query, params),
   },
 });

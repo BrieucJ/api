@@ -1,6 +1,7 @@
 import env from "../env";
 import { db } from "@/db/client";
 import { logs, logInsertSchema } from "@/db/models/logs";
+import { generateRowEmbedding } from "@/utils/encode";
 
 const COLORS = {
   debug: "\x1b[35m",
@@ -47,110 +48,98 @@ export class Logger {
     this.skipDbLogging = skipDbLogging;
   }
 
-  private format(level: keyof typeof COLORS, args: unknown[]) {
-    const formatArg = (arg: unknown) =>
-      arg instanceof Error ? arg.stack || arg.message : String(arg);
+  private format(level: keyof typeof COLORS, args: [string, ...unknown[]]) {
+    const formatArg = (arg: unknown) => {
+      if (arg instanceof Error) return arg.stack || arg.message;
+      if (typeof arg === "object") {
+        try {
+          return JSON.stringify(arg);
+        } catch {
+          return "[Circular]";
+        }
+      }
+      return String(arg);
+    };
 
     const time = new Date().toISOString();
-    const formattedArgs = args.map(formatArg).join(" ");
-    const colored = `${COLORS[level]}${level.toUpperCase()}${COLORS.reset} ${
-      COLORS[this.namespace as keyof typeof COLORS]
-    }[${this.namespace}]${COLORS.reset}`;
+    const message = formatArg(args[0]);
+    const extra = args.slice(1).map(formatArg).join(" ");
 
-    // Include timestamp in the first element
-    const message = `${time} ${colored} ${formattedArgs}`;
+    const LEVEL_WIDTH = 5;
+    const NAMESPACE_WIDTH = 8;
+    const PREFIX_WIDTH =
+      time.length + 1 + LEVEL_WIDTH + 1 + NAMESPACE_WIDTH + 1;
 
-    return [message, ...args.map(formatArg)];
+    const levelStr = `${level.toUpperCase()}`.padEnd(LEVEL_WIDTH);
+    const namespaceStr = `[${this.namespace}]`.padEnd(NAMESPACE_WIDTH);
+    const nsColor = COLORS[this.namespace as keyof typeof COLORS] ?? "\x1b[36m";
+    const colored = `${COLORS[level]}${levelStr}${COLORS.reset} ${nsColor}${namespaceStr}${COLORS.reset}`;
+
+    const fullMessage = `${message}${extra ? " " + extra : ""}`;
+    const lines = fullMessage.split("\n");
+    const paddedLines = lines.map((line, idx) =>
+      idx === 0 ? line : line.padStart(line.length + PREFIX_WIDTH)
+    );
+
+    return `${time} ${colored} ${paddedLines.join("\n")}`;
   }
 
-  private async write(level: BunLoggerLevel, args: unknown[]) {
+  private async write(level: BunLoggerLevel, args: [string, ...unknown[]]) {
     if (!args.length) return;
 
-    let message: string;
+    const [message, ...rest] = args;
+
+    // The rest of the arguments are optional metadata
     let meta: Record<string, any> = {};
-
-    // Determine message and meta
-    const firstArg = args[0];
-
-    if (typeof firstArg === "string") {
-      message = firstArg;
-      for (const arg of args.slice(1)) {
-        if (arg && typeof arg === "object") {
-          meta = { ...meta, ...(arg as Record<string, any>) };
-        } else {
-          meta = { ...meta, [`arg${Object.keys(meta).length + 1}`]: arg };
-        }
-      }
-    } else if (firstArg instanceof Error) {
-      message = firstArg.message;
-      meta = { stack: firstArg.stack };
-      for (const arg of args.slice(1)) {
-        if (arg && typeof arg === "object") {
-          meta = { ...meta, ...(arg as Record<string, any>) };
-        } else {
-          meta = { ...meta, [`arg${Object.keys(meta).length + 1}`]: arg };
-        }
-      }
-    } else if (typeof firstArg === "object" && firstArg !== null) {
-      // If first arg is object, treat as meta and use generic message
-      message = "context";
-      meta = { ...firstArg };
-      for (const arg of args.slice(1)) {
-        if (arg && typeof arg === "object") {
-          meta = { ...meta, ...(arg as Record<string, any>) };
-        } else {
-          meta = { ...meta, [`arg${Object.keys(meta).length + 1}`]: arg };
-        }
-      }
-    } else {
-      message = String(firstArg);
-      for (const arg of args.slice(1)) {
-        meta = { ...meta, [`arg${Object.keys(meta).length + 1}`]: arg };
+    for (const [i, arg] of rest.entries()) {
+      if (arg && typeof arg === "object") {
+        meta = { ...meta, ...(arg as Record<string, any>) };
+      } else {
+        meta[`arg${i + 1}`] = arg;
       }
     }
 
-    // Console logging (preserve original args for colors)
+    // Console logging
     if (shouldLog(level)) {
       const method = ["fatal", "error"].includes(level) ? "error" : level;
-      (console as any)[method](
-        ...this.format(level as keyof typeof COLORS, args)
-      );
+      (console as any)[method](this.format(level as keyof typeof COLORS, args));
     }
 
     if (this.skipDbLogging) return;
 
-    // DB insert (structured meta)
     try {
-      await db.insert(logs).values(
-        logInsertSchema.parse({
-          source: this.namespace,
-          level,
-          message,
-          meta,
-        })
-      );
+      const data = logInsertSchema.parse({
+        source: this.namespace,
+        level,
+        message,
+        meta,
+      });
+      await db
+        .insert(logs)
+        .values({ ...data, embedding: generateRowEmbedding(data) });
     } catch (e) {
       console.error(`[Logger][DB] Failed to insert log:`, e);
+      throw e;
     }
   }
 
-  debug(...args: unknown[]) {
-    return this.write("debug", args);
+  debug(message: string, ...args: unknown[]) {
+    return this.write("debug", [message, ...args] as [string, ...unknown[]]);
   }
-  info(...args: unknown[]) {
-    return this.write("info", args);
+  info(message: string, ...args: unknown[]) {
+    return this.write("info", [message, ...args] as [string, ...unknown[]]);
   }
-  warn(...args: unknown[]) {
-    return this.write("warn", args);
+  warn(message: string, ...args: unknown[]) {
+    return this.write("warn", [message, ...args] as [string, ...unknown[]]);
   }
-  error(...args: unknown[]) {
-    return this.write("error", args);
+  error(message: string, ...args: unknown[]) {
+    return this.write("error", [message, ...args] as [string, ...unknown[]]);
   }
-  fatal(...args: unknown[]) {
-    return this.write("fatal", args);
+  fatal(message: string, ...args: unknown[]) {
+    return this.write("fatal", [message, ...args] as [string, ...unknown[]]);
   }
-  trace(...args: unknown[]) {
-    return this.write("trace", args);
+  trace(message: string, ...args: unknown[]) {
+    return this.write("trace", [message, ...args] as [string, ...unknown[]]);
   }
 
   withNamespace(ns: string) {

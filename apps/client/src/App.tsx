@@ -1,25 +1,21 @@
-import { client } from "@/utils/client";
-import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+// src/App.tsx
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import DashboardLayout from "@/components/Layout";
+import Dashboard from "@/pages/Dashboard";
+import LogsPage from "@/pages/LogsPage";
+// import MetricsPage, AlertsPage when ready
 
-// async function fetchUsers() {
-//   const res = await client.users.$get({ query: { limit: 5 } });
-//   console.log("res", res);
-//   if (res.ok) {
-//     const data = await res.json();
-//     console.log("Users:", data);
-//   }
-// }
-//   useEffect(() => {
-//     fetchUsers();
-//   }, []);
-
-function App() {
+export default function App() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center">
-      <Button>Click me</Button>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<DashboardLayout />}>
+          <Route index element={<Dashboard />} /> {/* Shows cards */}
+          <Route path="logs" element={<LogsPage />} /> {/* Full-page logs */}
+          {/* <Route path="metrics" element={<MetricsPage />} /> */}
+          {/* <Route path="alerts" element={<AlertsPage />} /> */}
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;

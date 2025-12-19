@@ -235,7 +235,7 @@ export function createApp() {
   );
   app.use(timing());
   app.use(geo);
-  app.use(async (c, next) => {
+  app.use("/api/v1/*", async (c, next) => {
     const start = Date.now();
     let body: any = null;
 
@@ -254,7 +254,6 @@ export function createApp() {
       const durationMs = Date.now() - start;
 
       const meta = serializeContext(c, body, durationMs);
-
       logger.info(`${c.req.method} ${c.req.url}`, meta);
     } catch (err) {
       // Log errors with structured meta
