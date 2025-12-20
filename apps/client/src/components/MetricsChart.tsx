@@ -14,6 +14,22 @@ interface MetricsChartProps {
   timeRange?: "1h" | "6h" | "24h" | "7d";
 }
 
+// Memoize chart config outside component to prevent recreation
+const chartConfig: ChartConfig = {
+  p50: {
+    label: "P50 Latency",
+    color: "hsl(var(--chart-1))",
+  },
+  p95: {
+    label: "P95 Latency",
+    color: "hsl(var(--chart-2))",
+  },
+  p99: {
+    label: "P99 Latency",
+    color: "hsl(var(--chart-3))",
+  },
+};
+
 export default function MetricsChart({
   metrics,
   endpoint,
@@ -49,30 +65,28 @@ export default function MetricsChart({
         new Date(a.windowStart).getTime() - new Date(b.windowStart).getTime()
     );
 
-    return filtered.map((m) => ({
-      time: new Date(m.windowStart).toLocaleTimeString(),
-      p50: m.p50Latency,
-      p95: m.p95Latency,
-      p99: m.p99Latency,
-      errorRate: (m.errorRate * 100).toFixed(2),
-      traffic: m.trafficCount,
-    }));
+    // Use stable time format (ISO string) instead of toLocaleTimeString
+    // to prevent unnecessary re-renders
+    return filtered.map((m) => {
+      const date = new Date(m.windowStart);
+      return {
+        time: date.toISOString(),
+        timeLabel: date.toLocaleTimeString(),
+        p50: m.p50Latency ?? 0,
+        p95: m.p95Latency ?? 0,
+        p99: m.p99Latency ?? 0,
+        errorRate: Number(((m.errorRate ?? 0) * 100).toFixed(2)),
+        traffic: m.trafficCount ?? 0,
+      };
+    });
   }, [metrics, endpoint, timeRange]);
 
-  const chartConfig: ChartConfig = {
-    p50: {
-      label: "P50 Latency",
-      color: "hsl(var(--chart-1))",
-    },
-    p95: {
-      label: "P95 Latency",
-      color: "hsl(var(--chart-2))",
-    },
-    p99: {
-      label: "P99 Latency",
-      color: "hsl(var(--chart-3))",
-    },
-  };
+  // Create a stable key for the chart based on data length and endpoint
+  // This helps React properly track when the chart should re-render
+  const chartKey = useMemo(
+    () => `${endpoint || "all"}-${timeRange}-${chartData.length}`,
+    [endpoint, timeRange, chartData.length]
+  );
 
   if (chartData.length === 0) {
     return (
@@ -84,11 +98,33 @@ export default function MetricsChart({
 
   return (
     <ChartContainer config={chartConfig} className="h-[350px]">
-      <LineChart data={chartData}>
+      <LineChart
+        key={chartKey}
+        data={chartData}
+        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+      >
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="time" />
+        <XAxis
+          dataKey="time"
+          tickFormatter={(value) => {
+            try {
+              return new Date(value).toLocaleTimeString();
+            } catch {
+              return value;
+            }
+          }}
+        />
         <YAxis />
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartTooltip
+          content={<ChartTooltipContent />}
+          labelFormatter={(value) => {
+            try {
+              return new Date(value).toLocaleTimeString();
+            } catch {
+              return value;
+            }
+          }}
+        />
         <Legend />
         <Line
           type="monotone"
@@ -96,6 +132,7 @@ export default function MetricsChart({
           stroke="hsl(var(--chart-1))"
           strokeWidth={2}
           dot={false}
+          isAnimationActive={false}
         />
         <Line
           type="monotone"
@@ -103,6 +140,7 @@ export default function MetricsChart({
           stroke="hsl(var(--chart-2))"
           strokeWidth={2}
           dot={false}
+          isAnimationActive={false}
         />
         <Line
           type="monotone"
@@ -110,6 +148,7 @@ export default function MetricsChart({
           stroke="hsl(var(--chart-3))"
           strokeWidth={2}
           dot={false}
+          isAnimationActive={false}
         />
       </LineChart>
     </ChartContainer>
