@@ -10,9 +10,16 @@ import env from "@/env";
 import packageJSON from "../../../package.json";
 
 const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
+  const path = c.req.path;
+
+  // Only track public endpoints that start with /api/v1
+  if (!path.startsWith("/api/v1")) {
+    await next();
+    return;
+  }
+
   const start = Date.now();
   const method = c.req.method;
-  const path = c.req.path;
   let requestBody: any = null;
   let queryParams: Record<string, string> | null = null;
   const headers: Record<string, string> = {};
@@ -52,6 +59,15 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
 
   // Get user ID from context if available
   const userId = (c as any).user?.id || c.req.header("x-user-id") || null;
+
+  // Get geo information from context if available
+  const geoInfo = (c as any).geo || null;
+  const geoCountry = geoInfo?.country || null;
+  const geoRegion = geoInfo?.region || null;
+  const geoCity = geoInfo?.city || null;
+  const geoLat = geoInfo?.lat || null;
+  const geoLon = geoInfo?.lon || null;
+  const geoSource = geoInfo?.source || null;
 
   let statusCode: number | null = null;
   let responseBody: any = null;
@@ -108,6 +124,12 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
               ? responseHeaders
               : undefined,
           duration,
+          geoCountry: geoCountry || undefined,
+          geoRegion: geoRegion || undefined,
+          geoCity: geoCity || undefined,
+          geoLat: geoLat || undefined,
+          geoLon: geoLon || undefined,
+          geoSource: geoSource || undefined,
         });
 
         await db.insert(requestSnapshots).values({
@@ -140,6 +162,12 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
               ? { error: error.message, stack: error.stack }
               : undefined,
           duration,
+          geoCountry: geoCountry || undefined,
+          geoRegion: geoRegion || undefined,
+          geoCity: geoCity || undefined,
+          geoLat: geoLat || undefined,
+          geoLon: geoLon || undefined,
+          geoSource: geoSource || undefined,
         });
 
         await db.insert(requestSnapshots).values({

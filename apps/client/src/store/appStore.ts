@@ -26,6 +26,8 @@ interface AppStore {
     method?: string;
     path?: string;
     statusCode?: number;
+    startDate?: string;
+    endDate?: string;
   }) => Promise<void>;
   replayRequest: (id: number) => Promise<any>;
   apiInfo: ApiInfo | null;
@@ -61,7 +63,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setSnapshots: (snapshots) => set({ snapshots }),
   fetchSnapshots: async (params = {}) => {
     try {
-      const { limit = 50, offset = 0, method, path, statusCode } = params;
+      const {
+        limit = 50,
+        offset = 0,
+        method,
+        path,
+        statusCode,
+        startDate,
+        endDate,
+      } = params;
       const query: Record<string, string> = {
         limit: limit.toString(),
         offset: offset.toString(),
@@ -69,6 +79,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (method) query.method = method;
       if (path) query.path = path;
       if (statusCode !== undefined) query.statusCode = statusCode.toString();
+      if (startDate) query.startDate = startDate;
+      if (endDate) query.endDate = endDate;
 
       // Type assertion needed because AppType union doesn't properly expose all routes
       const response = await (client as any).replay.$get({ query });

@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import type { MetricsSelectType } from "@shared/types";
 
 interface MetricsChartProps {
@@ -9,31 +14,39 @@ interface MetricsChartProps {
   timeRange?: "1h" | "6h" | "24h" | "7d";
 }
 
-export default function MetricsChart({ metrics, endpoint, timeRange = "24h" }: MetricsChartProps) {
+export default function MetricsChart({
+  metrics,
+  endpoint,
+  timeRange = "24h",
+}: MetricsChartProps) {
   const chartData = useMemo(() => {
-    let filtered = metrics;
-    
+    let filtered = [...metrics]; // Create a copy to avoid mutating the original
+
     if (endpoint) {
       filtered = filtered.filter((m) => m.endpoint === endpoint);
     }
 
-    // Filter by time range
-    const now = Date.now();
-    const rangeMs = {
-      "1h": 60 * 60 * 1000,
-      "6h": 6 * 60 * 60 * 1000,
-      "24h": 24 * 60 * 60 * 1000,
-      "7d": 7 * 24 * 60 * 60 * 1000,
-    }[timeRange];
+    // Only filter by time range if metrics haven't been pre-filtered
+    // (This allows the parent to pass pre-filtered metrics for better performance)
+    if (timeRange) {
+      const now = Date.now();
+      const rangeMs = {
+        "1h": 60 * 60 * 1000,
+        "6h": 6 * 60 * 60 * 1000,
+        "24h": 24 * 60 * 60 * 1000,
+        "7d": 7 * 24 * 60 * 60 * 1000,
+      }[timeRange];
 
-    filtered = filtered.filter((m) => {
-      const windowStart = new Date(m.windowStart).getTime();
-      return now - windowStart <= rangeMs;
-    });
+      filtered = filtered.filter((m) => {
+        const windowStart = new Date(m.windowStart).getTime();
+        return now - windowStart <= rangeMs;
+      });
+    }
 
     // Sort by time
-    filtered.sort((a, b) => 
-      new Date(a.windowStart).getTime() - new Date(b.windowStart).getTime()
+    filtered.sort(
+      (a, b) =>
+        new Date(a.windowStart).getTime() - new Date(b.windowStart).getTime()
     );
 
     return filtered.map((m) => ({
@@ -102,4 +115,3 @@ export default function MetricsChart({ metrics, endpoint, timeRange = "24h" }: M
     </ChartContainer>
   );
 }
-

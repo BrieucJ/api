@@ -8,6 +8,13 @@
       "when": 1766186402473,
       "tag": "0000_boring_hairball",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766248344202,
+      "tag": "0001_dry_infant_terrible",
+      "breakpoints": true
     }
   ]
 }

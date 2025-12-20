@@ -3,14 +3,6 @@ import type { Context } from "hono";
 import { db } from "@/db/client";
 import { metrics, metricsInsertSchema } from "@/db/models/metrics";
 import { generateRowEmbedding } from "@/utils/encode";
-import env from "@/env";
-
-interface RequestMetric {
-  latency: number;
-  isError: boolean;
-  requestSize: number;
-  responseSize: number;
-}
 
 interface EndpointMetrics {
   latencies: number[];
@@ -29,7 +21,10 @@ interface MetricsWindow {
 
 // In-memory metrics storage
 const metricsBuffer = new Map<string, MetricsWindow>();
-const METRICS_WINDOW_SECONDS = parseInt(process.env.METRICS_WINDOW_SECONDS || "60", 10);
+const METRICS_WINDOW_SECONDS = parseInt(
+  process.env.METRICS_WINDOW_SECONDS || "60",
+  10
+);
 const FLUSH_INTERVAL_MS = 30000; // 30 seconds
 
 // Calculate percentile from sorted array
@@ -41,7 +36,9 @@ function percentile(sorted: number[], p: number): number {
 
 // Get current window key
 function getWindowKey(endpoint: string, timestamp: number): string {
-  const windowStart = Math.floor(timestamp / (METRICS_WINDOW_SECONDS * 1000)) * (METRICS_WINDOW_SECONDS * 1000);
+  const windowStart =
+    Math.floor(timestamp / (METRICS_WINDOW_SECONDS * 1000)) *
+    (METRICS_WINDOW_SECONDS * 1000);
   return `${endpoint}:${windowStart}`;
 }
 
@@ -65,13 +62,24 @@ async function flushMetrics() {
     const p50 = percentile(sortedLatencies, 50);
     const p95 = percentile(sortedLatencies, 95);
     const p99 = percentile(sortedLatencies, 99);
-    const errorRate = window.metrics.total > 0 ? window.metrics.errors / window.metrics.total : 0;
-    const avgRequestSize = window.metrics.requestSizes.length > 0
-      ? Math.round(window.metrics.requestSizes.reduce((a, b) => a + b, 0) / window.metrics.requestSizes.length)
-      : null;
-    const avgResponseSize = window.metrics.responseSizes.length > 0
-      ? Math.round(window.metrics.responseSizes.reduce((a, b) => a + b, 0) / window.metrics.responseSizes.length)
-      : null;
+    const errorRate =
+      window.metrics.total > 0
+        ? window.metrics.errors / window.metrics.total
+        : 0;
+    const avgRequestSize =
+      window.metrics.requestSizes.length > 0
+        ? Math.round(
+            window.metrics.requestSizes.reduce((a, b) => a + b, 0) /
+              window.metrics.requestSizes.length
+          )
+        : null;
+    const avgResponseSize =
+      window.metrics.responseSizes.length > 0
+        ? Math.round(
+            window.metrics.responseSizes.reduce((a, b) => a + b, 0) /
+              window.metrics.responseSizes.length
+          )
+        : null;
 
     return metricsInsertSchema.parse({
       windowStart: new Date(window.start),
@@ -118,8 +126,15 @@ if (typeof process !== "undefined") {
 }
 
 const metricsMiddleware = createMiddleware(async (c: Context, next) => {
-  const start = Date.now();
   const endpoint = c.req.path;
+
+  // Only track public endpoints that start with /api/v1
+  if (!endpoint.startsWith("/api/v1")) {
+    await next();
+    return;
+  }
+
+  const start = Date.now();
   let requestSize = 0;
   let responseSize = 0;
 
@@ -138,7 +153,7 @@ const metricsMiddleware = createMiddleware(async (c: Context, next) => {
 
   try {
     await next();
-    
+
     const duration = Date.now() - start;
     const status = c.res.status || 200;
     const isError = status >= 400;
@@ -152,7 +167,9 @@ const metricsMiddleware = createMiddleware(async (c: Context, next) => {
     // Record metric
     const timestamp = Date.now();
     const windowKey = getWindowKey(endpoint, timestamp);
-    const windowStart = Math.floor(timestamp / (METRICS_WINDOW_SECONDS * 1000)) * (METRICS_WINDOW_SECONDS * 1000);
+    const windowStart =
+      Math.floor(timestamp / (METRICS_WINDOW_SECONDS * 1000)) *
+      (METRICS_WINDOW_SECONDS * 1000);
     const windowEnd = windowStart + METRICS_WINDOW_SECONDS * 1000;
 
     if (!metricsBuffer.has(windowKey)) {
@@ -183,7 +200,9 @@ const metricsMiddleware = createMiddleware(async (c: Context, next) => {
     // Record error metric
     const timestamp = Date.now();
     const windowKey = getWindowKey(endpoint, timestamp);
-    const windowStart = Math.floor(timestamp / (METRICS_WINDOW_SECONDS * 1000)) * (METRICS_WINDOW_SECONDS * 1000);
+    const windowStart =
+      Math.floor(timestamp / (METRICS_WINDOW_SECONDS * 1000)) *
+      (METRICS_WINDOW_SECONDS * 1000);
     const windowEnd = windowStart + METRICS_WINDOW_SECONDS * 1000;
 
     if (!metricsBuffer.has(windowKey)) {
@@ -212,4 +231,3 @@ const metricsMiddleware = createMiddleware(async (c: Context, next) => {
 });
 
 export default metricsMiddleware;
-
