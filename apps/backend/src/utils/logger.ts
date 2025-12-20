@@ -11,6 +11,7 @@ const COLORS = {
   reset: "\x1b[0m",
   API: "\x1b[32m",
   DB: "\x1b[34m",
+  WORKER: "\x1b[35m",
 };
 
 type BunLoggerLevel =
@@ -61,19 +62,18 @@ export class Logger {
       return String(arg);
     };
 
-    const time = new Date().toISOString();
+    // const time = new Date().toISOString();
     const message = formatArg(args[0]);
     const extra = args.slice(1).map(formatArg).join(" ");
 
     const LEVEL_WIDTH = 5;
     const NAMESPACE_WIDTH = 8;
-    const PREFIX_WIDTH =
-      time.length + 1 + LEVEL_WIDTH + 1 + NAMESPACE_WIDTH + 1;
+    const PREFIX_WIDTH = LEVEL_WIDTH + 1 + NAMESPACE_WIDTH + 1;
 
     const levelStr = `${level.toUpperCase()}`.padEnd(LEVEL_WIDTH);
     const namespaceStr = `[${this.namespace}]`.padEnd(NAMESPACE_WIDTH);
     const nsColor = COLORS[this.namespace as keyof typeof COLORS] ?? "\x1b[36m";
-    const colored = `${COLORS[level]}${levelStr}${COLORS.reset} ${nsColor}${namespaceStr}${COLORS.reset}`;
+    const colored = `${nsColor}${namespaceStr}${COLORS.reset} ${COLORS[level]}${levelStr}${COLORS.reset} ${COLORS.reset}`;
 
     const fullMessage = `${message}${extra ? " " + extra : ""}`;
     const lines = fullMessage.split("\n");
@@ -81,7 +81,7 @@ export class Logger {
       idx === 0 ? line : line.padStart(line.length + PREFIX_WIDTH)
     );
 
-    return `${time} ${colored} ${paddedLines.join("\n")}`;
+    return `${colored} ${paddedLines.join("\n")}`;
   }
 
   private async write(level: BunLoggerLevel, args: [string, ...unknown[]]) {
@@ -187,3 +187,6 @@ export const logger = new Logger("API");
 
 // DB logger (skip DB insert to avoid infinite recursion)
 export const dbLogger = new Logger("DB", true);
+
+// Worker logger
+export const workerLogger = new Logger("WORKER");

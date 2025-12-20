@@ -1,0 +1,31 @@
+{
+  "name": "worker",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "test": "LOG_LEVEL=silent bun test tests"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.159",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-eventbridge": "^3.956.0",
+    "@aws-sdk/client-sqs": "^3.700.0",
+    "@hono/zod-openapi": "^1.1.5",
+    "@pulumi/aws": "^7.14.0",
+    "@pulumi/pulumi": "^3.212.0",
+    "dotenv-expand": "^12.0.3",
+    "drizzle-kit": "^0.31.8",
+    "drizzle-orm": "^0.45.0",
+    "drizzle-zod": "^0.8.3",
+    "node-cron": "^3.0.3",
+    "postgres": "^3.4.7",
+    "zod": "^4.1.13"
+  }
+}

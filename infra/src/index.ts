@@ -1,6 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import { deploy as lambdaDeploy } from "./lambda";
 import { deploy as ecsDeploy } from "./ecs";
+import { deploy as workerDeploy } from "./worker";
 import * as dotenv from "dotenv";
 import path from "node:path";
 
@@ -33,4 +34,14 @@ if (platform === "lambda") {
 
 if (platform === "ecs") {
   outputs = ecsDeploy(env);
+}
+
+if (platform === "worker") {
+  outputs = workerDeploy(env) || {};
+  outputs.workerLambdaArn.apply((arn: string) => {
+    console.log("worker lambda arn:", arn);
+  });
+  outputs.queueUrl.apply((url: string) => {
+    console.log("queue url:", url);
+  });
 }

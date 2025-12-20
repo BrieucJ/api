@@ -1,7 +1,13 @@
 {
   "private": true,
+  "scripts": {
+    "dev": "concurrently --prefix none -c \"blue,green\" \"bun --cwd apps/backend dev\" \"bun --cwd apps/worker dev\"",
+    "dev:backend": "bun --cwd apps/backend dev",
+    "dev:worker": "bun --cwd apps/worker dev"
+  },
   "dependencies": {
-    "hono": "^4.10.8"
+    "hono": "^4.10.8",
+    "concurrently": "^9.1.0"
   },
   "workspaces": [
     "apps/*",
