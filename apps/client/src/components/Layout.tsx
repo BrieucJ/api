@@ -8,6 +8,7 @@ import {
   FileText,
   Database,
   Activity,
+  RotateCcw,
 } from "lucide-react";
 import { useAppStore } from "@/store/appStore";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,8 @@ import {
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Logs", href: "/dashboard/logs", icon: FileText },
+  { name: "Metrics", href: "/dashboard/metrics", icon: Activity },
+  { name: "Replay", href: "/dashboard/replay", icon: RotateCcw },
 ];
 
 export default function DashboardLayout() {
@@ -115,146 +118,141 @@ export default function DashboardLayout() {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex h-screen bg-background transition-colors">
-        {/* Header - Full Width */}
-        <header className="fixed top-0 left-0 right-0 z-10 w-full flex items-center justify-between gap-4 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4 py-3 h-14">
-          <div className="flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">
-                {apiInfo?.name || "Console"}
-              </span>
-              {apiInfo && (
-                <>
-                  <Badge variant="outline" className="text-xs">
-                    v{apiInfo.version}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {apiInfo.environment}
-                  </Badge>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
+      {/* Header - Full Width */}
+      <header className="fixed top-0 left-0 right-0 z-10 w-full flex items-center justify-between gap-4 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4 py-3 h-14">
+        <div className="flex items-center gap-4">
+          <SidebarTrigger />
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{apiInfo?.name}</span>
             {apiInfo && (
               <>
-                <Badge
-                  variant={
-                    healthStatus?.status === "healthy" ? "success" : "error"
-                  }
-                  className="text-xs"
-                >
-                  <Activity className="h-3 w-3 mr-1" />
-                  {healthStatus?.status === "healthy"
-                    ? "API Healthy"
-                    : "API Unhealthy"}
+                <Badge variant="outline" className="text-xs">
+                  v{apiInfo.version}
                 </Badge>
-                <Badge
-                  variant={apiInfo.database.connected ? "success" : "error"}
-                  className="text-xs"
-                >
-                  <Database className="h-3 w-3 mr-1" />
-                  {apiInfo.database.connected
-                    ? "DB Connected"
-                    : "DB Disconnected"}
+                <Badge variant="outline" className="text-xs">
+                  {apiInfo.environment}
                 </Badge>
-                <div className="hidden sm:flex flex-col text-xs text-muted-foreground">
-                  <span>Uptime: {apiInfo.uptime.formatted}</span>
-                  <span>
-                    Updated: {new Date(apiInfo.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
               </>
             )}
-            <Button size="sm" variant="outline" onClick={toggleTheme}>
-              {theme === "dark" ? (
-                <Sun className="w-4 h-4" />
-              ) : (
-                <Moon className="w-4 h-4" />
-              )}
-            </Button>
           </div>
-        </header>
+        </div>
 
-        <Sidebar collapsible="icon" className="top-14">
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {navigation.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    return (
-                      <SidebarMenuItem key={item.name}>
-                        <SidebarMenuButton asChild isActive={active}>
-                          <Link to={item.href}>
-                            <Icon />
-                            <span>{item.name}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-        </Sidebar>
+        <div className="flex items-center gap-3">
+          {apiInfo && (
+            <>
+              <Badge
+                variant={
+                  healthStatus?.status === "healthy" ? "success" : "error"
+                }
+                className="text-xs"
+              >
+                <Activity className="h-3 w-3 mr-1" />
+                {healthStatus?.status === "healthy"
+                  ? "API Healthy"
+                  : "API Unhealthy"}
+              </Badge>
+              <Badge
+                variant={apiInfo.database.connected ? "success" : "error"}
+                className="text-xs"
+              >
+                <Database className="h-3 w-3 mr-1" />
+                {apiInfo.database.connected
+                  ? "DB Connected"
+                  : "DB Disconnected"}
+              </Badge>
+              <div className="hidden sm:flex flex-col text-xs text-muted-foreground">
+                <span>Uptime: {apiInfo.uptime.formatted}</span>
+                <span>
+                  Updated: {new Date(apiInfo.timestamp).toLocaleTimeString()}
+                </span>
+              </div>
+            </>
+          )}
+          <Button size="sm" variant="outline" onClick={toggleTheme}>
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+      </header>
 
-        <SidebarInset className="mt-14">
-          <main
+      <Sidebar collapsible="icon" className="top-14">
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navigation.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  return (
+                    <SidebarMenuItem key={item.name}>
+                      <SidebarMenuButton asChild isActive={active}>
+                        <Link to={item.href}>
+                          <Icon />
+                          <span>{item.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+
+      <SidebarInset className="mt-14">
+        <div
+          className={cn(
+            "flex-1 flex flex-col min-w-0 w-full h-full",
+            location.pathname === "/dashboard/logs"
+              ? "overflow-hidden p-4"
+              : "overflow-auto p-4"
+          )}
+        >
+          {/* Breadcrumbs at top of page content */}
+          <div className="mb-4 shrink-0">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link to="/dashboard">Dashboard</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                {breadcrumbs.slice(1).map((crumb, index) => {
+                  const isLast = index === breadcrumbs.slice(1).length - 1;
+                  return (
+                    <div key={crumb.path} className="flex items-center">
+                      <BreadcrumbSeparator />
+                      <BreadcrumbItem>
+                        {isLast ? (
+                          <BreadcrumbPage>{crumb.name}</BreadcrumbPage>
+                        ) : (
+                          <BreadcrumbLink asChild>
+                            <Link to={crumb.path}>{crumb.name}</Link>
+                          </BreadcrumbLink>
+                        )}
+                      </BreadcrumbItem>
+                    </div>
+                  );
+                })}
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+
+          <div
             className={cn(
-              "flex-1 flex flex-col min-w-0",
-              location.pathname === "/dashboard/logs"
-                ? "overflow-hidden p-4"
-                : "overflow-auto p-4"
+              "w-full min-w-0",
+              location.pathname === "/dashboard/logs" ? "flex-1 min-h-0" : ""
             )}
           >
-            {/* Breadcrumbs at top of page content */}
-            <div className="mb-4 shrink-0">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link to="/dashboard">Dashboard</Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  {breadcrumbs.slice(1).map((crumb, index) => {
-                    const isLast = index === breadcrumbs.slice(1).length - 1;
-                    return (
-                      <div key={crumb.path} className="flex items-center">
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                          {isLast ? (
-                            <BreadcrumbPage>{crumb.name}</BreadcrumbPage>
-                          ) : (
-                            <BreadcrumbLink asChild>
-                              <Link to={crumb.path}>{crumb.name}</Link>
-                            </BreadcrumbLink>
-                          )}
-                        </BreadcrumbItem>
-                      </div>
-                    );
-                  })}
-                </BreadcrumbList>
-              </Breadcrumb>
-            </div>
-
-            <div
-              className={cn(
-                location.pathname === "/dashboard/logs"
-                  ? "flex-1 min-h-0 min-w-0"
-                  : ""
-              )}
-            >
-              <Outlet />
-            </div>
-          </main>
-        </SidebarInset>
-      </div>
+            <Outlet />
+          </div>
+        </div>
+      </SidebarInset>
     </SidebarProvider>
   );
 }

@@ -3,7 +3,7 @@ import type { Hook } from "@hono/zod-openapi";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import { LOOKUP_MAP } from "@/db/querybuilder";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { serveEmojiFavicon, geo } from "@/api/middlewares";
+import { serveEmojiFavicon, geo, metrics, snapshot } from "@/api/middlewares";
 import { logger } from "@/utils/logger";
 import { requestId } from "hono/request-id";
 import { cors } from "hono/cors";
@@ -250,7 +250,32 @@ export function createApp() {
       credentials: true,
     })
   );
-  app.use(csrf());
+  // CSRF middleware that skips internal replay requests
+  app.use(async (c, next) => {
+    // Skip CSRF for internal replay requests (identified by special header)
+    // or requests from localhost/127.0.0.1
+    const isInternalReplay = c.req.header("x-internal-replay") === "true";
+    const origin = c.req.header("origin");
+    const host = c.req.header("host");
+
+    // Check if request is from same origin (internal) or localhost
+    const isInternalRequest =
+      isInternalReplay ||
+      !origin ||
+      origin.includes("localhost") ||
+      origin.includes("127.0.0.1") ||
+      (host &&
+        (origin?.includes(`http://${host}`) ||
+          origin?.includes(`https://${host}`)));
+
+    if (isInternalRequest) {
+      await next();
+      return;
+    }
+
+    // Apply CSRF for external requests
+    return csrf()(c, next);
+  });
   app.use(
     languageDetector({
       fallbackLanguage: "en",
@@ -258,6 +283,8 @@ export function createApp() {
   );
   app.use(timing());
   app.use(geo);
+  app.use(metrics);
+  app.use(snapshot);
   app.use("/api/v1/*", async (c, next) => {
     const start = Date.now();
     let body: any = null;

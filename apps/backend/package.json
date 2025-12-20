@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "bun --watch src/servers/http.ts",
     "test": "LOG_LEVEL=silent bun test tests",
-    "db:up": "drizzle-kit push",
-    "db:down": "drizzle-kit migrate down",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "infra:deploy:lambda:staging": "bash ../../infra/pulumi-run.sh lambda staging up",

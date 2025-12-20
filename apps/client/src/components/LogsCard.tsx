@@ -25,7 +25,7 @@ export default function LogsCard() {
         <CardDescription className="flex flex-row gap-2 p-0 m-0">
           <div className="text-xs">{logs.length} entries</div>
           <div className="text-xs">
-            Dernier log: {lastLog && new Date(lastLog).toISOString()}
+            Last log: {lastLog && new Date(lastLog).toLocaleString()}
           </div>
         </CardDescription>
       </CardHeader>

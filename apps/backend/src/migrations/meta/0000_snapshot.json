@@ -1,5 +1,5 @@
 {
-  "id": "f880bce8-efa4-4cf6-becc-14b60237818e",
+  "id": "75d5b537-d1b8-4934-9859-dabe17e66766",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -115,8 +115,20 @@
           "primaryKey": false,
           "notNull": true
         },
+        "p50_latency": {
+          "name": "p50_latency",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "p95_latency": {
           "name": "p95_latency",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "p99_latency": {
+          "name": "p99_latency",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -132,6 +144,18 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "request_size": {
+          "name": "request_size",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_size": {
+          "name": "response_size",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
         },
         "id": {
           "name": "id",
@@ -243,6 +267,30 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "status_code": {
+          "name": "status_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_body": {
+          "name": "response_body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_headers": {
+          "name": "response_headers",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration": {
+          "name": "duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "id": {
           "name": "id",

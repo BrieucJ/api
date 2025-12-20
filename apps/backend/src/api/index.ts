@@ -8,6 +8,8 @@ import users from "@/api/routes/public/users/users.index";
 import logs from "@/api/routes/private/logs/logs.index";
 import info from "@/api/routes/private/info/info.index";
 import health from "@/api/routes/private/health/health.index";
+import metrics from "@/api/routes/private/metrics/metrics.index";
+import replay from "@/api/routes/private/replay/replay.index";
 
 // Store server start time for uptime calculation
 export const SERVER_START_TIME = Date.now();
@@ -20,7 +22,7 @@ configureOpenAPI(app);
 
 const publicRoutes = [users] as const;
 
-const privateRoutes = [logs, info, health] as const;
+const privateRoutes = [logs, info, health, metrics, replay] as const;
 
 const allRoutes = [...publicRoutes, ...privateRoutes] as const;
 

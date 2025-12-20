@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
 import LogsPage from "@/pages/LogsPage";
-// import MetricsPage, AlertsPage when ready
+import MetricsPage from "@/pages/MetricsPage";
+import ReplayPage from "@/pages/ReplayPage";
 
 export default function App() {
   return (
@@ -13,8 +14,8 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<Dashboard />} /> {/* Shows cards */}
           <Route path="logs" element={<LogsPage />} /> {/* Full-page logs */}
-          {/* <Route path="metrics" element={<MetricsPage />} /> */}
-          {/* <Route path="alerts" element={<AlertsPage />} /> */}
+          <Route path="metrics" element={<MetricsPage />} />
+          <Route path="replay" element={<ReplayPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

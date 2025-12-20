@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import type { LogSelectType, ApiInfo, HealthStatus } from "@shared/types";
+import type {
+  LogSelectType,
+  MetricsSelectType,
+  SnapshotSelectType,
+  ApiInfo,
+  HealthStatus,
+} from "@shared/types";
+import { client } from "@/lib/client";
 import config from "@/lib/config";
 
 interface AppStore {
@@ -7,6 +14,20 @@ interface AppStore {
   addLog: (log: LogSelectType) => void;
   initLogsSSE: () => void;
   _sseStarted: boolean;
+  metrics: MetricsSelectType[];
+  addMetric: (metric: MetricsSelectType) => void;
+  initMetricsSSE: () => void;
+  _metricsSseStarted: boolean;
+  snapshots: SnapshotSelectType[];
+  setSnapshots: (snapshots: SnapshotSelectType[]) => void;
+  fetchSnapshots: (params?: {
+    limit?: number;
+    offset?: number;
+    method?: string;
+    path?: string;
+    statusCode?: number;
+  }) => Promise<void>;
+  replayRequest: (id: number) => Promise<any>;
   apiInfo: ApiInfo | null;
   setApiInfo: (info: ApiInfo) => void;
   initInfoPolling: () => () => void;
@@ -20,6 +41,9 @@ interface AppStore {
 export const useAppStore = create<AppStore>((set, get) => ({
   logs: [],
   _sseStarted: false,
+  metrics: [],
+  _metricsSseStarted: false,
+  snapshots: [],
   apiInfo: null,
   _infoPollingStarted: false,
   healthStatus: null,
@@ -29,18 +53,80 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (state.logs.find((l) => l.id === log.id)) return state;
       return { logs: [...state.logs, log] };
     }),
+  addMetric: (metric) =>
+    set((state) => {
+      if (state.metrics.find((m) => m.id === metric.id)) return state;
+      return { metrics: [...state.metrics, metric] };
+    }),
+  setSnapshots: (snapshots) => set({ snapshots }),
+  fetchSnapshots: async (params = {}) => {
+    try {
+      const { limit = 50, offset = 0, method, path, statusCode } = params;
+      const query: Record<string, string> = {
+        limit: limit.toString(),
+        offset: offset.toString(),
+      };
+      if (method) query.method = method;
+      if (path) query.path = path;
+      if (statusCode !== undefined) query.statusCode = statusCode.toString();
+
+      // Type assertion needed because AppType union doesn't properly expose all routes
+      const response = await (client as any).replay.$get({ query });
+      if (response.ok) {
+        const data = (await response.json()) as { data?: SnapshotSelectType[] };
+        if (data.data) {
+          get().setSnapshots(data.data);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch snapshots:", error);
+    }
+  },
+  replayRequest: async (id: number) => {
+    try {
+      const idStr = id.toString();
+      // Hono client doesn't properly type parameterized routes, so we use type assertion
+      const replayClient = (client as any).replay;
+      const response = await replayClient[idStr].replay.$post({
+        param: { id: idStr },
+      });
+      if (response.ok) {
+        const data = (await response.json()) as { data?: any };
+        return data.data;
+      } else {
+        const error = (await response.json()) as {
+          error?: { message?: string };
+        };
+        throw new Error(error.error?.message || "Replay failed");
+      }
+    } catch (error) {
+      console.error("Failed to replay request:", error);
+      throw error;
+    }
+  },
   setApiInfo: (info) => set({ apiInfo: info }),
   setHealthStatus: (status) => set({ healthStatus: status }),
   initLogsSSE: () => {
     console.log("initLogsSSE");
     if (get()._sseStarted) return;
-    get()._sseStarted = true;
+    set({ _sseStarted: true });
 
     const eventSource = new EventSource(`${config.BACKEND_URL}/logs/stream`);
 
     eventSource.addEventListener("log-update", (event: MessageEvent) => {
       const newLog: LogSelectType = JSON.parse(event.data);
       get().addLog(newLog);
+    });
+  },
+  initMetricsSSE: () => {
+    if (get()._metricsSseStarted) return;
+    set({ _metricsSseStarted: true });
+
+    const eventSource = new EventSource(`${config.BACKEND_URL}/metrics/stream`);
+
+    eventSource.addEventListener("metric-update", (event: MessageEvent) => {
+      const newMetric: MetricsSelectType = JSON.parse(event.data);
+      get().addMetric(newMetric);
     });
   },
   initInfoPolling: () => {
@@ -51,9 +137,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const fetchInfo = async () => {
       try {
-        const response = await fetch(`${config.BACKEND_URL}/info`);
+        const response = await client.info.$get({});
         if (response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as { data?: ApiInfo };
           if (data.data) {
             get().setApiInfo(data.data);
           }
@@ -83,9 +169,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const fetchHealth = async () => {
       try {
-        const response = await fetch(`${config.BACKEND_URL}/health`);
+        const response = await client.health.$get({});
         if (response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as { data?: HealthStatus };
           if (data.data) {
             get().setHealthStatus(data.data);
           }
