@@ -49,31 +49,31 @@ graph TB
         UI[React Dashboard]
         SSE1[SSE Connections]
     end
-    
+
     subgraph Backend["Backend API"]
         API[Hono Server]
         Middleware[Middleware Stack]
         Handlers[Route Handlers]
         QueryBuilder[QueryBuilder]
     end
-    
+
     subgraph Worker["Background Worker"]
         Queue[Job Queue]
         Scheduler[CRON Scheduler]
         JobHandlers[Job Handlers]
     end
-    
+
     subgraph Database["PostgreSQL"]
         DB[(Database)]
         Vector[Vector Search]
     end
-    
+
     subgraph Infrastructure["Infrastructure"]
         Lambda[AWS Lambda]
         SQS[AWS SQS]
         EventBridge[EventBridge]
     end
-    
+
     UI -->|HTTP/SSE| API
     API -->|Query| QueryBuilder
     QueryBuilder -->|SQL| DB
@@ -90,6 +90,7 @@ graph TB
 ### Component Descriptions
 
 #### Backend API (`apps/backend`)
+
 - **Framework**: Hono (lightweight, fast web framework)
 - **Runtime**: Bun (JavaScript runtime)
 - **Database**: PostgreSQL with Drizzle ORM
@@ -101,6 +102,7 @@ graph TB
   - Soft delete support
 
 #### Frontend Client (`apps/client`)
+
 - **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS
@@ -114,6 +116,7 @@ graph TB
   - Worker job management
 
 #### Worker (`apps/worker`)
+
 - **Purpose**: Background job processing
 - **Queue System**: SQS (production) or Local (development)
 - **Scheduler**: EventBridge (production) or node-cron (local)
@@ -127,6 +130,7 @@ graph TB
   - CRON-based scheduling
 
 #### Infrastructure (`infra`)
+
 - **Tool**: Pulumi (Infrastructure as Code)
 - **Platforms**: AWS Lambda, ECS, Cloudflare Workers
 - **Services**: SQS, EventBridge, API Gateway
@@ -142,7 +146,7 @@ sequenceDiagram
     participant QueryBuilder
     participant DB
     participant Queue
-    
+
     Client->>API: HTTP Request
     API->>Middleware: Geo Middleware
     Middleware->>Middleware: Extract Geo Info
@@ -166,9 +170,11 @@ sequenceDiagram
 ## Tech Stack
 
 ### Runtime
+
 - **Bun**: Fast JavaScript runtime, bundler, and package manager
 
 ### Backend
+
 - **Hono**: Ultra-fast web framework
 - **Drizzle ORM**: TypeScript ORM with PostgreSQL
 - **Zod**: Schema validation
@@ -176,6 +182,7 @@ sequenceDiagram
 - **PostgreSQL**: Database with vector extension support
 
 ### Frontend
+
 - **React 19**: UI library
 - **Vite**: Build tool and dev server
 - **Tailwind CSS**: Utility-first CSS framework
@@ -185,6 +192,7 @@ sequenceDiagram
 - **Radix UI**: Accessible component primitives
 
 ### Infrastructure
+
 - **Pulumi**: Infrastructure as Code
 - **AWS SDK**: AWS service integration
   - Lambda
@@ -194,6 +202,7 @@ sequenceDiagram
   - ECR
 
 ### Development Tools
+
 - **TypeScript**: Type safety
 - **ESLint**: Code linting
 - **Drizzle Kit**: Database migrations
@@ -203,6 +212,7 @@ sequenceDiagram
 ### Real-time Metrics Collection
 
 Automatic collection of API performance metrics:
+
 - **Latency Percentiles**: P50, P95, P99
 - **Error Rates**: Percentage of failed requests
 - **Traffic Counts**: Request volume per endpoint
@@ -214,6 +224,7 @@ Metrics are collected via middleware and processed asynchronously by the worker.
 ### Log Streaming
 
 Server-Sent Events (SSE) for real-time log monitoring:
+
 - Stream logs as they're created
 - Filter by source, level, or message
 - Search with keyword and semantic search
@@ -222,6 +233,7 @@ Server-Sent Events (SSE) for real-time log monitoring:
 ### Request Snapshot & Replay
 
 Capture and replay HTTP requests:
+
 - **Automatic Capture**: All `/api/v1/*` requests are captured
 - **Full Context**: Method, path, query, body, headers, response
 - **Geo Information**: Country, region, city, coordinates
@@ -231,6 +243,7 @@ Capture and replay HTTP requests:
 ### Vector-based Semantic Search
 
 PostgreSQL vector embeddings for semantic search:
+
 - **Hybrid Search**: Combines keyword (ILIKE) and vector (cosine similarity)
 - **Automatic Embeddings**: Generated on create/update
 - **16-dimensional Vectors**: Lightweight but effective
@@ -239,6 +252,7 @@ PostgreSQL vector embeddings for semantic search:
 ### Job Queue System
 
 Asynchronous job processing:
+
 - **SQS Integration**: Production-ready queue
 - **Local Queue**: Development-friendly in-memory queue
 - **Retry Logic**: Exponential backoff on failures
@@ -247,6 +261,7 @@ Asynchronous job processing:
 ### CRON Scheduling
 
 Scheduled job execution:
+
 - **EventBridge**: Production scheduling
 - **node-cron**: Local development
 - **Default Jobs**: Health checks, log cleanup, metrics aggregation
@@ -254,6 +269,7 @@ Scheduled job execution:
 ### Geo-location Tracking
 
 Automatic geographic information extraction:
+
 - **Multiple Sources**: Cloudflare, CloudFront, custom headers, IP lookup
 - **Fallback Chain**: Platform → Headers → IP → None
 - **Data Captured**: Country, region, city, coordinates
@@ -261,6 +277,7 @@ Automatic geographic information extraction:
 ### OpenAPI Documentation
 
 Interactive API documentation:
+
 - **Scalar UI**: Beautiful API reference
 - **Auto-generated**: From Zod schemas
 - **Interactive**: Test endpoints directly
@@ -372,12 +389,14 @@ api/
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd api
    ```
 
 2. **Install dependencies**
+
    ```bash
    bun install
    ```
@@ -387,6 +406,7 @@ api/
    Create `.env` files in each app directory:
 
    **`apps/backend/.env`**:
+
    ```env
    NODE_ENV=development
    PORT=3000
@@ -396,6 +416,7 @@ api/
    ```
 
    **`apps/worker/.env`**:
+
    ```env
    NODE_ENV=development
    WORKER_MODE=local
@@ -405,6 +426,7 @@ api/
    ```
 
    **`apps/client/.env`** (optional):
+
    ```env
    VITE_API_URL=http://localhost:3000
    ```
@@ -435,17 +457,19 @@ api/
 ### Running Locally
 
 **Start all services:**
+
 ```bash
 # From root directory
 bun run dev
 ```
 
 This starts:
+
 - Backend API on `http://localhost:3000`
 - Worker on `http://localhost:8081`
-- Client on `http://localhost:5173` (Vite default)
 
 **Start services individually:**
+
 ```bash
 # Backend only
 bun run dev:backend
@@ -463,6 +487,7 @@ bun run dev
 ### Development Commands
 
 **Backend (`apps/backend`):**
+
 ```bash
 bun run dev              # Start dev server with watch
 bun run test            # Run tests
@@ -474,6 +499,7 @@ bun run db:seed         # Seed database
 ```
 
 **Client (`apps/client`):**
+
 ```bash
 bun run dev             # Start Vite dev server
 bun run build           # Build for production
@@ -482,6 +508,7 @@ bun run lint            # Run ESLint
 ```
 
 **Worker (`apps/worker`):**
+
 ```bash
 bun run dev             # Start worker with watch
 bun run test            # Run tests
@@ -494,6 +521,7 @@ bun run test            # Run tests
 Routes are organized by visibility:
 
 - **Public Routes** (`/api/v1/*`): User-facing endpoints
+
   - `GET /api/v1/users` - List users
   - `GET /api/v1/users/:id` - Get user
   - `POST /api/v1/users` - Create user
@@ -686,6 +714,7 @@ Interactive API documentation is available at `/reference` when the server is ru
 The database uses PostgreSQL with the following main tables:
 
 #### Users (`users`)
+
 - `id`: Primary key (auto-increment)
 - `name`: Text (required)
 - `age`: Integer (required)
@@ -695,6 +724,7 @@ The database uses PostgreSQL with the following main tables:
 - `embedding`: Vector(16) (for search)
 
 #### Logs (`logs`)
+
 - `id`: Primary key
 - `source`: Text (e.g., "API", "DB", "WORKER")
 - `level`: Text (debug, info, warn, error)
@@ -703,6 +733,7 @@ The database uses PostgreSQL with the following main tables:
 - `created_at`, `updated_at`, `deleted_at`, `embedding`
 
 #### Metrics (`metrics`)
+
 - `id`: Primary key
 - `windowStart`: Timestamp (60-second window start)
 - `windowEnd`: Timestamp (60-second window end)
@@ -717,6 +748,7 @@ The database uses PostgreSQL with the following main tables:
 - `created_at`, `updated_at`, `deleted_at`, `embedding`
 
 #### Request Snapshots (`request_snapshots`)
+
 - `id`: Primary key
 - `method`: Text (GET, POST, etc.)
 - `path`: Text
@@ -789,15 +821,18 @@ Migration files are in `apps/backend/src/migrations/`.
 The worker processes the following job types:
 
 1. **PROCESS_RAW_METRICS**: Aggregates raw metrics into time windows
+
    - Groups metrics by 60-second windows
    - Calculates percentiles (P50, P95, P99)
    - Computes error rates
    - Stores aggregated metrics
 
 2. **PROCESS_METRICS**: Processes existing metrics (legacy)
+
    - Similar to PROCESS_RAW_METRICS
 
 3. **CLEANUP_LOGS**: Removes old log entries
+
    - Configurable retention period (default: 30 days)
    - Batch processing
    - Soft delete support
@@ -813,12 +848,16 @@ The worker processes the following job types:
 
 ```typescript
 // Enqueue job to SQS
-await enqueueJob(JobType.PROCESS_RAW_METRICS, {
-  metrics: rawMetricsArray,
-}, {
-  maxAttempts: 3,
-  delay: 5000, // 5 seconds
-});
+await enqueueJob(
+  JobType.PROCESS_RAW_METRICS,
+  {
+    metrics: rawMetricsArray,
+  },
+  {
+    maxAttempts: 3,
+    delay: 5000, // 5 seconds
+  }
+);
 ```
 
 #### Development (Local)
@@ -853,7 +892,7 @@ sequenceDiagram
     participant Worker
     participant Handler
     participant DB
-    
+
     API->>Queue: Enqueue Job
     Queue->>Worker: Poll Job
     Worker->>Handler: Process Job
@@ -871,6 +910,7 @@ sequenceDiagram
 ### Adding New Jobs
 
 1. **Define Job Type** (`apps/worker/src/jobs/types.ts`):
+
    ```typescript
    export enum JobType {
      MY_NEW_JOB = "MY_NEW_JOB",
@@ -878,6 +918,7 @@ sequenceDiagram
    ```
 
 2. **Create Handler** (`apps/worker/src/jobs/handlers/myNewJob.ts`):
+
    ```typescript
    export async function myNewJob(payload: MyPayload): Promise<void> {
      // Job logic
@@ -885,6 +926,7 @@ sequenceDiagram
    ```
 
 3. **Register Handler** (`apps/worker/src/jobs/registry.ts`):
+
    ```typescript
    const handlers: JobHandlerMap = {
      [JobType.MY_NEW_JOB]: myNewJob,
@@ -976,6 +1018,7 @@ pulumi up
 ```
 
 This creates:
+
 - ECR repository
 - Lambda function (container image)
 - API Gateway (HTTP API)
@@ -990,6 +1033,7 @@ pulumi up
 ```
 
 This creates:
+
 - Lambda function for worker
 - SQS queue
 - EventBridge rules for CRON
@@ -1004,6 +1048,7 @@ pulumi up
 ```
 
 This creates:
+
 - S3 bucket
 - CloudFront distribution
 - Route 53 (if configured)
@@ -1048,33 +1093,33 @@ Deploy using Wrangler or Cloudflare dashboard.
 
 #### Backend (`apps/backend/.env`)
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `NODE_ENV` | Environment | No | `development` |
-| `PORT` | Server port | No | `3000` |
-| `LOG_LEVEL` | Log level | Yes | - |
-| `DATABASE_URL` | PostgreSQL connection string | Yes | - |
-| `WORKER_URL` | Worker HTTP endpoint (dev) | No | - |
-| `SQS_QUEUE_URL` | SQS queue URL (prod) | No | - |
-| `AWS_REGION` | AWS region | No | - |
+| Variable        | Description                  | Required | Default       |
+| --------------- | ---------------------------- | -------- | ------------- |
+| `NODE_ENV`      | Environment                  | No       | `development` |
+| `PORT`          | Server port                  | No       | `3000`        |
+| `LOG_LEVEL`     | Log level                    | Yes      | -             |
+| `DATABASE_URL`  | PostgreSQL connection string | Yes      | -             |
+| `WORKER_URL`    | Worker HTTP endpoint (dev)   | No       | -             |
+| `SQS_QUEUE_URL` | SQS queue URL (prod)         | No       | -             |
+| `AWS_REGION`    | AWS region                   | No       | -             |
 
 #### Worker (`apps/worker/.env`)
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `NODE_ENV` | Environment | No | `development` |
-| `WORKER_MODE` | `local` or `lambda` | No | `local` |
-| `LOG_LEVEL` | Log level | Yes | - |
-| `PORT` | HTTP server port (local) | No | `8081` |
-| `DATABASE_URL` | PostgreSQL connection string | Yes | - |
-| `SQS_QUEUE_URL` | SQS queue URL (prod) | No | - |
-| `AWS_REGION` | AWS region | No | - |
+| Variable        | Description                  | Required | Default       |
+| --------------- | ---------------------------- | -------- | ------------- |
+| `NODE_ENV`      | Environment                  | No       | `development` |
+| `WORKER_MODE`   | `local` or `lambda`          | No       | `local`       |
+| `LOG_LEVEL`     | Log level                    | Yes      | -             |
+| `PORT`          | HTTP server port (local)     | No       | `8081`        |
+| `DATABASE_URL`  | PostgreSQL connection string | Yes      | -             |
+| `SQS_QUEUE_URL` | SQS queue URL (prod)         | No       | -             |
+| `AWS_REGION`    | AWS region                   | No       | -             |
 
 #### Client (`apps/client/.env`)
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `VITE_API_URL` | Backend API URL | No | `http://localhost:3000` |
+| Variable       | Description     | Required | Default                 |
+| -------------- | --------------- | -------- | ----------------------- |
+| `VITE_API_URL` | Backend API URL | No       | `http://localhost:3000` |
 
 ### Database Configuration
 
@@ -1085,11 +1130,13 @@ postgresql://username:password@host:port/database
 ```
 
 Required extensions:
+
 - `vector` (for pgvector)
 
 ### Logging Configuration
 
 Log levels (from most to least verbose):
+
 - `trace`
 - `debug`
 - `info`
@@ -1112,22 +1159,26 @@ Set via `LOG_LEVEL` environment variable.
 ### Development Workflow
 
 1. **Create a branch**
+
    ```bash
    git checkout -b feature/my-feature
    ```
 
 2. **Make changes**
+
    - Follow existing code patterns
    - Use QueryBuilder for database operations
    - Add tests for new features
 
 3. **Test locally**
+
    ```bash
    bun run test
    bun run dev
    ```
 
 4. **Commit**
+
    ```bash
    git commit -m "feat: add new feature"
    ```
@@ -1137,6 +1188,7 @@ Set via `LOG_LEVEL` environment variable.
 ### Testing Guidelines
 
 - Write tests for:
+
   - QueryBuilder operations
   - Job handlers
   - API route handlers
@@ -1161,6 +1213,7 @@ Set via `LOG_LEVEL` environment variable.
 ### Adding New Routes
 
 1. **Create route definition** (`*.routes.ts`):
+
    ```typescript
    export const list = createRoute({
      method: "get",
@@ -1170,6 +1223,7 @@ Set via `LOG_LEVEL` environment variable.
    ```
 
 2. **Create handler** (`*.handlers.ts`):
+
    ```typescript
    export const list: AppRouteHandler<ListRoute> = async (c) => {
      // Handler logic
@@ -1177,9 +1231,9 @@ Set via `LOG_LEVEL` environment variable.
    ```
 
 3. **Register route** (`*.index.ts`):
+
    ```typescript
-   const route = createRouter()
-     .openapi(list, listHandler);
+   const route = createRouter().openapi(list, listHandler);
    ```
 
 4. **Add to main app** (`apps/backend/src/api/index.ts`)
@@ -1193,4 +1247,3 @@ Set via `LOG_LEVEL` environment variable.
 ## Support
 
 [Add support information here]
-
