@@ -3,10 +3,9 @@ import * as aws from "@pulumi/aws";
 import * as command from "@pulumi/command";
 
 export function deploy(env: string) {
-  const { DATABASE_URL, LOG_LEVEL, NODE_ENV, WORKER_MODE, AWS_REGION } =
-    process.env;
+  const { DATABASE_URL, LOG_LEVEL, NODE_ENV } = process.env;
   const name = `worker-${env}`;
-
+  const accountId = aws.getCallerIdentity().then((id) => id.accountId);
   // 1️⃣ ECR Repository
   const repo = new aws.ecr.Repository(name, { forceDelete: true });
 
@@ -17,7 +16,7 @@ export function deploy(env: string) {
 
   const queue = new aws.sqs.Queue(`${name}-queue`, {
     messageRetentionSeconds: 345600, // 4 days
-    visibilityTimeoutSeconds: 300, // 5 minutes
+    visibilityTimeoutSeconds: 900, // 5 minutes
     receiveWaitTimeSeconds: 20, // Long polling
     redrivePolicy: pulumi.interpolate`{
       "deadLetterTargetArn": "${dlq.arn}",
@@ -95,7 +94,7 @@ export function deploy(env: string) {
       # Move to repo root so Docker build context includes everything
       cd ../../ &&
       # Login to AWS ECR
-      aws ecr get-login-password --region ${AWS_REGION || "eu-west-3"} \
+      aws ecr get-login-password --region eu-west-3 \
         | docker login --username AWS --password-stdin ${repo.repositoryUrl} &&
       # Build Worker image
       docker build -t ${name} -f .docker/Dockerfile.worker . &&
@@ -122,7 +121,6 @@ export function deploy(env: string) {
           NODE_ENV: NODE_ENV!,
           WORKER_MODE: "lambda",
           SQS_QUEUE_URL: queue.url,
-          AWS_REGION: AWS_REGION || "eu-west-3",
         },
       },
     },
@@ -142,7 +140,7 @@ export function deploy(env: string) {
     action: "lambda:InvokeFunction",
     function: workerLambda.name,
     principal: "events.amazonaws.com",
-    sourceArn: pulumi.interpolate`arn:aws:events:${AWS_REGION || "eu-west-3"}:*:rule/${name}-*`,
+    sourceArn: pulumi.interpolate`arn:aws:events:eu-west-3:${accountId}:rule/${name}-*`,
   });
 
   return {
@@ -154,4 +152,3 @@ export function deploy(env: string) {
     dlqArn: dlq.arn,
   };
 }
-

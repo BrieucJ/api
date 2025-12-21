@@ -6,7 +6,7 @@ import { logger } from "@/utils/logger";
 export type GeoSource = "platform" | "header" | "ip" | "none";
 
 export interface GeoContext {
-  source: GeoSource;
+  source: GeoSource | null;
   country?: string;
   region?: string;
   city?: string;
@@ -100,7 +100,7 @@ const geo = createMiddleware(async (c, next) => {
       configurable: true,
     });
   } catch (e) {
-    logger.error(e);
+    logger.error("error", e);
   } finally {
     await next();
   }

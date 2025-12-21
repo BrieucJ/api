@@ -5,8 +5,8 @@ import {
   timestamp,
   integer,
   doublePrecision,
+  pgEnum,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 import {
   createSelectSchema,
   createInsertSchema,
@@ -17,6 +17,8 @@ import { extendZodWithOpenApi } from "@hono/zod-openapi";
 import base from "./_base";
 
 extendZodWithOpenApi(z);
+
+const geoSourceEnum = pgEnum("geoSource", ["platform", "header", "ip", "none"]);
 
 export const requestSnapshots = pgTable("request_snapshots", {
   method: text().notNull(),
@@ -37,7 +39,7 @@ export const requestSnapshots = pgTable("request_snapshots", {
   geoCity: text("geo_city"),
   geoLat: doublePrecision("geo_lat"),
   geoLon: doublePrecision("geo_lon"),
-  geoSource: text("geo_source"),
+  geoSource: geoSourceEnum(),
   ...base,
 });
 
