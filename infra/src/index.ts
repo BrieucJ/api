@@ -4,13 +4,7 @@ import { deploy as ecsDeploy } from "./ecs";
 import { deploy as workerDeploy } from "./worker";
 import { deploy as clientDeploy } from "./client";
 
-// Pulumi reads configuration from:
-// 1. Pulumi stack config files (Pulumi.<stack>.yaml)
-// 2. Environment variables (process.env) - set in CI/CD
-// 3. Pulumi config commands (pulumi config set)
-// Do NOT use dotenv - Pulumi has its own configuration system
-
-const stack = pulumi.getStack(); // e.g. lambda-prod
+const stack = pulumi.getStack(); // e.g., lambda-prod
 const [platform, env] = stack.split("-");
 
 if (!platform || !env) {
@@ -20,41 +14,27 @@ if (!platform || !env) {
 pulumi.log.info(`Platform: ${platform}`);
 pulumi.log.info(`Environment: ${env}`);
 
-let outputs: Record<string, any> = {};
+let outputs: Record<string, pulumi.Output<any>> = {};
 
-if (platform === "lambda") {
-  outputs = lambdaDeploy(env) || {};
-  outputs.apiLambdaArn.apply((arn: string) => {
-    console.log("arn", arn);
-  });
-  outputs.apiLambdaName.apply((name: string) => {
-    console.log("name:", name);
-  });
-  outputs.apiUrl.apply((url: string) => {
-    console.log("url:", url);
-  });
+// Deploy based on platform
+switch (platform) {
+  case "lambda":
+    outputs = lambdaDeploy(env) || {};
+    break;
+  case "ecs":
+    outputs = ecsDeploy(env) || {};
+    break;
+  case "worker":
+    outputs = workerDeploy(env) || {};
+    break;
+  case "client":
+    outputs = clientDeploy(env) || {};
+    break;
+  default:
+    throw new Error(`Unknown platform: ${platform}`);
 }
 
-if (platform === "ecs") {
-  outputs = ecsDeploy(env);
-}
-
-if (platform === "worker") {
-  outputs = workerDeploy(env) || {};
-  outputs.workerLambdaArn.apply((arn: string) => {
-    console.log("worker lambda arn:", arn);
-  });
-  outputs.queueUrl.apply((url: string) => {
-    console.log("queue url:", url);
-  });
-}
-
-if (platform === "client") {
-  outputs = clientDeploy(env) || {};
-  outputs.distributionUrl.apply((url: string) => {
-    console.log("client url:", url);
-  });
-  outputs.distributionId.apply((id: string) => {
-    console.log("distribution id:", id);
-  });
-}
+// Export all outputs at top-level
+export const apiLambdaArn = outputs.apiLambdaArn;
+export const apiLambdaName = outputs.apiLambdaName;
+export const apiUrl = outputs.apiUrl;

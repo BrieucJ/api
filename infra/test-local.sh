@@ -108,7 +108,9 @@ case $choice in
     bash pulumi-run.sh lambda prod up
     
     echo -e "\n${GREEN}Getting Backend API URL...${NC}"
-    API_URL=$(bun x pulumi stack output apiUrl --stack lambda-prod --json 2>/dev/null | tr -d '"' || echo "")
+    API_URL=$(pulumi stack output apiUrl --stack lambda-prod)
+    echo "Backend API URL: $API_URL"
+    # API_URL=$(bun x pulumi stack output apiUrl --stack lambda-prod --json 2>/dev/null | tr -d '"' || echo "")
     
     if [[ -z "$API_URL" ]]; then
       echo -e "${RED}❌ Failed to get API URL from Pulumi stack${NC}"

@@ -1,31 +1,45 @@
 # -------------------------
-# 1️⃣ Build stage: Bun + TypeScript bundle
+# 1️⃣ Build stage
 FROM oven/bun:debian AS build
 WORKDIR /var/task
 
-COPY apps/worker/package.json apps/worker/bun.lock apps/worker/tsconfig.json ./
+# Copy root & workspace package files
+COPY package.json bun.lock ./
+COPY apps/backend/package.json apps/backend/package.json
+COPY apps/client/package.json apps/client/package.json
+COPY apps/worker/package.json apps/worker/package.json
+COPY apps/worker/tsconfig.json ./apps/worker/tsconfig.json
+COPY packages packages
+
+# Install dependencies
 RUN bun install --frozen-lockfile
 
-COPY apps/worker/src ./src
+# Copy relevant source
+COPY apps/worker/src ./apps/worker/src
+COPY apps/backend/src ./apps/backend/src
+COPY apps/backend/tsconfig.json ./apps/backend/tsconfig.json
+COPY packages ./packages
+COPY packages/tsconfig.json ./packages/tsconfig.json
 
-# Bundle everything for Lambda
-RUN bun build src/servers/lambda.ts \
+# Build Lambda bundle: output to directory (bun outputs lambda.js directly in outdir when bundling)
+RUN mkdir -p /var/task/dist
+RUN bun build apps/worker/src/servers/lambda.ts \
     --target=node \
     --format=esm \
-    --outdir=dist \
+    --bundle \
     --minify \
-    --sourcemap
+    --sourcemap \
+    --tsconfig apps/worker/tsconfig.json \
+    --outdir /var/task/dist
 
 # -------------------------
-# 2️⃣ Production Lambda image
+# 2️⃣ Runtime stage
 FROM public.ecr.aws/lambda/nodejs:20
 WORKDIR /var/task
 
-# Copy production deps + bundled file
-COPY --from=build /var/task/package.json ./package.json
-COPY --from=build /var/task/node_modules ./node_modules
-COPY --from=build /var/task/dist/lambda.js ./dist/lambda.js
+# Copy package.json and bundled Lambda
+COPY apps/worker/package.json ./package.json
+COPY --from=build /var/task/dist/src/servers/lambda.js ./lambda.js
 
 # Lambda handler
-CMD ["dist/lambda.handler"]
-
+CMD ["lambda.handler"]
