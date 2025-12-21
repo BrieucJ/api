@@ -17,9 +17,12 @@ RUN bun install --frozen-lockfile
 # Copy relevant source
 COPY apps/worker/src ./apps/worker/src
 COPY apps/backend/src ./apps/backend/src
+COPY apps/backend/tsconfig.json ./apps/backend/tsconfig.json
 COPY packages ./packages
+COPY packages/tsconfig.json ./packages/tsconfig.json
 
-# Build Lambda bundle
+# Build Lambda bundle: output to directory (bun outputs lambda.js directly in outdir when bundling)
+RUN mkdir -p /var/task/dist
 RUN bun build apps/worker/src/servers/lambda.ts \
     --target=node \
     --format=esm \
@@ -36,7 +39,7 @@ WORKDIR /var/task
 
 # Copy package.json and bundled Lambda
 COPY apps/worker/package.json ./package.json
-COPY --from=build /var/task/dist/lambda.js ./lambda.js
+COPY --from=build /var/task/dist/src/servers/lambda.js ./lambda.js
 
 # Lambda handler
 CMD ["lambda.handler"]

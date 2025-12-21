@@ -1,38 +1,46 @@
 # -------------------------
-# Bun-native ECS image, minimal & optimized
+# 1️⃣ Build stage
 FROM oven/bun:debian AS builder
 WORKDIR /app
 
-# Copy only dependency descriptors first for caching
-COPY package.json bun.lock tsconfig.json ./
+# Copy root & workspace package files
+COPY package.json bun.lock ./
+COPY apps/backend/package.json apps/backend/package.json
+COPY apps/client/package.json apps/client/package.json
+COPY apps/worker/package.json apps/worker/package.json
+COPY apps/backend/tsconfig.json ./apps/backend/tsconfig.json
+COPY packages packages
 
 # Install dependencies (frozen lockfile)
 RUN bun install --frozen-lockfile
 
 # Copy source code
-COPY src ./src
-COPY drizzle.config.ts ./
+COPY apps/backend/src ./apps/backend/src
+COPY apps/backend/drizzle.config.ts ./apps/backend/drizzle.config.ts
+COPY packages ./packages
 
-# Optional: bundle your server
-RUN bun build src/servers/http.ts \
+# Bundle server
+RUN bun build apps/backend/src/servers/http.ts \
     --target=node \
     --format=esm \
-    --outdir=dist \
+    --bundle \
     --minify \
-    --sourcemap
+    --sourcemap \
+    --tsconfig apps/backend/tsconfig.json \
+    --outdir /app/dist
 
 # -------------------------
-# Production runtime stage
+# 2️⃣ Production runtime stage
 FROM oven/bun:debian AS runtime
 WORKDIR /app
 
 # Copy built files and dependencies
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/apps/backend/package.json ./package.json
 
 # Expose HTTP port for ECS
 EXPOSE 3000
 
 # Start Bun server directly
-CMD ["bun", "run", "dist/http.js"]
+CMD ["bun", "run", "dist/src/servers/http.js"]
