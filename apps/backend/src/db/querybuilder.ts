@@ -1,4 +1,4 @@
-import { db } from "@/db/client";
+import { db } from "@/db/db";
 import type { Table } from "drizzle-orm/table";
 import { getTableColumns } from "drizzle-orm";
 import {
@@ -138,8 +138,9 @@ export function createQueryBuilder<T extends Table>(table: T) {
   const colNames = Object.keys(columns);
   const baseQuery = (qb: any) => {
     // global filter: soft delete
-    if ((table as any).deleted_at) {
-      qb = qb.where(isNull((table as any).deleted_at));
+    // Fix: Check if deleted_at column exists in columns, not on table object
+    if (columns.deleted_at) {
+      qb = qb.where(isNull(columns.deleted_at));
     }
     return qb;
   };
@@ -327,7 +328,10 @@ export function createQueryBuilder<T extends Table>(table: T) {
     create: async (data: T["$inferInsert"]): Promise<T["$inferSelect"]> => {
       const [created] = await db
         .insert(table)
-        .values({ ...data, embedding: generateRowEmbedding(data) })
+        .values({
+          ...data,
+          embedding: generateRowEmbedding(data),
+        })
         .returning(visibleColumns);
       return created as T["$inferSelect"];
     },
@@ -369,7 +373,8 @@ export function createQueryBuilder<T extends Table>(table: T) {
       id: number,
       soft = true
     ): Promise<T["$inferSelect"] | { id: number } | null> => {
-      const hasDeletedAt = (table as any).deleted_at !== undefined;
+      // Fix: Check if deleted_at column exists in columns, not on table object
+      const hasDeletedAt = columns.deleted_at !== undefined;
 
       if (soft && hasDeletedAt) {
         const [deleted] = await db

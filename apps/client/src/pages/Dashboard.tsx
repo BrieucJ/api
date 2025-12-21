@@ -139,6 +139,7 @@ export default function Dashboard() {
     );
 
     // Weighted error rate calculation
+    // errorRate comes from API as decimal (0-1)
     const totalErrors = recentMetrics.reduce(
       (sum, m) => sum + (m.errorRate || 0) * (m.trafficCount || 0),
       0
@@ -391,62 +392,66 @@ export default function Dashboard() {
       </div>
 
       {/* MCP Debug Section */}
-      <Card className="border-dashed">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Code2 className="h-5 w-5" />
-            <CardTitle>MCP Endpoint Debug</CardTitle>
-          </div>
-          <CardDescription>
-            Test your MCP endpoint connection and debug API interactions
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="mcp-endpoint">MCP Endpoint URL</Label>
-              <Input
-                id="mcp-endpoint"
-                placeholder="https://your-mcp-server.com/api"
-                value={mcpEndpoint}
-                onChange={(e) => setMcpEndpoint(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleMcpTest();
-                  }
-                }}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                onClick={handleMcpTest}
-                disabled={!mcpEndpoint.trim() || mcpLoading}
-              >
-                {mcpLoading ? (
-                  <>Testing...</>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Test
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-          {mcpResponse && (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <Label>Response</Label>
-                <pre className="p-4 bg-muted rounded-md text-xs overflow-auto max-h-64">
-                  {mcpResponse}
-                </pre>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="lg:col-span-2">
+          <Card className="border-dashed">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Code2 className="h-5 w-5" />
+                <CardTitle>MCP Endpoint Debug</CardTitle>
               </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+              <CardDescription>
+                Test your MCP endpoint connection and debug API interactions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="mcp-endpoint">MCP Endpoint URL</Label>
+                  <Input
+                    id="mcp-endpoint"
+                    placeholder="https://your-mcp-server.com/api"
+                    value={mcpEndpoint}
+                    onChange={(e) => setMcpEndpoint(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleMcpTest();
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={handleMcpTest}
+                    disabled={!mcpEndpoint.trim() || mcpLoading}
+                  >
+                    {mcpLoading ? (
+                      <>Testing...</>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Test
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+              {mcpResponse && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label>Response</Label>
+                    <pre className="p-4 bg-muted rounded-md text-xs overflow-auto max-h-64">
+                      {mcpResponse}
+                    </pre>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -463,6 +468,7 @@ export default function Dashboard() {
             <MetricsChart
               metrics={recentMetrics}
               timeRange={timeframeToChartRange(timeframe)}
+              mode="traffic"
             />
           </CardContent>
         </Card>
@@ -480,16 +486,17 @@ export default function Dashboard() {
             <MetricsChart
               metrics={recentMetrics}
               timeRange={timeframeToChartRange(timeframe)}
+              mode="performance"
             />
           </CardContent>
         </Card>
       </div>
 
-      {/* Logs, Top Endpoints, and Top Countries Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Recent Logs */}
-        <LogsCard />
+      {/* Recent Logs */}
+      <LogsCard />
 
+      {/* Top Endpoints and Top Countries Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Endpoints */}
         <Card className="hover:shadow-lg transition">
           <CardHeader>

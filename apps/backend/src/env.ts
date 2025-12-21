@@ -4,12 +4,15 @@ import { expand } from "dotenv-expand";
 import path from "node:path";
 import { z } from "zod";
 
+// Get the directory where this file is located, then go up to the app directory
+const appDir = path.resolve(import.meta.dir, "..");
+const envFileName = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
+const envPath = path.resolve(appDir, envFileName);
+
 expand(
   config({
-    path: path.resolve(
-      process.cwd(),
-      process.env.NODE_ENV === "test" ? ".env.test" : ".env"
-    ),
+    path: envPath,
+    quiet: true,
   })
 );
 
@@ -25,7 +28,10 @@ const EnvSchema = z.object({
     "trace",
     "silent",
   ]),
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.url(),
+  WORKER_URL: z.url().optional(),
+  SQS_QUEUE_URL: z.url().optional(),
+  AWS_REGION: z.string().optional(),
 });
 
 export type env = z.infer<typeof EnvSchema>;

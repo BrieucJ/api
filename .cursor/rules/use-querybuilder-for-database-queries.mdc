@@ -1,0 +1,79 @@
+---
+description: Always use the querybuilder for database queries in the backend
+globs: apps/backend/src/**/*.ts
+alwaysApply: true
+---
+
+Always use the `createQueryBuilder` from `@/db/querybuilder` for all database operations in the backend. Never use direct `db.select()`, `db.insert()`, `db.update()`, or `db.delete()` calls.
+
+## QueryBuilder API
+
+The querybuilder provides the following methods:
+- `list(options)` - List records with filters, pagination, search, and ordering
+- `get(id)` - Get a single record by ID
+- `create(data)` - Create a new record
+- `update(id, data)` - Update a record by ID
+- `delete(id, soft?)` - Delete a record (soft delete by default if supported)
+
+## Usage Pattern
+
+```typescript
+import { createQueryBuilder } from "@/db/querybuilder";
+import { tableName } from "@/db/models/tableName";
+
+const query = createQueryBuilder<typeof tableName>(tableName);
+
+// List with filters
+const { data, total } = await query.list({
+  filters: { field__eq: value, otherField__gte: minValue },
+  search: "search term",
+  limit: 20,
+  offset: 0,
+  order_by: "id",
+  order: "desc"
+});
+
+// Get by ID
+const item = await query.get(id);
+
+// Create
+const created = await query.create(data);
+
+// Update
+const updated = await query.update(id, partialData);
+
+// Delete
+const deleted = await query.delete(id);
+```
+
+## Filter Syntax
+
+Filters use double underscore syntax:
+- `field__eq` - equals
+- `field__ne` - not equals
+- `field__gt` - greater than
+- `field__gte` - greater than or equal
+- `field__lt` - less than
+- `field__lte` - less than or equal
+- `field__like` - contains (case-sensitive)
+- `field__ilike` - contains (case-insensitive)
+- `field__in` - in array (comma-separated values)
+- `field__isnull` - is null
+- `field__isnotnull` - is not null
+- And more (see querybuilder.ts for full list)
+
+## Exceptions
+
+The only exceptions where direct database access is allowed:
+1. Inside the querybuilder implementation itself (`apps/backend/src/db/querybuilder.ts`)
+2. In test files (`apps/backend/src/tests/**/*.ts`)
+3. For streaming queries that need real-time polling (use querybuilder's `list()` with `id__gt` filter when possible)
+
+## Why Use QueryBuilder
+
+- Automatic soft delete filtering
+- Consistent column visibility (excludes sensitive fields like `embedding`, `deleted_at`)
+- Type safety with TypeScript
+- Standardized filter syntax
+- Built-in search with hybrid keyword + vector search
+- Automatic embedding generation for searchable records

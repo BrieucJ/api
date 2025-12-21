@@ -15,6 +15,20 @@
       "when": 1766248344202,
       "tag": "0001_dry_infant_terrible",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1766263997043,
+      "tag": "0002_aromatic_revanche",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1766270790220,
+      "tag": "0003_fantastic_luminals",
+      "breakpoints": true
     }
   ]
 }

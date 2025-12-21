@@ -120,10 +120,7 @@ export const defaultHook: Hook<any, any, any, any> = (result, c) => {
             path: issue.path,
             message: issue.message,
           })),
-          stack:
-            process.env.NODE_ENV === "production"
-              ? undefined
-              : result.error.stack,
+          stack: env.NODE_ENV === "production" ? undefined : result.error.stack,
         },
         metadata: null,
       },
@@ -244,8 +241,20 @@ export function createApp() {
   app.use(requestId());
   app.use(
     cors({
-      origin: "http://localhost:5173",
+      origin: (origin) => {
+        // Allow localhost on any port for development
+        if (
+          !origin ||
+          origin.includes("localhost") ||
+          origin.includes("127.0.0.1")
+        ) {
+          return origin || "*";
+        }
+        return "http://localhost:5173";
+      },
       allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowHeaders: ["Content-Type", "Authorization", "x-test-job-id"],
+      exposeHeaders: ["Content-Type"],
       maxAge: 600,
       credentials: true,
     })

@@ -3,7 +3,7 @@ import type { GetRoute } from "./info.routes";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import packageJSON from "../../../../../package.json";
 import env from "@/env";
-import { db } from "@/db/client";
+import { db } from "@/db/db";
 import { sql } from "drizzle-orm";
 import { SERVER_START_TIME } from "@/api/index";
 

@@ -1,13 +1,14 @@
 {
   "private": true,
   "scripts": {
-    "dev": "concurrently --prefix none -c \"blue,green\" \"bun --cwd apps/backend dev\" \"bun --cwd apps/worker dev\"",
+    "dev": "bun --cwd apps/backend dev & bun --cwd apps/worker dev & wait",
     "dev:backend": "bun --cwd apps/backend dev",
     "dev:worker": "bun --cwd apps/worker dev"
   },
   "dependencies": {
-    "hono": "^4.10.8",
-    "concurrently": "^9.1.0"
+    "@pulumi/pulumi": "^3.213.0",
+    "dotenv": "^17.2.3",
+    "hono": "^4.10.8"
   },
   "workspaces": [
     "apps/*",

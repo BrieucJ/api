@@ -4,7 +4,6 @@ import { getQueue } from "@/queue";
 import { getScheduler } from "@/scheduler";
 import { defaultCronJobs } from "@/scheduler/jobs";
 import { getJobHandler, hasJobHandler } from "@/jobs/registry";
-import { JobType } from "@/jobs/types";
 import type { Job } from "@/jobs/types";
 import { LocalQueue } from "@/queue/local";
 
@@ -45,7 +44,7 @@ async function processJob(job: Job): Promise<void> {
       attempts: attempts + 1,
     });
 
-    await handler(payload);
+    await handler(payload as any);
 
     logger.info(`Completed job ${job.id}`, {
       jobId: job.id,
@@ -92,10 +91,10 @@ async function processJob(job: Job): Promise<void> {
 }
 
 async function startWorker(): Promise<void> {
-  logger.info("Starting worker", {
-    mode: env.WORKER_MODE,
-    nodeEnv: env.NODE_ENV,
-  });
+  // Start HTTP server if in local mode
+  if (env.WORKER_MODE === "local") {
+    await import("./servers/http");
+  }
 
   const queue = getQueue();
   const scheduler = getScheduler();
@@ -163,4 +162,3 @@ startWorker().catch((error) => {
   });
   process.exit(1);
 });
-

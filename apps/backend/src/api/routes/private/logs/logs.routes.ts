@@ -9,7 +9,7 @@ import { logSelectSchema } from "@/db/models/logs";
 import { users as usersTable } from "@/db/models/users";
 import { createQueryBuilder } from "@/db/querybuilder";
 import { streamSSE } from "hono/streaming";
-import { db } from "@/db/client";
+import { db } from "@/db/db";
 import { logs } from "@/db/models/logs";
 import { gt, desc } from "drizzle-orm";
 

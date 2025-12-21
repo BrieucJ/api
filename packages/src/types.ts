@@ -10,3 +10,13 @@ export type MetricsSelectType = z.infer<typeof metricsSelectSchema>;
 export type SnapshotSelectType = z.infer<typeof snapshotSelectSchema>;
 export type ApiInfo = z.infer<typeof infoResponseSchema>;
 export type HealthStatus = z.infer<typeof healthResponseSchema>;
+
+// Raw metric data structure for worker processing
+export interface RawMetric {
+  endpoint: string;
+  latency: number;
+  status: number;
+  timestamp: number; // Unix timestamp in milliseconds
+  requestSize?: number;
+  responseSize?: number;
+}

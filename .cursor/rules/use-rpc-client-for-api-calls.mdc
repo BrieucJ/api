@@ -1,0 +1,49 @@
+# Use RPC Client for API Calls
+
+Always use the RPC client (`client` from `@/lib/client`) for all API calls in the client application, except for Server-Sent Events (SSE).
+
+## Rules
+
+1. **Use RPC client for all HTTP requests** (GET, POST, PUT, DELETE, etc.)
+   - Import: `import { client } from "@/lib/client";`
+   - Use typed methods: `client.traffic.start.$post()`, `client.logs.$get()`, etc.
+
+2. **Exception: Server-Sent Events (SSE)**
+   - Use native `EventSource` API for SSE connections
+   - Example: `new EventSource(\`${config.BACKEND_URL}/logs/stream\`)`
+
+3. **Patterns for RPC client usage:**
+
+   **Simple routes:**
+   ```typescript
+   // GET request
+   const response = await client.logs.$get({
+     query: { search: "term", limit: 100 }
+   });
+   
+   // POST request with body
+   const response = await client.traffic.start.$post({
+     json: { scenario: "normal", duration: 120000, maxRps: 10, endpoints: [] }
+   });
+   ```
+
+   **Parameterized routes:**
+   ```typescript
+   // For routes like /traffic/stop/{id}
+   const trafficClient = (client as any).traffic;
+   const response = await trafficClient.stop[jobId].$post({
+     param: { id: jobId }
+   });
+   ```
+
+4. **Error handling:**
+   ```typescript
+   const response = await client.some.endpoint.$post({ json: data });
+   if (!response.ok) {
+     const errorData = await response.json();
+     throw new Error(errorData.error?.message || "Request failed");
+   }
+   const data = await response.json();
+   ```
+
+5. **Never use `fetch()` directly** for API calls to the backend - always use the RPC client.

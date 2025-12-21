@@ -1,127 +1,59 @@
 import { createMiddleware } from "hono/factory";
 import type { Context } from "hono";
-import { db } from "@/db/client";
-import { metrics, metricsInsertSchema } from "@/db/models/metrics";
-import { generateRowEmbedding } from "@/utils/encode";
+import { enqueueJob, JobType } from "@/utils/queue";
+import { logger } from "@/utils/logger";
 
-interface EndpointMetrics {
-  latencies: number[];
-  errors: number;
-  total: number;
-  requestSizes: number[];
-  responseSizes: number[];
-}
-
-interface MetricsWindow {
+// Raw metric data structure
+interface RawMetric {
   endpoint: string;
-  start: number;
-  end: number;
-  metrics: EndpointMetrics;
+  latency: number;
+  status: number;
+  timestamp: number; // Unix timestamp in milliseconds
+  requestSize?: number;
+  responseSize?: number;
 }
 
-// In-memory metrics storage
-const metricsBuffer = new Map<string, MetricsWindow>();
-const METRICS_WINDOW_SECONDS = parseInt(
-  process.env.METRICS_WINDOW_SECONDS || "60",
-  10
-);
-const FLUSH_INTERVAL_MS = 30000; // 30 seconds
+// Raw metrics buffer - collect metrics and batch enqueue them
+const rawMetricsBuffer: RawMetric[] = [];
+const BATCH_SIZE = 50; // Enqueue in batches of 50
+const FLUSH_INTERVAL_MS = 5000; // Flush every 5 seconds
 
-// Calculate percentile from sorted array
-function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 0) return 0;
-  const index = Math.ceil((p / 100) * sorted.length) - 1;
-  return sorted[Math.max(0, index)] || 0;
-}
+// Flush raw metrics to worker queue
+async function flushRawMetrics() {
+  if (rawMetricsBuffer.length === 0) return;
 
-// Get current window key
-function getWindowKey(endpoint: string, timestamp: number): string {
-  const windowStart =
-    Math.floor(timestamp / (METRICS_WINDOW_SECONDS * 1000)) *
-    (METRICS_WINDOW_SECONDS * 1000);
-  return `${endpoint}:${windowStart}`;
-}
-
-// Flush metrics to database
-async function flushMetrics() {
-  const now = Date.now();
-  const windowsToFlush: MetricsWindow[] = [];
-
-  for (const [key, window] of metricsBuffer.entries()) {
-    // Flush windows that are complete (past their end time)
-    if (window.end < now) {
-      windowsToFlush.push(window);
-      metricsBuffer.delete(key);
-    }
-  }
-
-  if (windowsToFlush.length === 0) return;
-
-  const inserts = windowsToFlush.map((window) => {
-    const sortedLatencies = [...window.metrics.latencies].sort((a, b) => a - b);
-    const p50 = percentile(sortedLatencies, 50);
-    const p95 = percentile(sortedLatencies, 95);
-    const p99 = percentile(sortedLatencies, 99);
-    const errorRate =
-      window.metrics.total > 0
-        ? window.metrics.errors / window.metrics.total
-        : 0;
-    const avgRequestSize =
-      window.metrics.requestSizes.length > 0
-        ? Math.round(
-            window.metrics.requestSizes.reduce((a, b) => a + b, 0) /
-              window.metrics.requestSizes.length
-          )
-        : null;
-    const avgResponseSize =
-      window.metrics.responseSizes.length > 0
-        ? Math.round(
-            window.metrics.responseSizes.reduce((a, b) => a + b, 0) /
-              window.metrics.responseSizes.length
-          )
-        : null;
-
-    return metricsInsertSchema.parse({
-      windowStart: new Date(window.start),
-      windowEnd: new Date(window.end),
-      endpoint: window.endpoint,
-      p50Latency: Math.round(p50),
-      p95Latency: Math.round(p95),
-      p99Latency: Math.round(p99),
-      errorRate,
-      trafficCount: window.metrics.total,
-      requestSize: avgRequestSize,
-      responseSize: avgResponseSize,
-    });
-  });
+  // Take up to BATCH_SIZE metrics
+  const batch = rawMetricsBuffer.splice(0, BATCH_SIZE);
 
   try {
-    for (const data of inserts) {
-      await db.insert(metrics).values({
-        ...data,
-        embedding: generateRowEmbedding(data),
-      });
-    }
+    await enqueueJob(JobType.PROCESS_RAW_METRICS, { metrics: batch });
   } catch (error) {
-    console.error("[Metrics] Failed to flush metrics:", error);
+    // If enqueue fails, put metrics back (except if buffer is full)
+    // In production, you might want to log to a dead letter queue
+    logger.error("Failed to enqueue raw metrics", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    // Put metrics back at the front
+    rawMetricsBuffer.unshift(...batch);
   }
 }
 
 // Start periodic flushing
 let flushInterval: Timer | null = null;
 if (typeof setInterval !== "undefined") {
-  flushInterval = setInterval(flushMetrics, FLUSH_INTERVAL_MS);
+  flushInterval = setInterval(flushRawMetrics, FLUSH_INTERVAL_MS);
 }
 
 // Cleanup on process exit
 if (typeof process !== "undefined") {
   process.on("SIGTERM", () => {
     if (flushInterval) clearInterval(flushInterval);
-    flushMetrics();
+    flushRawMetrics();
   });
   process.on("SIGINT", () => {
     if (flushInterval) clearInterval(flushInterval);
-    flushMetrics();
+    flushRawMetrics();
   });
 }
 
@@ -156,7 +88,6 @@ const metricsMiddleware = createMiddleware(async (c: Context, next) => {
 
     const duration = Date.now() - start;
     const status = c.res.status || 200;
-    const isError = status >= 400;
 
     // Try to get response size from Content-Length header
     const responseContentLength = c.res.headers.get("content-length");
@@ -164,67 +95,52 @@ const metricsMiddleware = createMiddleware(async (c: Context, next) => {
       responseSize = parseInt(responseContentLength, 10) || 0;
     }
 
-    // Record metric
-    const timestamp = Date.now();
-    const windowKey = getWindowKey(endpoint, timestamp);
-    const windowStart =
-      Math.floor(timestamp / (METRICS_WINDOW_SECONDS * 1000)) *
-      (METRICS_WINDOW_SECONDS * 1000);
-    const windowEnd = windowStart + METRICS_WINDOW_SECONDS * 1000;
+    // Collect raw metric (non-blocking)
+    const rawMetric: RawMetric = {
+      endpoint,
+      latency: duration,
+      status,
+      timestamp: Date.now(),
+      requestSize: requestSize > 0 ? requestSize : undefined,
+      responseSize: responseSize > 0 ? responseSize : undefined,
+    };
 
-    if (!metricsBuffer.has(windowKey)) {
-      metricsBuffer.set(windowKey, {
-        endpoint,
-        start: windowStart,
-        end: windowEnd,
-        metrics: {
-          latencies: [],
-          errors: 0,
-          total: 0,
-          requestSizes: [],
-          responseSizes: [],
-        },
+    // Add to buffer (will be flushed periodically)
+    rawMetricsBuffer.push(rawMetric);
+
+    // If buffer is getting large, flush immediately
+    if (rawMetricsBuffer.length >= BATCH_SIZE * 2) {
+      // Flush in background (don't await)
+      flushRawMetrics().catch((error) => {
+        logger.error("Error flushing metrics", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
       });
     }
-
-    const window = metricsBuffer.get(windowKey)!;
-    window.metrics.latencies.push(duration);
-    window.metrics.total++;
-    if (isError) window.metrics.errors++;
-    if (requestSize > 0) window.metrics.requestSizes.push(requestSize);
-    if (responseSize > 0) window.metrics.responseSizes.push(responseSize);
   } catch (error) {
     const duration = Date.now() - start;
-    const isError = true;
 
     // Record error metric
-    const timestamp = Date.now();
-    const windowKey = getWindowKey(endpoint, timestamp);
-    const windowStart =
-      Math.floor(timestamp / (METRICS_WINDOW_SECONDS * 1000)) *
-      (METRICS_WINDOW_SECONDS * 1000);
-    const windowEnd = windowStart + METRICS_WINDOW_SECONDS * 1000;
+    const rawMetric: RawMetric = {
+      endpoint,
+      latency: duration,
+      status: 500, // Assume 500 for errors
+      timestamp: Date.now(),
+      requestSize: requestSize > 0 ? requestSize : undefined,
+    };
 
-    if (!metricsBuffer.has(windowKey)) {
-      metricsBuffer.set(windowKey, {
-        endpoint,
-        start: windowStart,
-        end: windowEnd,
-        metrics: {
-          latencies: [],
-          errors: 0,
-          total: 0,
-          requestSizes: [],
-          responseSizes: [],
-        },
+    rawMetricsBuffer.push(rawMetric);
+
+    // If buffer is getting large, flush immediately
+    if (rawMetricsBuffer.length >= BATCH_SIZE * 2) {
+      flushRawMetrics().catch((error) => {
+        logger.error("Error flushing metrics", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
       });
     }
-
-    const window = metricsBuffer.get(windowKey)!;
-    window.metrics.latencies.push(duration);
-    window.metrics.total++;
-    window.metrics.errors++;
-    if (requestSize > 0) window.metrics.requestSizes.push(requestSize);
 
     throw error;
   }

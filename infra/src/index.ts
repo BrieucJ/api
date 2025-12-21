@@ -5,7 +5,10 @@ import { deploy as workerDeploy } from "./worker";
 import * as dotenv from "dotenv";
 import path from "node:path";
 
-dotenv.config({ path: path.resolve(__dirname, "../../apps/backend/.env") });
+dotenv.config({
+  path: path.resolve(__dirname, "../../apps/backend/.env"),
+  quiet: true,
+});
 
 const stack = pulumi.getStack(); // e.g. lambda-prod
 const [platform, env] = stack.split("-");

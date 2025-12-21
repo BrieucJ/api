@@ -4,9 +4,7 @@ import type { ListRoute, StreamRoute, AggregateRoute } from "./metrics.routes";
 import { metrics as metricsTable } from "@/db/models/metrics";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import { streamSSE } from "hono/streaming";
-import { db } from "@/db/client";
-import { metrics } from "@/db/models/metrics";
-import { gt, desc, eq, gte, lte, and } from "drizzle-orm";
+import { logger } from "@/utils/logger";
 
 const metricsQuery = createQueryBuilder<typeof metricsTable>(metricsTable);
 
@@ -46,9 +44,23 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     filters: queryBuilderFilters,
   });
 
+  // Convert errorRate from percentage (0-100) back to decimal (0-1) for API
+  const convertedData = data.map((metric) => {
+    const errorRateValue = metric.errorRate ?? 0;
+    const convertedErrorRate =
+      typeof errorRateValue === "number" && !isNaN(errorRateValue)
+        ? errorRateValue / 100
+        : 0; // Convert from percentage to decimal, handle edge cases
+
+    return {
+      ...metric,
+      errorRate: convertedErrorRate,
+    };
+  });
+
   return c.json(
     {
-      data,
+      data: convertedData,
       error: null,
       metadata: {
         limit,
@@ -63,35 +75,78 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
 export const stream: AppRouteHandler<StreamRoute> = async (c) => {
   const INITIAL_METRICS_COUNT = 50;
   return streamSSE(c, async (stream) => {
-    // Send last X metrics
-    const initialMetrics = await db
-      .select()
-      .from(metrics)
-      .orderBy(desc(metrics.id))
-      .limit(INITIAL_METRICS_COUNT);
+    // Send last X metrics (newest first)
+    const { data: initialMetrics } = await metricsQuery.list({
+      limit: INITIAL_METRICS_COUNT,
+      offset: 0,
+      order_by: "id",
+      order: "desc",
+    });
 
-    for (const metric of initialMetrics.reverse()) {
-      await stream.writeSSE({
-        data: JSON.stringify(metric),
-        event: "metric-update",
-      });
+    // Send them newest first (no reverse needed)
+    // Convert errorRate from percentage (0-100) back to decimal (0-1) for API
+    for (const metric of initialMetrics) {
+      try {
+        const errorRateValue = metric.errorRate ?? 0;
+        const convertedErrorRate =
+          typeof errorRateValue === "number" && !isNaN(errorRateValue)
+            ? errorRateValue / 100
+            : 0; // Convert from percentage to decimal
+
+        const convertedMetric = {
+          ...metric,
+          errorRate: convertedErrorRate,
+        };
+        await stream.writeSSE({
+          data: JSON.stringify(convertedMetric),
+          event: "metric-update",
+        });
+      } catch (error) {
+        logger.error("Error processing initial metric", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        // Continue with next metric
+      }
     }
 
-    let lastId = (initialMetrics[initialMetrics.length - 1] ?? {}).id ?? 0;
+    // Keep track of the last metric ID (highest ID seen so far)
+    let lastId = (initialMetrics[0] ?? {}).id ?? 0;
 
     // Stream new metrics continuously
     while (true) {
-      const newMetrics = await db
-        .select()
-        .from(metrics)
-        .where(gt(metrics.id, lastId));
+      const { data: newMetrics } = await metricsQuery.list({
+        filters: { id__gt: lastId },
+        limit: 1000, // Large limit to get all new metrics
+        order_by: "id",
+        order: "asc",
+      });
 
       for (const metric of newMetrics) {
-        await stream.writeSSE({
-          data: JSON.stringify(metric),
-          event: "metric-update",
-        });
-        lastId = Math.max(lastId, metric.id);
+        try {
+          // Convert errorRate from percentage (0-100) back to decimal (0-1) for API
+          const errorRateValue = metric.errorRate ?? 0;
+          const convertedErrorRate =
+            typeof errorRateValue === "number" && !isNaN(errorRateValue)
+              ? errorRateValue / 100
+              : 0; // Convert from percentage to decimal
+
+          const convertedMetric = {
+            ...metric,
+            errorRate: convertedErrorRate,
+          };
+          await stream.writeSSE({
+            data: JSON.stringify(convertedMetric),
+            event: "metric-update",
+          });
+          lastId = Math.max(lastId, metric.id);
+        } catch (error) {
+          logger.error("Error processing new metric", {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+          // Continue with next metric
+        }
       }
 
       await stream.sleep(1000);
@@ -103,31 +158,37 @@ export const aggregate: AppRouteHandler<AggregateRoute> = async (c) => {
   const query = c.req.valid("query");
   const { endpoint, startDate, endDate, windowSize } = query;
 
-  const conditions: any[] = [];
+  // Convert route-specific filters to querybuilder filter format
+  const queryBuilderFilters: Record<string, any> = {};
   if (endpoint) {
-    conditions.push(eq(metrics.endpoint, endpoint));
+    queryBuilderFilters.endpoint__eq = endpoint;
   }
   if (startDate) {
-    conditions.push(gte(metrics.windowStart, new Date(startDate)));
+    queryBuilderFilters.windowStart__gte = startDate;
   }
   if (endDate) {
-    conditions.push(lte(metrics.windowEnd, new Date(endDate)));
+    queryBuilderFilters.windowEnd__lte = endDate;
   }
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const { data: results } = await metricsQuery.list({
+    filters: queryBuilderFilters,
+    limit: 10000, // Large limit for aggregation
+    order_by: "windowStart",
+    order: "asc",
+  });
 
-  const results = await db
-    .select()
-    .from(metrics)
-    .where(whereClause)
-    .orderBy(metrics.windowStart);
+  // Convert errorRate from percentage (0-100) back to decimal (0-1) for API
+  const convertedResults = results.map((metric) => ({
+    ...metric,
+    errorRate: (metric.errorRate ?? 0) / 100, // Convert from percentage to decimal
+  }));
 
   // Group by time windows if needed (for now, return as-is since we already aggregate in middleware)
   // In the future, we could do additional aggregation here
 
   return c.json(
     {
-      data: results,
+      data: convertedResults,
       error: null,
       metadata: null,
     },

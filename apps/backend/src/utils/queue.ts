@@ -7,18 +7,19 @@ export enum JobType {
   PROCESS_METRICS = "PROCESS_METRICS",
   CLEANUP_LOGS = "CLEANUP_LOGS",
   HEALTH_CHECK = "HEALTH_CHECK",
+  PROCESS_RAW_METRICS = "PROCESS_RAW_METRICS",
 }
 
 let sqsClient: SQSClient | null = null;
 let queueUrl: string | null = null;
 
 function getSQSClient(): SQSClient | null {
-  if (env.NODE_ENV === "production" || process.env.SQS_QUEUE_URL) {
+  if (env.NODE_ENV === "production" || env.SQS_QUEUE_URL) {
     if (!sqsClient) {
       sqsClient = new SQSClient({
-        region: process.env.AWS_REGION || "us-east-1",
+        region: env.AWS_REGION || "us-east-1",
       });
-      queueUrl = process.env.SQS_QUEUE_URL || null;
+      queueUrl = env.SQS_QUEUE_URL || null;
     }
     return sqsClient;
   }
@@ -56,11 +57,11 @@ export async function enqueueJob<T>(
     const delaySeconds = options?.delay
       ? Math.floor(options.delay / 1000)
       : options?.scheduledFor
-        ? Math.max(
-            0,
-            Math.floor((options.scheduledFor.getTime() - Date.now()) / 1000)
-          )
-        : undefined;
+      ? Math.max(
+          0,
+          Math.floor((options.scheduledFor.getTime() - Date.now()) / 1000)
+        )
+      : undefined;
 
     const command = new SendMessageCommand({
       QueueUrl: queueUrl,
@@ -88,17 +89,51 @@ export async function enqueueJob<T>(
       throw error;
     }
   } else {
-    // Development: Log and return job ID
-    // In a real implementation, you might want to send to a local HTTP endpoint
-    // or use a shared in-memory queue
-    const jobId = crypto.randomUUID();
-    logger.info(`Would enqueue job (dev mode)`, {
-      jobId,
-      jobType,
+    // Development: Send to worker HTTP endpoint
+    const workerUrl = env.WORKER_URL;
+    if (!workerUrl) {
+      throw new Error(
+        "WORKER_URL is required in development mode. Set it in your .env file."
+      );
+    }
+
+    const job = {
+      id: crypto.randomUUID(),
+      type: jobType,
       payload,
-      options,
-    });
-    return jobId;
+      attempts: 0,
+      maxAttempts: options?.maxAttempts ?? 3,
+      createdAt: new Date().toISOString(),
+      scheduledFor: options?.scheduledFor?.toISOString(),
+    };
+
+    try {
+      const response = await fetch(`${workerUrl}/jobs/enqueue`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(job),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to enqueue job to worker: ${response.status} ${errorText}`
+        );
+      }
+
+      logger.debug(`Enqueued job to worker`, {
+        jobId: job.id,
+        jobType,
+      });
+      return job.id;
+    } catch (error) {
+      logger.error("Failed to enqueue job to worker", {
+        jobType,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 }
-

@@ -1,7 +1,8 @@
 import env from "../env";
-import { db } from "@/db/client";
 import { logs, logInsertSchema } from "@/db/models/logs";
-import { generateRowEmbedding } from "@/utils/encode";
+import { createQueryBuilder } from "@/db/querybuilder";
+
+const logQuery = createQueryBuilder<typeof logs>(logs);
 
 const COLORS = {
   debug: "\x1b[35m",
@@ -107,6 +108,12 @@ export class Logger {
 
     if (this.skipDbLogging) return;
 
+    // Only save logs at or above info level to the database
+    // This excludes debug and trace logs to reduce database noise
+    if (levelPriority[level] > levelPriority.info) {
+      return;
+    }
+
     try {
       const data = logInsertSchema.parse({
         source: this.namespace,
@@ -114,9 +121,7 @@ export class Logger {
         message,
         meta,
       });
-      await db
-        .insert(logs)
-        .values({ ...data, embedding: generateRowEmbedding(data) });
+      await logQuery.create(data);
     } catch (e) {
       console.error(`[Logger][DB] Failed to insert log:`, e);
       throw e;

@@ -1,13 +1,16 @@
 import { createMiddleware } from "hono/factory";
 import type { Context } from "hono";
-import { db } from "@/db/client";
 import {
   requestSnapshots,
   snapshotInsertSchema,
 } from "@/db/models/requestSnapshots";
-import { generateRowEmbedding } from "@/utils/encode";
+import { createQueryBuilder } from "@/db/querybuilder";
 import env from "@/env";
 import packageJSON from "../../../package.json";
+import { logger } from "@/utils/logger";
+
+const snapshotsQuery =
+  createQueryBuilder<typeof requestSnapshots>(requestSnapshots);
 
 const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
   const path = c.req.path;
@@ -108,6 +111,9 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
     // Use setTimeout instead of setImmediate for better compatibility
     setTimeout(async () => {
       try {
+        // Capture test job ID from header if present
+        const testJobId = c.req.header("x-test-job-id") || undefined;
+
         const data = snapshotInsertSchema.parse({
           method,
           path,
@@ -124,20 +130,20 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
               ? responseHeaders
               : undefined,
           duration,
-          geoCountry: geoCountry || undefined,
-          geoRegion: geoRegion || undefined,
-          geoCity: geoCity || undefined,
-          geoLat: geoLat || undefined,
-          geoLon: geoLon || undefined,
-          geoSource: geoSource || undefined,
+          geoCountry: geoCountry ?? null,
+          geoRegion: geoRegion ?? null,
+          geoCity: geoCity ?? null,
+          geoLat: geoLat ?? null,
+          geoLon: geoLon ?? null,
+          geoSource: geoSource ?? null,
         });
 
-        await db.insert(requestSnapshots).values({
-          ...data,
-          embedding: generateRowEmbedding(data),
-        });
+        await snapshotsQuery.create(data);
       } catch (error) {
-        console.error("[Snapshot] Failed to store snapshot:", error);
+        logger.error("Failed to store snapshot", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
       }
     }, 0);
   } catch (error) {
@@ -162,20 +168,20 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
               ? { error: error.message, stack: error.stack }
               : undefined,
           duration,
-          geoCountry: geoCountry || undefined,
-          geoRegion: geoRegion || undefined,
-          geoCity: geoCity || undefined,
-          geoLat: geoLat || undefined,
-          geoLon: geoLon || undefined,
-          geoSource: geoSource || undefined,
+          geoCountry: geoCountry ?? null,
+          geoRegion: geoRegion ?? null,
+          geoCity: geoCity ?? null,
+          geoLat: geoLat ?? null,
+          geoLon: geoLon ?? null,
+          geoSource: geoSource ?? null,
         });
 
-        await db.insert(requestSnapshots).values({
-          ...data,
-          embedding: generateRowEmbedding(data),
-        });
+        await snapshotsQuery.create(data);
       } catch (err) {
-        console.error("[Snapshot] Failed to store error snapshot:", err);
+        logger.error("Failed to store error snapshot", {
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
       }
     });
 

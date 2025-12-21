@@ -6,7 +6,7 @@ import {
   beforeEach,
   afterAll,
 } from "bun:test";
-import { db } from "@/db/client";
+import { db } from "@/db/db";
 import { pgTable, text, integer, timestamp, vector } from "drizzle-orm/pg-core";
 import { createQueryBuilder } from "@/db/querybuilder";
 import { sql } from "drizzle-orm";

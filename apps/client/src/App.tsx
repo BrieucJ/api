@@ -5,6 +5,7 @@ import Dashboard from "@/pages/Dashboard";
 import LogsPage from "@/pages/LogsPage";
 import MetricsPage from "@/pages/MetricsPage";
 import ReplayPage from "@/pages/ReplayPage";
+import WorkerPage from "@/pages/WorkerPage";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="logs" element={<LogsPage />} /> {/* Full-page logs */}
           <Route path="metrics" element={<MetricsPage />} />
           <Route path="replay" element={<ReplayPage />} />
+          <Route path="worker" element={<WorkerPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
