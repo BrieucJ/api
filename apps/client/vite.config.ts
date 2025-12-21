@@ -15,4 +15,10 @@ export default defineConfig({
       "@shared": path.resolve(__dirname, "../../packages/src"),
     },
   },
+  define: {
+    // Make environment variables available at build time
+    "import.meta.env.VITE_BACKEND_URL": JSON.stringify(
+      process.env.VITE_BACKEND_URL
+    ),
+  },
 });

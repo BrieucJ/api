@@ -2,13 +2,13 @@ import * as pulumi from "@pulumi/pulumi";
 import { deploy as lambdaDeploy } from "./lambda";
 import { deploy as ecsDeploy } from "./ecs";
 import { deploy as workerDeploy } from "./worker";
-import * as dotenv from "dotenv";
-import path from "node:path";
+import { deploy as clientDeploy } from "./client";
 
-dotenv.config({
-  path: path.resolve(__dirname, "../../apps/backend/.env"),
-  quiet: true,
-});
+// Pulumi reads configuration from:
+// 1. Pulumi stack config files (Pulumi.<stack>.yaml)
+// 2. Environment variables (process.env) - set in CI/CD
+// 3. Pulumi config commands (pulumi config set)
+// Do NOT use dotenv - Pulumi has its own configuration system
 
 const stack = pulumi.getStack(); // e.g. lambda-prod
 const [platform, env] = stack.split("-");
@@ -46,5 +46,15 @@ if (platform === "worker") {
   });
   outputs.queueUrl.apply((url: string) => {
     console.log("queue url:", url);
+  });
+}
+
+if (platform === "client") {
+  outputs = clientDeploy(env) || {};
+  outputs.distributionUrl.apply((url: string) => {
+    console.log("client url:", url);
+  });
+  outputs.distributionId.apply((id: string) => {
+    console.log("distribution id:", id);
   });
 }

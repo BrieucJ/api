@@ -1,0 +1,111 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  NODE_ENV: production
+  AWS_REGION: eu-west-3
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Pulumi
+        uses: pulumi/actions@v4
+        with:
+          pulumi-version: latest
+
+      - name: Deploy Backend Lambda
+        working-directory: infra
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
+          PORT: ${{ secrets.PORT || '8080' }}
+          NODE_ENV: ${{ env.NODE_ENV }}
+        run: |
+          bash pulumi-run.sh lambda prod up
+
+      - name: Get Backend API URL
+        id: get-api-url
+        working-directory: infra
+        env:
+          TS_NODE_PROJECT: ${{ github.workspace }}/infra/tsconfig.json
+          PULUMI_NODEJS_USE_TS_NODE: true
+          PULUMI_CONFIG_PASSPHRASE: ""
+        run: |
+          mkdir -p ~/.pulumi/stacks
+          bun x pulumi login file://~/.pulumi/stacks
+          bun x pulumi stack select lambda-prod
+          API_URL=$(bun x pulumi stack output apiUrl --json 2>/dev/null | tr -d '"' || echo "")
+          if [ -z "$API_URL" ]; then
+            echo "Failed to get API URL from Pulumi stack"
+            exit 1
+          fi
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "Backend API URL: $API_URL"
+
+      - name: Deploy Worker Lambda
+        working-directory: infra
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
+          NODE_ENV: ${{ env.NODE_ENV }}
+          WORKER_MODE: lambda
+          AWS_REGION: ${{ env.AWS_REGION }}
+        run: |
+          bash pulumi-run.sh worker prod up
+
+      - name: Build Client
+        working-directory: apps/client
+        env:
+          VITE_BACKEND_URL: ${{ steps.get-api-url.outputs.api_url }}
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Deploy Client
+        working-directory: infra
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+        run: |
+          bash pulumi-run.sh client prod up
+
+      - name: Get Client URL
+        working-directory: infra
+        env:
+          TS_NODE_PROJECT: ${{ github.workspace }}/infra/tsconfig.json
+          PULUMI_NODEJS_USE_TS_NODE: true
+          PULUMI_CONFIG_PASSPHRASE: ""
+        run: |
+          mkdir -p ~/.pulumi/stacks
+          bun x pulumi login file://~/.pulumi/stacks
+          bun x pulumi stack select client-prod
+          CLIENT_URL=$(bun x pulumi stack output distributionUrl --json 2>/dev/null | tr -d '"' || echo "")
+          if [ -n "$CLIENT_URL" ]; then
+            echo "Client deployed to: $CLIENT_URL"
+          fi
