@@ -2,10 +2,16 @@
 import { config } from "dotenv";
 import { expand } from "dotenv-expand";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 // Get the directory where this file is located, then go up to the app directory
-const appDir = path.resolve(import.meta.dir, "..");
+// Use import.meta.dir if available (Bun), otherwise use import.meta.url (Node.js)
+const currentDir =
+  typeof import.meta.dir !== "undefined"
+    ? import.meta.dir
+    : path.dirname(fileURLToPath(import.meta.url));
+const appDir = path.resolve(currentDir, "..");
 const envFileName = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
 const envPath = path.resolve(appDir, envFileName);
 
