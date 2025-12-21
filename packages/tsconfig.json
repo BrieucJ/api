@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -13,8 +13,10 @@
     "declarationMap": true,
     "noEmit": false,
     "allowImportingTsExtensions": false,
+    "baseUrl": ".",
     "paths": {
-      "@backend/*": ["../apps/backend/src/*"]
+      "@backend/*": ["../apps/backend/src/*"],
+      "zod": ["../apps/client/node_modules/zod"]
     }
   },
   "references": [{ "path": "../apps/backend" }],
