@@ -3,7 +3,16 @@
   "scripts": {
     "dev": "bun --cwd apps/backend dev & bun --cwd apps/worker dev & wait",
     "dev:backend": "bun --cwd apps/backend dev",
-    "dev:worker": "bun --cwd apps/worker dev"
+    "dev:worker": "bun --cwd apps/worker dev",
+    "dev:client": "bun --cwd apps/client dev",
+    "infra:deploy:lambda:staging": "bash infra/pulumi-run.sh lambda staging up",
+    "infra:destroy:lambda:staging": "bash infra/pulumi-run.sh lambda staging destroy",
+    "infra:deploy:lambda:prod": "bash infra/pulumi-run.sh lambda prod up",
+    "infra:destroy:lambda:prod": "bash infra/pulumi-run.sh lambda prod destroy",
+    "infra:deploy:ecs:staging": "bash infra/pulumi-run.sh ecs staging up",
+    "infra:destroy:ecs:staging": "bash infra/pulumi-run.sh ecs staging destroy",
+    "infra:deploy:ecs:prod": "bash infra/pulumi-run.sh ecs prod up",
+    "infra:destroy:ecs:prod": "bash infra/pulumi-run.sh ecs prod destroy"
   },
   "dependencies": {
     "@pulumi/aws": "^7.15.0",
