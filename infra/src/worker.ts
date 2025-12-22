@@ -8,7 +8,10 @@ export function deploy(env: string) {
   const LOG_LEVEL = process.env.LOG_LEVEL || "info";
   const NODE_ENV = process.env.NODE_ENV;
   const PORT = process.env.PORT;
-  const REGION = process.env.REGION!;
+  const REGION = process.env.REGION;
+  if (!REGION) {
+    throw new Error("REGION environment variable is required but not set");
+  }
   const WORKER_MODE = process.env.WORKER_MODE || "lambda";
   
   // Log all environment variables being used
@@ -22,6 +25,9 @@ export function deploy(env: string) {
   
   const name = `worker-${env}`;
   const accountId = pulumi.output(aws.getCallerIdentity()).apply((id) => id.accountId);
+  
+  // Capture REGION in a const for use in closures
+  const regionValue = REGION;
   // 1️⃣ ECR Repository
   const repo = new aws.ecr.Repository(name, { forceDelete: true });
 
@@ -160,7 +166,7 @@ export function deploy(env: string) {
     action: "lambda:InvokeFunction",
     function: workerLambda.name,
     principal: "events.amazonaws.com",
-    sourceArn: accountId.apply((id) => `arn:aws:events:${REGION}:${id}:rule/*`),
+    sourceArn: accountId.apply((id) => `arn:aws:events:${regionValue}:${id}:rule/*`),
   });
 
   return {
