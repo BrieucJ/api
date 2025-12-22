@@ -154,11 +154,13 @@ export function deploy(env: string) {
   });
 
   // 7️⃣ EventBridge permission for Lambda
+  // Allow EventBridge to invoke this Lambda function
+  // Using rule/* to allow all EventBridge rules in this account/region
   new aws.lambda.Permission(`${name}-eventbridgePermission`, {
     action: "lambda:InvokeFunction",
     function: workerLambda.name,
     principal: "events.amazonaws.com",
-    sourceArn: accountId.apply((id) => `arn:aws:events:${REGION}:${id}:rule/${name}-*`),
+    sourceArn: accountId.apply((id) => `arn:aws:events:${REGION}:${id}:rule/*`),
   });
 
   return {

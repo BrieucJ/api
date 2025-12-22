@@ -3,9 +3,14 @@ import * as aws from "@pulumi/aws";
 import * as command from "@pulumi/command";
 
 export function deploy(env: string) {
-  const { AWS_REGION } = process.env;
-  const region = AWS_REGION || "eu-west-3";
+  // Read from process.env (REGION should be available from env files if client needs it)
+  // For client, REGION is only used for S3 sync commands
+  const REGION = process.env.REGION || "eu-west-3";
   const name = `client-${env}`;
+  
+  // Log environment variables being used
+  console.log("📋 Environment variables for Client deployment:");
+  console.log("  REGION:", REGION);
 
   // 1️⃣ S3 Bucket for static website hosting
   const bucket = new aws.s3.Bucket(`${name}-bucket`, {
@@ -28,12 +33,12 @@ export function deploy(env: string) {
       create: pulumi.interpolate`
         cd ../../apps/client &&
         aws s3 sync dist/ s3://${bucket.id}/ \
-          --region ${region} \
+          --region ${REGION} \
           --delete \
           --cache-control "public, max-age=31536000, immutable" \
           --exclude "*.html" &&
         aws s3 sync dist/ s3://${bucket.id}/ \
-          --region ${region} \
+          --region ${REGION} \
           --delete \
           --cache-control "public, max-age=0, must-revalidate" \
           --include "*.html"
@@ -58,7 +63,7 @@ export function deploy(env: string) {
         {
           "Effect": "Allow",
           "Principal": {
-            "AWS": "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${oai.id}"
+            "AWS": "${oai.iamArn}"
           },
           "Action": "s3:GetObject",
           "Resource": "${bucket.arn}/*"
