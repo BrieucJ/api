@@ -13,11 +13,11 @@ const [platform, env] = stack.split("-");
 // prod -> env.production, staging -> env.staging, default -> env.dev
 let envFileName: string;
 if (env === "prod") {
-  envFileName = "env.production";
+  envFileName = ".env.production";
 } else if (env === "staging") {
-  envFileName = "env.staging";
+  envFileName = ".env.staging";
 } else {
-  envFileName = "env.dev";
+  envFileName = ".env.dev";
 }
 
 // Load the appropriate environment file based on platform

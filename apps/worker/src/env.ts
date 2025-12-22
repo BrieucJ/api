@@ -19,7 +19,7 @@ if (process.env.NODE_ENV === "test") {
   envPath = path.resolve(appDir, ".env.test");
 } else {
   // Try env.dev first, then fallback to .env
-  const envDevPath = path.resolve(appDir, "env.dev");
+  const envDevPath = path.resolve(appDir, ".env.dev");
   const envPathLegacy = path.resolve(appDir, ".env");
   envPath = envDevPath; // Prefer env.dev
   // Also try loading .env as fallback
@@ -53,8 +53,8 @@ const BaseEnvSchema = z.object({
   ]),
   PORT: z.coerce.number().default(8081),
   DATABASE_URL: z.url(),
-  REGION: z.string(),
   // Optional fields that may be required based on NODE_ENV and WORKER_MODE
+  REGION: z.string().optional(),
   SQS_QUEUE_URL: z.url().optional(),
 });
 
@@ -65,13 +65,23 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
   const isLambdaMode = data.WORKER_MODE === "lambda";
 
   // In production/staging or lambda mode, SQS_QUEUE_URL is required
-  if ((isProduction || isStaging || isLambdaMode) && !data.SQS_QUEUE_URL) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message:
-        "SQS_QUEUE_URL is required in production/staging environments or when WORKER_MODE is lambda",
-      path: ["SQS_QUEUE_URL"],
-    });
+  if (isProduction || isStaging || isLambdaMode) {
+    if (!data.SQS_QUEUE_URL) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "SQS_QUEUE_URL is required in production/staging environments or when WORKER_MODE is lambda",
+        path: ["SQS_QUEUE_URL"],
+      });
+    }
+    if (!data.REGION) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "REGION is required in production/staging environments or when WORKER_MODE is lambda",
+        path: ["REGION"],
+      });
+    }
   }
 });
 

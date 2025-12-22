@@ -19,7 +19,7 @@ if (process.env.NODE_ENV === "test") {
   envPath = path.resolve(appDir, ".env.test");
 } else {
   // Try env.dev first, then fallback to .env
-  const envDevPath = path.resolve(appDir, "env.dev");
+  const envDevPath = path.resolve(appDir, ".env.dev");
   const envPathLegacy = path.resolve(appDir, ".env");
   envPath = envDevPath; // Prefer env.dev
   // Also try loading .env as fallback
@@ -52,8 +52,8 @@ const BaseEnvSchema = z.object({
     "silent",
   ]),
   DATABASE_URL: z.url(),
-  REGION: z.string(),
   // Optional fields that may be required based on NODE_ENV
+  REGION: z.string().optional(),
   SQS_QUEUE_URL: z.url().optional(),
   WORKER_URL: z.url().optional(),
 });
@@ -66,12 +66,21 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
     data.NODE_ENV === "development" || (!isProduction && !isStaging);
 
   // In production/staging, SQS_QUEUE_URL is required
-  if ((isProduction || isStaging) && !data.SQS_QUEUE_URL) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "SQS_QUEUE_URL is required in production/staging environments",
-      path: ["SQS_QUEUE_URL"],
-    });
+  if (isProduction || isStaging) {
+    if (!data.SQS_QUEUE_URL) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "SQS_QUEUE_URL is required in production/staging environments",
+        path: ["SQS_QUEUE_URL"],
+      });
+    }
+    if (!data.REGION) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "REGION is required in production/staging environments",
+        path: ["REGION"],
+      });
+    }
   }
 
   // In development, WORKER_URL is required (unless SQS_QUEUE_URL is provided)
