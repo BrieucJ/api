@@ -3,8 +3,17 @@ import * as aws from "@pulumi/aws";
 import * as command from "@pulumi/command";
 
 export function deploy(env: string) {
+  const config = new pulumi.Config();
+  // Read from Pulumi config (preferred), fallback to process.env for backwards compatibility
+  const DATABASE_URL =
+    config.getSecret("DATABASE_URL") ||
+    config.get("DATABASE_URL") ||
+    process.env.DATABASE_URL;
+  const LOG_LEVEL = config.get("LOG_LEVEL") || process.env.LOG_LEVEL || "info";
+  const NODE_ENV =
+    config.get("NODE_ENV") || process.env.NODE_ENV || "production";
+  const PORT = config.get("PORT") || process.env.PORT || "3000";
   const name = `api-${env}`;
-  const { DATABASE_URL, LOG_LEVEL, NODE_ENV, PORT } = process.env;
 
   // -------------------------
   // 1️⃣ ECR repository
@@ -68,10 +77,10 @@ export function deploy(env: string) {
               image: `${repoUrl}:${env}`,
               essential: true,
               environment: [
-                { name: "DATABASE_URL", value: DATABASE_URL! },
-                { name: "LOG_LEVEL", value: LOG_LEVEL! },
-                { name: "NODE_ENV", value: NODE_ENV! },
-                { name: "PORT", value: PORT! },
+                { name: "DATABASE_URL", value: DATABASE_URL || "" },
+                { name: "LOG_LEVEL", value: LOG_LEVEL || "info" },
+                { name: "NODE_ENV", value: NODE_ENV || "production" },
+                { name: "PORT", value: PORT || "3000" },
               ],
               portMappings: [{ containerPort: 80, protocol: "tcp" }],
             },

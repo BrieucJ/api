@@ -3,7 +3,15 @@ import * as aws from "@pulumi/aws";
 import * as command from "@pulumi/command";
 
 export function deploy(env: string) {
-  const { DATABASE_URL, LOG_LEVEL, NODE_ENV } = process.env;
+  const config = new pulumi.Config();
+  // Read from Pulumi config (preferred), fallback to process.env for backwards compatibility
+  const DATABASE_URL =
+    config.getSecret("DATABASE_URL") ||
+    config.get("DATABASE_URL") ||
+    process.env.DATABASE_URL;
+  const LOG_LEVEL = config.get("LOG_LEVEL") || process.env.LOG_LEVEL || "info";
+  const NODE_ENV =
+    config.get("NODE_ENV") || process.env.NODE_ENV || "production";
   const name = `worker-${env}`;
   const accountId = aws.getCallerIdentity().then((id) => id.accountId);
   // 1️⃣ ECR Repository
@@ -116,9 +124,9 @@ export function deploy(env: string) {
       memorySize: 512,
       environment: {
         variables: {
-          DATABASE_URL: DATABASE_URL!,
-          LOG_LEVEL: LOG_LEVEL!,
-          NODE_ENV: NODE_ENV!,
+          DATABASE_URL: DATABASE_URL || "",
+          LOG_LEVEL: LOG_LEVEL || "info",
+          NODE_ENV: NODE_ENV || "production",
           WORKER_MODE: "lambda",
           SQS_QUEUE_URL: queue.url,
         },

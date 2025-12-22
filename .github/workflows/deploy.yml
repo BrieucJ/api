@@ -47,6 +47,7 @@ jobs:
           # Get worker outputs
           WORKER_REPO=$(bun x pulumi stack output ecrRepoUrl -s worker-prod 2>/dev/null || echo "")
           WORKER_LAMBDA=$(bun x pulumi stack output workerLambdaName -s worker-prod 2>/dev/null || echo "")
+          WORKER_QUEUE_URL=$(bun x pulumi stack output queueUrl -s worker-prod 2>/dev/null || echo "")
 
           if [[ -z "$WORKER_REPO" ]] || [[ -z "$WORKER_LAMBDA" ]]; then
             echo "❌ Could not get worker infrastructure outputs. Is infrastructure deployed?"
@@ -54,6 +55,7 @@ jobs:
           fi
           echo "worker_repo=${WORKER_REPO}" >> $GITHUB_OUTPUT
           echo "worker_lambda=${WORKER_LAMBDA}" >> $GITHUB_OUTPUT
+          echo "worker_queue_url=${WORKER_QUEUE_URL}" >> $GITHUB_OUTPUT
 
           # Get backend outputs
           BACKEND_REPO=$(bun x pulumi stack output ecrRepoUrl -s lambda-prod 2>/dev/null || echo "")
@@ -90,6 +92,30 @@ jobs:
 
           echo "✅ Worker Lambda deployed successfully"
 
+      - name: Update Worker Lambda Environment Variables
+        run: |
+          # Create environment variables JSON file
+          cat > /tmp/worker-lambda-env.json <<EOF
+          {
+            "Variables": {
+              "DATABASE_URL": "${{ secrets.DATABASE_URL }}",
+              "LOG_LEVEL": "${{ secrets.LOG_LEVEL }}",
+              "NODE_ENV": "production",
+              "WORKER_MODE": "lambda",
+              "SQS_QUEUE_URL": "${{ steps.get-infra.outputs.worker_queue_url }}"
+            }
+          }
+          EOF
+
+          # Update Lambda function environment variables with secrets
+          aws lambda update-function-configuration \
+            --function-name ${{ steps.get-infra.outputs.worker_lambda }} \
+            --environment file:///tmp/worker-lambda-env.json \
+            --region ${{ env.AWS_REGION }} \
+            --wait
+
+          echo "✅ Worker Lambda environment variables updated successfully"
+
       - name: Build and Deploy Backend Lambda
         run: |
           # Build Docker image
@@ -111,6 +137,30 @@ jobs:
             --wait
 
           echo "✅ Backend Lambda deployed successfully"
+
+      - name: Update Backend Lambda Environment Variables
+        run: |
+          # Create environment variables JSON file
+          cat > /tmp/lambda-env.json <<EOF
+          {
+            "Variables": {
+              "DATABASE_URL": "${{ secrets.DATABASE_URL }}",
+              "LOG_LEVEL": "${{ secrets.LOG_LEVEL }}",
+              "NODE_ENV": "production",
+              "PORT": "${{ secrets.PORT }}",
+              "SQS_QUEUE_URL": "${{ steps.get-infra.outputs.worker_queue_url }}"
+            }
+          }
+          EOF
+
+          # Update Lambda function environment variables with secrets
+          aws lambda update-function-configuration \
+            --function-name ${{ steps.get-infra.outputs.backend_lambda }} \
+            --environment file:///tmp/lambda-env.json \
+            --region ${{ env.AWS_REGION }} \
+            --wait
+
+          echo "✅ Backend Lambda environment variables updated successfully"
 
       - name: Build Client
         working-directory: apps/client

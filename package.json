@@ -6,7 +6,9 @@
     "dev:worker": "bun --cwd apps/worker dev",
     "dev:client": "bun --cwd apps/client dev",
     "infra:deploy:all:prod": "bash infra/infra-run.sh deploy worker prod && bash infra/infra-run.sh deploy lambda prod && bash infra/infra-run.sh deploy client prod",
-    "infra:deploy:all:staging": "bash infra/infra-run.sh deploy worker staging && bash infra/infra-run.sh deploy lambda staging && bash infra/infra-run.sh deploy client staging"
+    "infra:deploy:all:staging": "bash infra/infra-run.sh deploy worker staging && bash infra/infra-run.sh deploy lambda staging && bash infra/infra-run.sh deploy client staging",
+    "infra:destroy:all:prod": "bash infra/infra-run.sh destroy worker prod && bash infra/infra-run.sh destroy lambda prod && bash infra/infra-run.sh destroy client prod",
+    "infra:destroy:all:staging": "bash infra/infra-run.sh destroy worker staging && bash infra/infra-run.sh destroy lambda staging && bash infra/infra-run.sh destroy client staging"
   },
   "dependencies": {
     "@pulumi/aws": "^7.15.0",
