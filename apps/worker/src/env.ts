@@ -12,8 +12,24 @@ const currentDir =
     ? import.meta.dir
     : path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(currentDir, "..");
-const envFileName = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
-const envPath = path.resolve(appDir, envFileName);
+
+// For local development, use env.dev, fallback to .env for backwards compatibility
+let envPath: string;
+if (process.env.NODE_ENV === "test") {
+  envPath = path.resolve(appDir, ".env.test");
+} else {
+  // Try env.dev first, then fallback to .env
+  const envDevPath = path.resolve(appDir, "env.dev");
+  const envPathLegacy = path.resolve(appDir, ".env");
+  envPath = envDevPath; // Prefer env.dev
+  // Also try loading .env as fallback
+  expand(
+    config({
+      path: envPathLegacy,
+      quiet: true,
+    })
+  );
+}
 
 expand(
   config({
@@ -37,7 +53,7 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().default(8081),
   DATABASE_URL: z.url(),
   SQS_QUEUE_URL: z.url().optional(),
-  AWS_REGION: z.string().optional(),
+  REGION: z.string(),
 });
 
 export type env = z.infer<typeof EnvSchema>;

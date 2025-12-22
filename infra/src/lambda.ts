@@ -3,16 +3,12 @@ import * as aws from "@pulumi/aws";
 import * as command from "@pulumi/command";
 
 export function deploy(env: string) {
-  const config = new pulumi.Config();
-  // Read from Pulumi config (preferred), fallback to process.env for backwards compatibility
-  const DATABASE_URL =
-    config.getSecret("DATABASE_URL") ||
-    config.get("DATABASE_URL") ||
-    process.env.DATABASE_URL;
-  const LOG_LEVEL = config.get("LOG_LEVEL") || process.env.LOG_LEVEL || "info";
-  const NODE_ENV =
-    config.get("NODE_ENV") || process.env.NODE_ENV || "production";
-  const PORT = config.get("PORT") || process.env.PORT || "3000";
+  // Read from process.env (loaded from env file by index.ts) - these are our config values
+  const DATABASE_URL = process.env.DATABASE_URL;
+  const LOG_LEVEL = process.env.LOG_LEVEL || "info";
+  const NODE_ENV = process.env.NODE_ENV;
+  const PORT = process.env.PORT;
+  const REGION = process.env.REGION!;
   const name = `api-${env}`;
 
   // 1️⃣ Reference worker stack to get SQS queue URL
@@ -63,7 +59,7 @@ export function deploy(env: string) {
       # Move to repo root so Docker build context includes everything
       cd ../../ &&
       # Login to AWS ECR
-      aws ecr get-login-password --region eu-west-3 \
+      aws ecr get-login-password --region ${REGION} \
         | docker login --username AWS --password-stdin ${repo.repositoryUrl} &&
       # Build Lambda image
       docker build -t ${name} -f .docker/Dockerfile.lambda . &&
@@ -88,6 +84,7 @@ export function deploy(env: string) {
           LOG_LEVEL: LOG_LEVEL || "info",
           PORT: PORT || "3000",
           NODE_ENV: NODE_ENV || "production",
+          REGION: REGION,
           SQS_QUEUE_URL: workerQueueUrl.apply((url) => url as string),
         },
       },

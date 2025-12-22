@@ -21,7 +21,7 @@ export class SQSQueue implements Queue {
     }
 
     this.client = new SQSClient({
-      region: env.AWS_REGION || "us-east-1",
+      region: env.REGION,
     });
   }
 

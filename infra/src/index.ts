@@ -6,23 +6,47 @@ import { deploy as clientDeploy } from "./client";
 import * as dotenv from "dotenv";
 import path from "node:path";
 
-dotenv.config({
-  path: path.resolve(__dirname, "../../apps/backend/.env"),
-  quiet: true,
-});
-
-dotenv.config({
-  path: path.resolve(__dirname, "../../apps/worker/.env"),
-  quiet: true,
-});
-
-dotenv.config({
-  path: path.resolve(__dirname, "../../apps/client/.env"),
-  quiet: true,
-});
-
 const stack = pulumi.getStack(); // e.g., lambda-prod
 const [platform, env] = stack.split("-");
+
+// Map environment to env file name
+// prod -> env.production, staging -> env.staging, default -> env.dev
+let envFileName: string;
+if (env === "prod") {
+  envFileName = "env.production";
+} else if (env === "staging") {
+  envFileName = "env.staging";
+} else {
+  envFileName = "env.dev";
+}
+
+// Load the appropriate environment file based on platform
+// Backend (lambda/ecs) uses apps/backend/env.*
+// Worker uses apps/worker/env.*
+// These env files are loaded into process.env, which serves as our config source
+if (platform === "lambda" || platform === "ecs") {
+  const backendEnvPath = path.resolve(
+    __dirname,
+    "../../apps/backend",
+    envFileName
+  );
+  dotenv.config({
+    path: backendEnvPath,
+    quiet: true,
+  });
+  pulumi.log.info(`Loading backend environment from: ${backendEnvPath}`);
+} else if (platform === "worker") {
+  const workerEnvPath = path.resolve(
+    __dirname,
+    "../../apps/worker",
+    envFileName
+  );
+  dotenv.config({
+    path: workerEnvPath,
+    quiet: true,
+  });
+  pulumi.log.info(`Loading worker environment from: ${workerEnvPath}`);
+}
 
 if (!platform || !env) {
   throw new Error("Stack name must be <platform>-<env>");

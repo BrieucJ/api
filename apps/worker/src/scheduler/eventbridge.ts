@@ -19,7 +19,7 @@ export class EventBridgeScheduler implements Scheduler {
     this.lambdaArn = lambdaArn;
     this.rulePrefix = rulePrefix;
     this.client = new EventBridgeClient({
-      region: env.AWS_REGION || "us-east-1",
+      region: env.REGION,
     });
   }
 

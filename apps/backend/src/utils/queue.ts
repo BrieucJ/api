@@ -17,7 +17,7 @@ function getSQSClient(): SQSClient | null {
   if (env.NODE_ENV === "production" || env.SQS_QUEUE_URL) {
     if (!sqsClient) {
       sqsClient = new SQSClient({
-        region: env.AWS_REGION || "us-east-1",
+        region: env.REGION,
       });
       queueUrl = env.SQS_QUEUE_URL || null;
     }
