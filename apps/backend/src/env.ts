@@ -38,7 +38,8 @@ expand(
   })
 );
 
-const EnvSchema = z.object({
+// Base schema with common fields
+const BaseEnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PORT: z.coerce.number().default(3000),
   LOG_LEVEL: z.enum([
@@ -51,9 +52,37 @@ const EnvSchema = z.object({
     "silent",
   ]),
   DATABASE_URL: z.url(),
-  WORKER_URL: z.url(),
-  SQS_QUEUE_URL: z.url().optional(),
   REGION: z.string(),
+  // Optional fields that may be required based on NODE_ENV
+  SQS_QUEUE_URL: z.url().optional(),
+  WORKER_URL: z.url().optional(),
+});
+
+// Conditional validation based on NODE_ENV
+const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
+  const isProduction = data.NODE_ENV === "production";
+  const isStaging = data.NODE_ENV === "staging";
+  const isDevelopment =
+    data.NODE_ENV === "development" || (!isProduction && !isStaging);
+
+  // In production/staging, SQS_QUEUE_URL is required
+  if ((isProduction || isStaging) && !data.SQS_QUEUE_URL) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "SQS_QUEUE_URL is required in production/staging environments",
+      path: ["SQS_QUEUE_URL"],
+    });
+  }
+
+  // In development, WORKER_URL is required (unless SQS_QUEUE_URL is provided)
+  if (isDevelopment && !data.WORKER_URL && !data.SQS_QUEUE_URL) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        "WORKER_URL is required in development environment when SQS_QUEUE_URL is not set",
+      path: ["WORKER_URL"],
+    });
+  }
 });
 
 export type env = z.infer<typeof EnvSchema>;

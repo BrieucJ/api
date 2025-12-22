@@ -8,7 +8,11 @@ export function deploy(env: string) {
   const LOG_LEVEL = process.env.LOG_LEVEL || "info";
   const NODE_ENV = process.env.NODE_ENV;
   const PORT = process.env.PORT;
-  const REGION = process.env.REGION!;
+  const REGION = process.env.REGION || process.env.AWS_REGION || "eu-west-3";
+  
+  if (!REGION) {
+    throw new Error("REGION environment variable is required but not set");
+  }
   
   // Log all environment variables being used
   console.log("📋 Environment variables for Lambda deployment:");
@@ -19,6 +23,9 @@ export function deploy(env: string) {
   console.log("  REGION:", REGION);
   
   const name = `api-${env}`;
+  
+  // Capture REGION in a const for use in closures
+  const regionValue = REGION;
 
   // 1️⃣ Reference worker stack to get SQS queue URL
   const workerStack = new pulumi.StackReference(`worker-${env}`, {
@@ -68,7 +75,7 @@ export function deploy(env: string) {
       # Move to repo root so Docker build context includes everything
       cd ../../ &&
       # Login to AWS ECR
-      aws ecr get-login-password --region ${REGION} \
+      aws ecr get-login-password --region ${regionValue} \
         | docker login --username AWS --password-stdin ${repo.repositoryUrl} &&
       # Build Lambda image
       docker build -t ${name} -f .docker/Dockerfile.lambda . &&
@@ -93,7 +100,7 @@ export function deploy(env: string) {
           LOG_LEVEL: LOG_LEVEL || "info",
           PORT: PORT || "3000",
           NODE_ENV: NODE_ENV || "production",
-          REGION: REGION,
+          REGION: regionValue,
           SQS_QUEUE_URL: workerQueueUrl.apply((url) => url as string),
         },
       },

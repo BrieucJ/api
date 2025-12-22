@@ -38,7 +38,8 @@ expand(
   })
 );
 
-const EnvSchema = z.object({
+// Base schema with common fields
+const BaseEnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
   WORKER_MODE: z.enum(["local", "lambda"]).default("local"),
   LOG_LEVEL: z.enum([
@@ -52,8 +53,26 @@ const EnvSchema = z.object({
   ]),
   PORT: z.coerce.number().default(8081),
   DATABASE_URL: z.url(),
-  SQS_QUEUE_URL: z.url().optional(),
   REGION: z.string(),
+  // Optional fields that may be required based on NODE_ENV and WORKER_MODE
+  SQS_QUEUE_URL: z.url().optional(),
+});
+
+// Conditional validation based on NODE_ENV and WORKER_MODE
+const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
+  const isProduction = data.NODE_ENV === "production";
+  const isStaging = data.NODE_ENV === "staging";
+  const isLambdaMode = data.WORKER_MODE === "lambda";
+
+  // In production/staging or lambda mode, SQS_QUEUE_URL is required
+  if ((isProduction || isStaging || isLambdaMode) && !data.SQS_QUEUE_URL) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        "SQS_QUEUE_URL is required in production/staging environments or when WORKER_MODE is lambda",
+      path: ["SQS_QUEUE_URL"],
+    });
+  }
 });
 
 export type env = z.infer<typeof EnvSchema>;
