@@ -1,5 +1,5 @@
 import { logger } from "@/utils/logger";
-import { db } from "@/db/client";
+import { db } from "@/db/db";
 import { metrics, metricsInsertSchema } from "@shared/db";
 import { generateRowEmbedding } from "@shared/utils";
 import type { ProcessRawMetricsPayload, RawMetric } from "../types";

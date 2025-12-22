@@ -1,5 +1,5 @@
 import { logger } from "@/utils/logger";
-import { db } from "@/db/client";
+import { db } from "@/db/db";
 import { logs } from "@shared/db";
 import { sql } from "drizzle-orm";
 import type { CleanupLogsPayload } from "../types";

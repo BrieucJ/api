@@ -1,11 +1,9 @@
 import { logger } from "@/utils/logger";
-import { db } from "@/db/client";
+import { db } from "@/db/db";
 import { sql } from "drizzle-orm";
 import type { HealthCheckPayload } from "../types";
 
-export async function healthCheck(
-  payload: HealthCheckPayload
-): Promise<void> {
+export async function healthCheck(payload: HealthCheckPayload): Promise<void> {
   logger.info("Running health check", { payload });
 
   try {
@@ -37,4 +35,3 @@ export async function healthCheck(
     throw error;
   }
 }
-
