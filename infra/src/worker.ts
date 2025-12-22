@@ -10,8 +10,18 @@ export function deploy(env: string) {
   const PORT = process.env.PORT;
   const REGION = process.env.REGION!;
   const WORKER_MODE = process.env.WORKER_MODE || "lambda";
+  
+  // Log all environment variables being used
+  console.log("📋 Environment variables for Worker deployment:");
+  console.log("  DATABASE_URL:", DATABASE_URL ? `${DATABASE_URL.split("@")[0]}@***` : "undefined");
+  console.log("  LOG_LEVEL:", LOG_LEVEL);
+  console.log("  NODE_ENV:", NODE_ENV);
+  console.log("  PORT:", PORT);
+  console.log("  REGION:", REGION);
+  console.log("  WORKER_MODE:", WORKER_MODE);
+  
   const name = `worker-${env}`;
-  const accountId = aws.getCallerIdentity().then((id) => id.accountId);
+  const accountId = pulumi.output(aws.getCallerIdentity()).apply((id) => id.accountId);
   // 1️⃣ ECR Repository
   const repo = new aws.ecr.Repository(name, { forceDelete: true });
 
@@ -148,7 +158,7 @@ export function deploy(env: string) {
     action: "lambda:InvokeFunction",
     function: workerLambda.name,
     principal: "events.amazonaws.com",
-    sourceArn: pulumi.interpolate`arn:aws:events:${REGION}:${accountId}:rule/${name}-*`,
+    sourceArn: accountId.apply((id) => `arn:aws:events:${REGION}:${id}:rule/${name}-*`),
   });
 
   return {

@@ -9,7 +9,15 @@ export function deploy(env: string) {
   const NODE_ENV = process.env.NODE_ENV;
   const PORT = process.env.PORT;
   const REGION = process.env.REGION!;
-
+  
+  // Log all environment variables being used
+  console.log("📋 Environment variables for ECS deployment:");
+  console.log("  DATABASE_URL:", DATABASE_URL ? `${DATABASE_URL.split("@")[0]}@***` : "undefined");
+  console.log("  LOG_LEVEL:", LOG_LEVEL);
+  console.log("  NODE_ENV:", NODE_ENV);
+  console.log("  PORT:", PORT);
+  console.log("  REGION:", REGION);
+  
   const name = `api-${env}`;
 
   // -------------------------
