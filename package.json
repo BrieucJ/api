@@ -13,7 +13,9 @@
     "infra:deploy:ecs:staging": "bash infra/pulumi-run.sh ecs staging up",
     "infra:destroy:ecs:staging": "bash infra/pulumi-run.sh ecs staging destroy",
     "infra:deploy:ecs:prod": "bash infra/pulumi-run.sh ecs prod up",
-    "infra:destroy:ecs:prod": "bash infra/pulumi-run.sh ecs prod destroy"
+    "infra:destroy:ecs:prod": "bash infra/pulumi-run.sh ecs prod destroy",
+    "infra:deploy:worker:prod": "bash infra/pulumi-run.sh worker prod up",
+    "infra:deploy:client:prod": "bash infra/pulumi-run.sh client prod up"
   },
   "dependencies": {
     "@pulumi/aws": "^7.15.0",

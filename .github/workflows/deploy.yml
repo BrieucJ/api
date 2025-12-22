@@ -36,50 +36,70 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Pulumi
-        uses: pulumi/actions@v4
-        with:
-          pulumi-version: latest
-
-      - name: Deploy Backend Lambda
-        working-directory: infra
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
-          PORT: ${{ secrets.PORT || '8080' }}
-          NODE_ENV: ${{ env.NODE_ENV }}
+      - name: Get AWS Account ID
+        id: get-account-id
         run: |
-          bash pulumi-run.sh lambda prod up
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "account_id=$ACCOUNT_ID" >> $GITHUB_OUTPUT
+
+      - name: Build and Deploy Backend Lambda
+        run: |
+          # Build Docker image
+          docker build -t api-prod -f .docker/Dockerfile.lambda .
+
+          # Login to ECR
+          ECR_REPO_URL="${{ steps.get-account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/api-prod"
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+            | docker login --username AWS --password-stdin ${ECR_REPO_URL}
+
+          # Tag and push
+          docker tag api-prod ${ECR_REPO_URL}:prod
+          docker push ${ECR_REPO_URL}:prod
+
+          # Update Lambda function (function name: api-prod-apiLambda)
+          aws lambda update-function-code \
+            --function-name api-prod-apiLambda \
+            --image-uri ${ECR_REPO_URL}:prod \
+            --region ${{ env.AWS_REGION }} \
+            --wait
+
+          echo "✅ Backend Lambda deployed successfully"
 
       - name: Get Backend API URL
         id: get-api-url
-        working-directory: infra
-        env:
-          TS_NODE_PROJECT: ${{ github.workspace }}/infra/tsconfig.json
-          PULUMI_NODEJS_USE_TS_NODE: true
-          PULUMI_CONFIG_PASSPHRASE: ""
         run: |
-          mkdir -p ~/.pulumi/stacks
-          bun x pulumi login file://~/.pulumi/stacks
-          bun x pulumi stack select lambda-prod
-          API_URL=$(bun x pulumi stack output apiUrl --json 2>/dev/null | tr -d '"' || echo "")
-          if [ -z "$API_URL" ]; then
-            echo "Failed to get API URL from Pulumi stack"
-            exit 1
+          # Get API Gateway endpoint (API name: api-prod-apiGateway)
+          API_ID=$(aws apigatewayv2 get-apis --region ${{ env.AWS_REGION }} --query "Items[?contains(Name, 'api-prod')].ApiId" --output text | head -1)
+          if [ -n "$API_ID" ] && [ "$API_ID" != "None" ]; then
+            API_URL=$(aws apigatewayv2 get-api --api-id ${API_ID} --region ${{ env.AWS_REGION }} --query 'ApiEndpoint' --output text)
+            if [ -n "$API_URL" ] && [ "$API_URL" != "None" ]; then
+              echo "api_url=${API_URL}" >> $GITHUB_OUTPUT
+              echo "Backend API URL: ${API_URL}"
+            fi
           fi
-          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
-          echo "Backend API URL: $API_URL"
 
-      - name: Deploy Worker Lambda
-        working-directory: infra
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
-          NODE_ENV: ${{ env.NODE_ENV }}
-          WORKER_MODE: lambda
-          AWS_REGION: ${{ env.AWS_REGION }}
+      - name: Build and Deploy Worker Lambda
         run: |
-          bash pulumi-run.sh worker prod up
+          # Build Docker image
+          docker build -t worker-prod -f .docker/Dockerfile.worker .
+
+          # Login to ECR
+          ECR_REPO_URL="${{ steps.get-account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/worker-prod"
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+            | docker login --username AWS --password-stdin ${ECR_REPO_URL}
+
+          # Tag and push
+          docker tag worker-prod ${ECR_REPO_URL}:prod
+          docker push ${ECR_REPO_URL}:prod
+
+          # Update Lambda function (function name: worker-prod-lambda)
+          aws lambda update-function-code \
+            --function-name worker-prod-lambda \
+            --image-uri ${ECR_REPO_URL}:prod \
+            --region ${{ env.AWS_REGION }} \
+            --wait
+
+          echo "✅ Worker Lambda deployed successfully"
 
       - name: Build Client
         working-directory: apps/client
@@ -89,24 +109,42 @@ jobs:
           bun install --frozen-lockfile
           bun run build
 
-      - name: Deploy Client
-        working-directory: infra
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
+      - name: Deploy Client to S3 and CloudFront
         run: |
-          bash pulumi-run.sh client prod up
-
-      - name: Get Client URL
-        working-directory: infra
-        env:
-          TS_NODE_PROJECT: ${{ github.workspace }}/infra/tsconfig.json
-          PULUMI_NODEJS_USE_TS_NODE: true
-          PULUMI_CONFIG_PASSPHRASE: ""
-        run: |
-          mkdir -p ~/.pulumi/stacks
-          bun x pulumi login file://~/.pulumi/stacks
-          bun x pulumi stack select client-prod
-          CLIENT_URL=$(bun x pulumi stack output distributionUrl --json 2>/dev/null | tr -d '"' || echo "")
-          if [ -n "$CLIENT_URL" ]; then
-            echo "Client deployed to: $CLIENT_URL"
+          # Get S3 bucket name (bucket name: client-prod-bucket)
+          BUCKET_NAME=$(aws s3api list-buckets --query "Buckets[?contains(Name, 'client-prod-bucket')].Name" --output text | head -1)
+          if [ -z "$BUCKET_NAME" ]; then
+            echo "❌ Could not find S3 bucket for client-prod. Is infrastructure deployed?"
+            exit 1
           fi
+
+          echo "📤 Uploading to S3 bucket: ${BUCKET_NAME}"
+          # Upload static assets with long cache
+          aws s3 sync apps/client/dist/ s3://${BUCKET_NAME}/ \
+            --region ${{ env.AWS_REGION }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html"
+
+          # Upload HTML files with no cache
+          aws s3 sync apps/client/dist/ s3://${BUCKET_NAME}/ \
+            --region ${{ env.AWS_REGION }} \
+            --delete \
+            --cache-control "public, max-age=0, must-revalidate" \
+            --include "*.html"
+
+          # Get CloudFront distribution ID and invalidate cache
+          DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?contains(Comment, 'client-prod')].Id" --output text | head -1)
+          if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+            echo "🔄 Invalidating CloudFront cache..."
+            INVALIDATION_ID=$(aws cloudfront create-invalidation \
+              --distribution-id ${DIST_ID} \
+              --paths "/*" \
+              --query 'Invalidation.Id' \
+              --output text)
+            echo "✅ CloudFront invalidation created: ${INVALIDATION_ID}"
+          else
+            echo "⚠️  Could not find CloudFront distribution"
+          fi
+
+          echo "✅ Client deployed successfully"

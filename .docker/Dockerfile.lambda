@@ -18,6 +18,7 @@ RUN bun install --frozen-lockfile
 COPY apps/backend/src ./apps/backend/src
 
 # Build Lambda: output to directory (bun outputs lambda.js directly in outdir when bundling)
+# Mark geoip-lite as external since it needs its data files at runtime
 RUN mkdir -p /var/task/dist
 RUN bun build apps/backend/src/servers/lambda.ts \
     --target=node \
@@ -25,8 +26,10 @@ RUN bun build apps/backend/src/servers/lambda.ts \
     --bundle \
     --minify \
     --sourcemap \
+    --external geoip-lite \
     --tsconfig apps/backend/tsconfig.json \
     --outdir /var/task/dist
+
 
 # -------------------------
 # 2️⃣ Runtime stage
@@ -36,6 +39,10 @@ WORKDIR /var/task
 # Copy package.json and the bundled Lambda
 COPY apps/backend/package.json ./package.json
 COPY --from=build /var/task/dist/src/servers/lambda.js ./lambda.js
+
+# Install geoip-lite (marked as external, needs to be available at runtime)
+# This will install the package with all its data files
+RUN npm install --production --omit=dev geoip-lite
 
 # Lambda handler
 CMD ["lambda.handler"]

@@ -3,6 +3,23 @@ import { deploy as lambdaDeploy } from "./lambda";
 import { deploy as ecsDeploy } from "./ecs";
 import { deploy as workerDeploy } from "./worker";
 import { deploy as clientDeploy } from "./client";
+import * as dotenv from "dotenv";
+import path from "node:path";
+
+dotenv.config({
+  path: path.resolve(__dirname, "../../apps/backend/.env"),
+  quiet: true,
+});
+
+dotenv.config({
+  path: path.resolve(__dirname, "../../apps/worker/.env"),
+  quiet: true,
+});
+
+dotenv.config({
+  path: path.resolve(__dirname, "../../apps/client/.env"),
+  quiet: true,
+});
 
 const stack = pulumi.getStack(); // e.g., lambda-prod
 const [platform, env] = stack.split("-");
