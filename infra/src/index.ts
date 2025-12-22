@@ -52,6 +52,17 @@ switch (platform) {
 }
 
 // Export all outputs at top-level
+// Only outputs that exist for the current stack will be available
 export const apiLambdaArn = outputs.apiLambdaArn;
 export const apiLambdaName = outputs.apiLambdaName;
 export const apiUrl = outputs.apiUrl;
+export const ecrRepoUrl = outputs.ecrRepoUrl;
+export const workerLambdaArn = outputs.workerLambdaArn;
+export const workerLambdaName = outputs.workerLambdaName;
+export const queueUrl = outputs.queueUrl;
+export const queueArn = outputs.queueArn;
+export const dlqUrl = outputs.dlqUrl;
+export const dlqArn = outputs.dlqArn;
+export const bucketName = outputs.bucketName;
+export const distributionId = outputs.distributionId;
+export const distributionUrl = outputs.distributionUrl;
