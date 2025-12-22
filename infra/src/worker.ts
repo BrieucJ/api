@@ -150,5 +150,6 @@ export function deploy(env: string) {
     queueArn: queue.arn,
     dlqUrl: dlq.url,
     dlqArn: dlq.arn,
+    ecrRepoUrl: repo.repositoryUrl,
   };
 }

@@ -5,10 +5,18 @@ import * as command from "@pulumi/command";
 export function deploy(env: string) {
   const { DATABASE_URL, LOG_LEVEL, NODE_ENV, PORT } = process.env;
   const name = `api-${env}`;
-  // 1️⃣ ECR
+
+  // 1️⃣ Reference worker stack to get SQS queue URL
+  const workerStack = new pulumi.StackReference(`worker-${env}`, {
+    name: `worker-${env}`,
+  });
+  const workerQueueUrl = workerStack.requireOutput("queueUrl");
+  const workerQueueArn = workerStack.requireOutput("queueArn");
+
+  // 2️⃣ ECR
   const repo = new aws.ecr.Repository(name, { forceDelete: true });
 
-  // 2️⃣ Lambda IAM role
+  // 3️⃣ Lambda IAM role
   const lambdaRole = new aws.iam.Role(`${name}-role`, {
     assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
       Service: "lambda.amazonaws.com",
@@ -20,7 +28,25 @@ export function deploy(env: string) {
       "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
   });
 
-  // 3️⃣ Docker build & push
+  // Add SQS permissions for backend to enqueue jobs
+  new aws.iam.RolePolicy(`${name}-sqsPolicy`, {
+    role: lambdaRole.name,
+    policy: pulumi.interpolate`{
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "sqs:SendMessage",
+            "sqs:GetQueueAttributes"
+          ],
+          "Resource": "${workerQueueArn}"
+        }
+      ]
+    }`,
+  });
+
+  // 4️⃣ Docker build & push
   const buildLambdaImage = new command.local.Command(
     `${name}-buildLambdaImage`,
     {
@@ -38,7 +64,7 @@ export function deploy(env: string) {
     `,
     }
   );
-  // 4️⃣ Lambda function
+  // 5️⃣ Lambda function
   const apiLambda = new aws.lambda.Function(
     `${name}-apiLambda`,
     {
@@ -53,13 +79,14 @@ export function deploy(env: string) {
           LOG_LEVEL: LOG_LEVEL!,
           PORT: PORT!,
           NODE_ENV: NODE_ENV!,
+          SQS_QUEUE_URL: workerQueueUrl.apply((url) => url as string),
         },
       },
     },
     { dependsOn: [buildLambdaImage] }
   );
 
-  // 5️⃣ API Gateway
+  // 6️⃣ API Gateway
   const apiGateway = new aws.apigatewayv2.Api(`${name}-apiGateway`, {
     protocolType: "HTTP",
   });
@@ -96,5 +123,6 @@ export function deploy(env: string) {
     apiLambdaArn: apiLambda.arn,
     apiLambdaName: apiLambda.name,
     apiUrl: apiGateway.apiEndpoint,
+    ecrRepoUrl: repo.repositoryUrl,
   };
 }

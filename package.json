@@ -5,17 +5,8 @@
     "dev:backend": "bun --cwd apps/backend dev",
     "dev:worker": "bun --cwd apps/worker dev",
     "dev:client": "bun --cwd apps/client dev",
-    "infra:deploy:lambda:staging": "bash infra/pulumi-run.sh lambda staging up",
-    "infra:destroy:lambda:staging": "bash infra/pulumi-run.sh lambda staging destroy",
-    "infra:destroy:worker:prod": "bash infra/pulumi-run.sh worker prod destroy",
-    "infra:deploy:lambda:prod": "bash infra/pulumi-run.sh lambda prod up",
-    "infra:destroy:lambda:prod": "bash infra/pulumi-run.sh lambda prod destroy",
-    "infra:deploy:ecs:staging": "bash infra/pulumi-run.sh ecs staging up",
-    "infra:destroy:ecs:staging": "bash infra/pulumi-run.sh ecs staging destroy",
-    "infra:deploy:ecs:prod": "bash infra/pulumi-run.sh ecs prod up",
-    "infra:destroy:ecs:prod": "bash infra/pulumi-run.sh ecs prod destroy",
-    "infra:deploy:worker:prod": "bash infra/pulumi-run.sh worker prod up",
-    "infra:deploy:client:prod": "bash infra/pulumi-run.sh client prod up"
+    "infra:deploy:all:prod": "bash infra/infra-run.sh deploy worker prod && bash infra/infra-run.sh deploy lambda prod && bash infra/infra-run.sh deploy client prod",
+    "infra:deploy:all:staging": "bash infra/infra-run.sh deploy worker staging && bash infra/infra-run.sh deploy lambda staging && bash infra/infra-run.sh deploy client staging"
   },
   "dependencies": {
     "@pulumi/aws": "^7.15.0",
