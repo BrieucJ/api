@@ -24,13 +24,16 @@ export function deploy(env: string) {
   });
 
   // Block public access (CloudFront will access via OAI)
-  new aws.s3.BucketPublicAccessBlock(`${name}-publicAccessBlock`, {
-    bucket: bucket.id,
-    blockPublicAcls: true,
-    blockPublicPolicy: true,
-    ignorePublicAcls: true,
-    restrictPublicBuckets: true,
-  });
+  const publicAccessBlock = new aws.s3.BucketPublicAccessBlock(
+    `${name}-publicAccessBlock`,
+    {
+      bucket: bucket.id,
+      blockPublicAcls: true,
+      blockPublicPolicy: true,
+      ignorePublicAcls: true,
+      restrictPublicBuckets: true,
+    }
+  );
 
   // 3️⃣ Build client with API URL
   const buildClient = new command.local.Command(
@@ -71,6 +74,8 @@ export function deploy(env: string) {
   });
 
   // 6️⃣ S3 Bucket Policy for CloudFront
+  // Note: Bucket policy must be created after public access block, but public access block
+  // allows bucket policies that grant access to specific principals (like OAI)
   const bucketPolicy = new aws.s3.BucketPolicy(
     `${name}-bucketPolicy`,
     {
@@ -94,7 +99,7 @@ export function deploy(env: string) {
           })
         ),
     },
-    { dependsOn: [oai, bucket] }
+    { dependsOn: [oai, bucket, publicAccessBlock] }
   );
 
   // Ensure bucket policy is fully applied before distribution
@@ -107,8 +112,7 @@ export function deploy(env: string) {
       enabled: true,
       isIpv6Enabled: true,
       defaultRootObject: "index.html",
-      priceClass: "PriceClass_100", // Use only North America and Europe
-
+      priceClass: "PriceClass_100",
       origins: [
         {
           originId: bucket.arn,
