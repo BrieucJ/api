@@ -82,6 +82,7 @@ export function deploy(env: string) {
             Version: "2012-10-17",
             Statement: [
               {
+                Sid: "AllowCloudFrontServicePrincipal",
                 Effect: "Allow",
                 Principal: {
                   AWS: oaiArn,
@@ -95,6 +96,9 @@ export function deploy(env: string) {
     },
     { dependsOn: [oai, bucket] }
   );
+
+  // Ensure bucket policy is fully applied before distribution
+  const bucketPolicyApplied = bucketPolicy.id.apply(() => bucket.id);
 
   // 7️⃣ CloudFront Distribution
   const distribution = new aws.cloudfront.Distribution(
