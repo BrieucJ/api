@@ -146,7 +146,7 @@ export function deploy(env: string) {
           PORT: PORT || "8081",
           REGION: REGION,
           WORKER_MODE: WORKER_MODE || "lambda",
-          SQS_QUEUE_URL: queue.url,
+          SQS_QUEUE_URL: queue.url.apply((url) => url as string),
         },
       },
     },
