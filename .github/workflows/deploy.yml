@@ -64,16 +64,20 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
             --image-uri ${{ secrets.WORKER_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }} \
-            --region ${{ env.AWS_REGION }} \
-            --wait
+            --region ${{ env.AWS_REGION }}
+          aws lambda wait function-updated \
+            --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
+            --region ${{ env.AWS_REGION }}
           cat > /tmp/env.json <<EOF
           {"Variables":{"DATABASE_URL":"${{ secrets.DATABASE_URL }}","LOG_LEVEL":"${{ secrets.LOG_LEVEL }}","NODE_ENV":"${{ steps.env.outputs.env_name }}","WORKER_MODE":"lambda","SQS_QUEUE_URL":"${{ secrets.WORKER_QUEUE_URL }}"}}
           EOF
           aws lambda update-function-configuration \
             --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
             --environment file:///tmp/env.json \
-            --region ${{ env.AWS_REGION }} \
-            --wait
+            --region ${{ env.AWS_REGION }}
+          aws lambda wait function-updated \
+            --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
+            --region ${{ env.AWS_REGION }}
 
       - name: Build Backend Docker Image
         run: |
@@ -91,16 +95,20 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
             --image-uri ${{ secrets.BACKEND_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }} \
-            --region ${{ env.AWS_REGION }} \
-            --wait
+            --region ${{ env.AWS_REGION }}
+          aws lambda wait function-updated \
+            --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
+            --region ${{ env.AWS_REGION }}
           cat > /tmp/env.json <<EOF
           {"Variables":{"DATABASE_URL":"${{ secrets.DATABASE_URL }}","LOG_LEVEL":"${{ secrets.LOG_LEVEL }}","NODE_ENV":"${{ steps.env.outputs.env_name }}","PORT":"${{ secrets.PORT }}","SQS_QUEUE_URL":"${{ secrets.WORKER_QUEUE_URL }}"}}
           EOF
           aws lambda update-function-configuration \
             --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
             --environment file:///tmp/env.json \
-            --region ${{ env.AWS_REGION }} \
-            --wait
+            --region ${{ env.AWS_REGION }}
+          aws lambda wait function-updated \
+            --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
+            --region ${{ env.AWS_REGION }}
 
       - name: Build Client
         working-directory: apps/client
