@@ -35,6 +35,14 @@ if (platform === "lambda" || platform === "ecs") {
     quiet: true,
   });
   pulumi.log.info(`Loading backend environment from: ${backendEnvPath}`);
+  pulumi.log.info(
+    `DATABASE_URL loaded - length: ${process.env.DATABASE_URL?.length}`
+  );
+  pulumi.log.info(
+    `DATABASE_URL ends with /postgres: ${process.env.DATABASE_URL?.endsWith(
+      "/postgres"
+    )}`
+  );
 } else if (platform === "worker") {
   const workerEnvPath = path.resolve(
     __dirname,
@@ -46,6 +54,15 @@ if (platform === "lambda" || platform === "ecs") {
     quiet: true,
   });
   pulumi.log.info(`Loading worker environment from: ${workerEnvPath}`);
+  // Debug: Check what was actually loaded
+  pulumi.log.info(
+    `DATABASE_URL loaded - length: ${process.env.DATABASE_URL?.length}`
+  );
+  pulumi.log.info(
+    `DATABASE_URL ends with /postgres: ${process.env.DATABASE_URL?.endsWith(
+      "/postgres"
+    )}`
+  );
 }
 
 if (!platform || !env) {

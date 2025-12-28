@@ -8,22 +8,28 @@ export function deploy(env: string) {
   const LOG_LEVEL = process.env.LOG_LEVEL || "info";
   const NODE_ENV = process.env.NODE_ENV;
   const PORT = process.env.PORT;
-  const REGION = process.env.REGION || process.env.AWS_REGION || "eu-west-3";
-  
+  const REGION = process.env.REGION;
+
   if (!REGION) {
     throw new Error("REGION environment variable is required but not set");
   }
-  
+
   // Log all environment variables being used
   console.log("📋 Environment variables for Lambda deployment:");
-  console.log("  DATABASE_URL:", DATABASE_URL ? `${DATABASE_URL.split("@")[0]}@***` : "undefined");
+  // Debug: Check the actual value
+  console.log("  DATABASE_URL length:", DATABASE_URL?.length);
+  console.log("  DATABASE_URL (JSON):", JSON.stringify(DATABASE_URL));
+  console.log(
+    "  DATABASE_URL ends with /postgres:",
+    DATABASE_URL?.endsWith("/postgres")
+  );
   console.log("  LOG_LEVEL:", LOG_LEVEL);
   console.log("  NODE_ENV:", NODE_ENV);
   console.log("  PORT:", PORT);
   console.log("  REGION:", REGION);
-  
+
   const name = `api-${env}`;
-  
+
   // Capture REGION in a const for use in closures
   const regionValue = REGION;
 

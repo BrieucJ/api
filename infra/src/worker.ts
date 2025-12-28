@@ -13,19 +13,21 @@ export function deploy(env: string) {
     throw new Error("REGION environment variable is required but not set");
   }
   const WORKER_MODE = process.env.WORKER_MODE || "lambda";
-  
+
   // Log all environment variables being used
   console.log("📋 Environment variables for Worker deployment:");
-  console.log("  DATABASE_URL:", DATABASE_URL ? `${DATABASE_URL.split("@")[0]}@***` : "undefined");
+  console.log("  DATABASE_URL:", DATABASE_URL);
   console.log("  LOG_LEVEL:", LOG_LEVEL);
   console.log("  NODE_ENV:", NODE_ENV);
   console.log("  PORT:", PORT);
   console.log("  REGION:", REGION);
   console.log("  WORKER_MODE:", WORKER_MODE);
-  
+
   const name = `worker-${env}`;
-  const accountId = pulumi.output(aws.getCallerIdentity()).apply((id) => id.accountId);
-  
+  const accountId = pulumi
+    .output(aws.getCallerIdentity())
+    .apply((id) => id.accountId);
+
   // Capture REGION in a const for use in closures
   const regionValue = REGION;
   // 1️⃣ ECR Repository
@@ -166,7 +168,9 @@ export function deploy(env: string) {
     action: "lambda:InvokeFunction",
     function: workerLambda.name,
     principal: "events.amazonaws.com",
-    sourceArn: accountId.apply((id) => `arn:aws:events:${regionValue}:${id}:rule/*`),
+    sourceArn: accountId.apply(
+      (id) => `arn:aws:events:${regionValue}:${id}:rule/*`
+    ),
   });
 
   return {
