@@ -16,13 +16,7 @@ export function deploy(env: string) {
 
   // Log all environment variables being used
   console.log("📋 Environment variables for Lambda deployment:");
-  // Debug: Check the actual value
-  console.log("  DATABASE_URL length:", DATABASE_URL?.length);
-  console.log("  DATABASE_URL (JSON):", JSON.stringify(DATABASE_URL));
-  console.log(
-    "  DATABASE_URL ends with /postgres:",
-    DATABASE_URL?.endsWith("/postgres")
-  );
+  console.log("  DATABASE_URL:", DATABASE_URL);
   console.log("  LOG_LEVEL:", LOG_LEVEL);
   console.log("  NODE_ENV:", NODE_ENV);
   console.log("  PORT:", PORT);
