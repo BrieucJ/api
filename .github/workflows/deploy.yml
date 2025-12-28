@@ -36,34 +36,39 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Pulumi
-        run: |
-          mkdir -p ~/.pulumi/stacks
-          bun x pulumi login file://~/.pulumi/stacks
-
       - name: Get Infrastructure Outputs
         id: infra
-        working-directory: infra
-        env:
-          PULUMI_NODEJS_USE_TS_NODE: "true"
-          PULUMI_CONFIG_PASSPHRASE: ""
         run: |
-          export TS_NODE_PROJECT="$(pwd)/tsconfig.json"
-
-          # Worker outputs
-          WORKER_REPO=$(bun x pulumi stack output ecrRepoUrl -s worker-prod)
-          WORKER_LAMBDA=$(bun x pulumi stack output workerLambdaName -s worker-prod)
-          WORKER_QUEUE=$(bun x pulumi stack output queueUrl -s worker-prod)
-
-          # Backend outputs
-          BACKEND_REPO=$(bun x pulumi stack output ecrRepoUrl -s lambda-prod)
-          BACKEND_LAMBDA=$(bun x pulumi stack output apiLambdaName -s lambda-prod)
-          API_URL=$(bun x pulumi stack output apiUrl -s lambda-prod)
-
-          # Client outputs
-          CLIENT_BUCKET=$(bun x pulumi stack output bucketName -s client-prod)
-          CLIENT_DIST=$(bun x pulumi stack output distributionId -s client-prod)
-
+          set -e
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGION=${{ env.AWS_REGION }}
+          
+          # Worker ECR repo
+          WORKER_REPO="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/worker-prod"
+          
+          # Worker Lambda - find by name pattern
+          WORKER_LAMBDA=$(aws lambda list-functions --region ${REGION} --query "Functions[?contains(FunctionName, 'worker-prod') && contains(FunctionName, 'lambda')].FunctionName" --output text | tr '\t' '\n' | head -n1)
+          
+          # Worker SQS queue - try exact name first, then search
+          WORKER_QUEUE=$(aws sqs get-queue-url --region ${REGION} --queue-name worker-prod-queue --query 'QueueUrl' --output text 2>/dev/null || \
+            aws sqs list-queues --region ${REGION} --query "QueueUrls[?contains(@, 'worker-prod-queue')]" --output text | tr '\t' '\n' | head -n1)
+          
+          # Backend ECR repo
+          BACKEND_REPO="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/api-prod"
+          
+          # Backend Lambda - find by name pattern
+          BACKEND_LAMBDA=$(aws lambda list-functions --region ${REGION} --query "Functions[?contains(FunctionName, 'api-prod') && contains(FunctionName, 'apiLambda')].FunctionName" --output text | tr '\t' '\n' | head -n1)
+          
+          # Backend API Gateway - find by name pattern
+          API_ID=$(aws apigatewayv2 get-apis --region ${REGION} --query "Items[?contains(Name, 'api-prod')].ApiId" --output text | tr '\t' '\n' | head -n1)
+          API_URL="https://${API_ID}.execute-api.${REGION}.amazonaws.com"
+          
+          # Client S3 bucket - find by name pattern
+          CLIENT_BUCKET=$(aws s3api list-buckets --query "Buckets[?contains(Name, 'client-prod')].Name" --output text | tr '\t' '\n' | head -n1)
+          
+          # Client CloudFront distribution - find by origin bucket
+          CLIENT_DIST=$(aws cloudfront list-distributions --query "DistributionList.Items[?Origins.Items[0].DomainName=='${CLIENT_BUCKET}.s3.${REGION}.amazonaws.com' || Origins.Items[0].DomainName=='${CLIENT_BUCKET}.s3-website.${REGION}.amazonaws.com'].Id" --output text | tr '\t' '\n' | head -n1)
+          
           echo "worker_repo=${WORKER_REPO}" >> $GITHUB_OUTPUT
           echo "worker_lambda=${WORKER_LAMBDA}" >> $GITHUB_OUTPUT
           echo "worker_queue=${WORKER_QUEUE}" >> $GITHUB_OUTPUT
