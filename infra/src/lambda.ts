@@ -34,11 +34,24 @@ export function deploy(env: string) {
   const workerQueueUrl = workerStack.requireOutput("queueUrl");
   const workerQueueArn = workerStack.requireOutput("queueArn");
 
-  // 1.5️⃣ Reference client stack to get CloudFront distribution URL
-  const clientStack = new pulumi.StackReference(`client-${env}`, {
-    name: `client-${env}`,
-  });
-  const cloudfrontUrl = clientStack.requireOutput("distributionUrl");
+  // 1.5️⃣ Reference client stack to get CloudFront distribution URL (optional)
+  // This allows Lambda to be deployed first, then updated after Client is deployed
+  // Deployment order: 1) Lambda, 2) Client, 3) Update Lambda
+  let cloudfrontUrl: pulumi.Output<string> | undefined;
+  try {
+    const clientStack = new pulumi.StackReference(`client-${env}`, {
+      name: `client-${env}`,
+    });
+    const urlOutput = clientStack.getOutput("distributionUrl");
+    if (urlOutput) {
+      cloudfrontUrl = urlOutput as pulumi.Output<string>;
+    }
+  } catch (error) {
+    // Client stack doesn't exist yet - that's okay for initial deployment
+    pulumi.log.info(
+      `Client stack 'client-${env}' not found. Lambda will be deployed without CONSOLE_FRONTEND_URL. Deploy client stack and update lambda to add CORS support.`
+    );
+  }
 
   // 2️⃣ ECR
   const repo = new aws.ecr.Repository(name, { forceDelete: true });
@@ -115,7 +128,13 @@ export function deploy(env: string) {
           REGION: regionValue,
           SQS_QUEUE_URL: workerQueueUrl.apply((url) => url as string),
           API_URL: apiGateway.apiEndpoint.apply((url) => url as string),
-          CONSOLE_FRONTEND_URL: cloudfrontUrl.apply((url) => url as string),
+          ...(cloudfrontUrl
+            ? {
+                CONSOLE_FRONTEND_URL: cloudfrontUrl.apply(
+                  (url) => url as string
+                ),
+              }
+            : {}),
         },
       },
     },

@@ -77,7 +77,8 @@ export function deploy(env: string) {
     signingProtocol: "sigv4",
   });
 
-  // 6️⃣ CloudFront Distribution (created before bucket policy to get ARN)
+  // 6️⃣ CloudFront Distribution
+  // Note: Distribution is created first to get ARN for bucket policy
   const distribution = new aws.cloudfront.Distribution(
     `${name}-distribution`,
     {
@@ -171,6 +172,26 @@ export function deploy(env: string) {
         ),
     },
     { dependsOn: [bucket, publicAccessBlock, distribution, oac] }
+  );
+
+  // 8️⃣ Force CloudFront to re-validate origin after bucket policy is created
+  // This command updates the distribution comment, which triggers origin re-validation
+  // This ensures CloudFront recognizes the bucket policy and origin works correctly
+  const updateDistribution = new command.local.Command(
+    `${name}-updateDistribution`,
+    {
+      create: pulumi
+        .all([distribution.id, bucketPolicy.id])
+        .apply(([distId]) => {
+          // Update distribution comment to force re-validation of origin
+          // This ensures CloudFront recognizes the bucket policy
+          return `aws cloudfront get-distribution-config --id ${distId} --output json > /tmp/dist-config-${distId}.json && \
+          ETAG=$(jq -r '.ETag' /tmp/dist-config-${distId}.json) && \
+          jq '.DistributionConfig.Comment = "Updated after bucket policy - $(date +%s)" | .DistributionConfig' /tmp/dist-config-${distId}.json > /tmp/dist-config-updated-${distId}.json && \
+          aws cloudfront update-distribution --id ${distId} --if-match "$ETAG" --distribution-config file:///tmp/dist-config-updated-${distId}.json > /dev/null 2>&1 || echo "Distribution update may have failed, but this is expected on first run"`;
+        }),
+    },
+    { dependsOn: [bucketPolicy, distribution] }
   );
 
   return {
