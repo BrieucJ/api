@@ -57,6 +57,7 @@ const BaseEnvSchema = z.object({
   SQS_QUEUE_URL: z.url().optional(),
   WORKER_URL: z.url().optional(),
   API_URL: z.url().optional(),
+  CONSOLE_FRONTEND_URL: z.string().url().optional(),
 });
 
 // Conditional validation based on NODE_ENV

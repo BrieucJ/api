@@ -250,6 +250,15 @@ export function createApp() {
         ) {
           return origin || "*";
         }
+
+        // Allow console frontend URL if configured
+        if (env.CONSOLE_FRONTEND_URL) {
+          const frontendOrigin = env.CONSOLE_FRONTEND_URL.replace(/\/$/, ""); // Remove trailing slash
+          if (origin === frontendOrigin || origin.startsWith(frontendOrigin)) {
+            return origin;
+          }
+        }
+
         return "http://localhost:5173";
       },
       allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

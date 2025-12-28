@@ -34,6 +34,12 @@ export function deploy(env: string) {
   const workerQueueUrl = workerStack.requireOutput("queueUrl");
   const workerQueueArn = workerStack.requireOutput("queueArn");
 
+  // 1.5️⃣ Reference client stack to get CloudFront distribution URL
+  const clientStack = new pulumi.StackReference(`client-${env}`, {
+    name: `client-${env}`,
+  });
+  const cloudfrontUrl = clientStack.requireOutput("distributionUrl");
+
   // 2️⃣ ECR
   const repo = new aws.ecr.Repository(name, { forceDelete: true });
 
@@ -109,6 +115,7 @@ export function deploy(env: string) {
           REGION: regionValue,
           SQS_QUEUE_URL: workerQueueUrl.apply((url) => url as string),
           API_URL: apiGateway.apiEndpoint.apply((url) => url as string),
+          CONSOLE_FRONTEND_URL: cloudfrontUrl.apply((url) => url as string),
         },
       },
     },
