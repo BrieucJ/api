@@ -85,7 +85,13 @@ export function deploy(env: string) {
     `,
     }
   );
-  // 5️⃣ Lambda function
+
+  // 5️⃣ API Gateway (created before Lambda so we can use its endpoint in Lambda env vars)
+  const apiGateway = new aws.apigatewayv2.Api(`${name}-apiGateway`, {
+    protocolType: "HTTP",
+  });
+
+  // 6️⃣ Lambda function
   const apiLambda = new aws.lambda.Function(
     `${name}-apiLambda`,
     {
@@ -102,16 +108,13 @@ export function deploy(env: string) {
           NODE_ENV: NODE_ENV || "production",
           REGION: regionValue,
           SQS_QUEUE_URL: workerQueueUrl.apply((url) => url as string),
+          API_URL: apiGateway.apiEndpoint.apply((url) => url as string),
         },
       },
     },
     { dependsOn: [buildLambdaImage] }
   );
-
-  // 6️⃣ API Gateway
-  const apiGateway = new aws.apigatewayv2.Api(`${name}-apiGateway`, {
-    protocolType: "HTTP",
-  });
+  // 7️⃣ API Gateway Integration
   const lambdaIntegration = new aws.apigatewayv2.Integration(
     `${name}-lambdaIntegration`,
     {

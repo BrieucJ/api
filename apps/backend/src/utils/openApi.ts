@@ -12,7 +12,7 @@ export default function configureOpenAPI(app: AppOpenAPI) {
     },
     servers: [
       {
-        url: `http://localhost:${env.PORT}`,
+        url: env.API_URL || `http://localhost:${env.PORT}`,
         description:
           env.NODE_ENV === "development" ? "Local Development" : "Production",
       },
