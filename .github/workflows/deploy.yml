@@ -30,6 +30,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -42,101 +47,42 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
             echo "env_name=production" >> $GITHUB_OUTPUT
-            echo "docker_tag=prod" >> $GITHUB_OUTPUT
+            echo "terraform_env=prod" >> $GITHUB_OUTPUT
           else
             echo "env_name=staging" >> $GITHUB_OUTPUT
-            echo "docker_tag=staging" >> $GITHUB_OUTPUT
+            echo "terraform_env=staging" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build Worker Docker Image
-        run: |
-          docker build -t worker-${{ steps.env.outputs.docker_tag }} -f .docker/Dockerfile.worker .
-
-      - name: Push Worker Image to ECR
-        run: |
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
-            | docker login --username AWS --password-stdin ${{ secrets.WORKER_ECR_REPO_URL }}
-          docker tag worker-${{ steps.env.outputs.docker_tag }} ${{ secrets.WORKER_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }}
-          docker push ${{ secrets.WORKER_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }}
-
-      - name: Update Worker Lambda
-        run: |
-          aws lambda update-function-code \
-            --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
-            --image-uri ${{ secrets.WORKER_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }} \
-            --region ${{ env.AWS_REGION }}
-          aws lambda wait function-updated \
-            --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
-            --region ${{ env.AWS_REGION }}
-          cat > /tmp/env.json <<EOF
-          {"Variables":{"DATABASE_URL":"${{ secrets.DATABASE_URL }}","LOG_LEVEL":"${{ secrets.LOG_LEVEL }}","NODE_ENV":"${{ steps.env.outputs.env_name }}","WORKER_MODE":"lambda","SQS_QUEUE_URL":"${{ secrets.WORKER_QUEUE_URL }}"}}
-          EOF
-          aws lambda update-function-configuration \
-            --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
-            --environment file:///tmp/env.json \
-            --region ${{ env.AWS_REGION }}
-          aws lambda wait function-updated \
-            --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Build Backend Docker Image
-        run: |
-          docker build -t api-${{ steps.env.outputs.docker_tag }} -f .docker/Dockerfile.lambda .
-
-      - name: Push Backend Image to ECR
-        run: |
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
-            | docker login --username AWS --password-stdin ${{ secrets.BACKEND_ECR_REPO_URL }}
-          docker tag api-${{ steps.env.outputs.docker_tag }} ${{ secrets.BACKEND_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }}
-          docker push ${{ secrets.BACKEND_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }}
-
-      - name: Update Backend Lambda
-        run: |
-          aws lambda update-function-code \
-            --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
-            --image-uri ${{ secrets.BACKEND_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }} \
-            --region ${{ env.AWS_REGION }}
-          aws lambda wait function-updated \
-            --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
-            --region ${{ env.AWS_REGION }}
-          cat > /tmp/env.json <<EOF
-          {"Variables":{"DATABASE_URL":"${{ secrets.DATABASE_URL }}","LOG_LEVEL":"${{ secrets.LOG_LEVEL }}","NODE_ENV":"${{ steps.env.outputs.env_name }}","PORT":"${{ secrets.PORT }}","SQS_QUEUE_URL":"${{ secrets.WORKER_QUEUE_URL }}"}}
-          EOF
-          aws lambda update-function-configuration \
-            --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
-            --environment file:///tmp/env.json \
-            --region ${{ env.AWS_REGION }}
-          aws lambda wait function-updated \
-            --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Build Client
-        working-directory: apps/client
+      - name: Deploy Worker Infrastructure
         env:
-          VITE_BACKEND_URL: ${{ secrets.API_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          PORT: ${{ secrets.PORT }}
+          REGION: ${{ env.AWS_REGION }}
+          NODE_ENV: ${{ steps.env.outputs.env_name }}
+          WORKER_MODE: lambda
         run: |
-          bun install --frozen-lockfile
-          bun run build
+          cd infra
+          bash terraform-run.sh worker ${{ steps.env.outputs.terraform_env }} apply
 
-      - name: Deploy Client to S3
+      - name: Deploy Lambda Infrastructure
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          PORT: ${{ secrets.PORT }}
+          REGION: ${{ env.AWS_REGION }}
+          NODE_ENV: ${{ steps.env.outputs.env_name }}
         run: |
-          aws s3 sync apps/client/dist/ s3://${{ secrets.CLIENT_S3_BUCKET }}/ \
-            --region ${{ env.AWS_REGION }} \
-            --delete \
-            --cache-control "public, max-age=31536000, immutable" \
-            --exclude "*.html"
-          aws s3 sync apps/client/dist/ s3://${{ secrets.CLIENT_S3_BUCKET }}/ \
-            --region ${{ env.AWS_REGION }} \
-            --delete \
-            --cache-control "public, max-age=0, must-revalidate" \
-            --include "*.html"
+          cd infra
+          # Configure remote state backend for worker
+          export TF_VAR_worker_state_backend='{"backend":"local","config":{"path":"terraform/worker-${{ steps.env.outputs.terraform_env }}/terraform.tfstate"}}'
+          bash terraform-run.sh lambda ${{ steps.env.outputs.terraform_env }} apply
 
-      - name: Invalidate CloudFront Cache
+      - name: Deploy Client Infrastructure
+        env:
+          REGION: ${{ env.AWS_REGION }}
         run: |
-          if [[ -n "${{ secrets.CLIENT_CLOUDFRONT_DIST_ID }}" ]] && [[ "${{ secrets.CLIENT_CLOUDFRONT_DIST_ID }}" != "None" ]]; then
-            aws cloudfront create-invalidation \
-              --distribution-id ${{ secrets.CLIENT_CLOUDFRONT_DIST_ID }} \
-              --paths "/*" \
-              --query 'Invalidation.Id' \
-              --output text
-          fi
+          cd infra
+          # Configure remote state backend for lambda
+          export TF_VAR_lambda_state_backend='{"backend":"local","config":{"path":"terraform/lambda-${{ steps.env.outputs.terraform_env }}/terraform.tfstate"}}'
+          bash terraform-run.sh client ${{ steps.env.outputs.terraform_env }} apply

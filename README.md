@@ -131,9 +131,10 @@ graph TB
 
 #### Infrastructure (`infra`)
 
-- **Tool**: Pulumi (Infrastructure as Code)
-- **Platforms**: AWS Lambda, ECS, Cloudflare Workers
-- **Services**: SQS, EventBridge, API Gateway
+- **Tool**: Terraform (Infrastructure as Code)
+- **Platforms**: AWS Lambda, ECS
+- **Services**: SQS, EventBridge, API Gateway, CloudFront, S3
+- **State Management**: S3 backend with optional DynamoDB locking
 
 ### Request Flow
 
@@ -193,13 +194,16 @@ sequenceDiagram
 
 ### Infrastructure
 
-- **Pulumi**: Infrastructure as Code
-- **AWS SDK**: AWS service integration
+- **Terraform**: Infrastructure as Code
+- **AWS Provider**: AWS service integration
   - Lambda
   - SQS
   - EventBridge
   - API Gateway
   - ECR
+  - S3
+  - CloudFront
+  - ECS
 
 ### Development Tools
 
@@ -361,12 +365,28 @@ api/
 │       └── package.json
 │
 ├── infra/                    # Infrastructure as Code
-│   ├── src/
-│   │   ├── lambda.ts         # Lambda deployment
-│   │   ├── ecs.ts            # ECS deployment
-│   │   ├── worker.ts         # Worker deployment
-│   │   └── client.ts         # Client deployment
-│   └── Pulumi.yaml
+│   ├── worker/               # Worker Terraform module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── backend.tf
+│   ├── lambda/               # Lambda Terraform module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── backend.tf
+│   ├── client/               # Client Terraform module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── backend.tf
+│   ├── ecs/                  # ECS Terraform module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── backend.tf
+│   ├── terraform-run.sh      # Terraform execution script
+│   └── infra-run.sh          # Infrastructure deployment helper
 │
 ├── packages/                 # Shared packages
 │   └── src/
@@ -383,8 +403,9 @@ api/
 
 - **Bun**: Install from [bun.sh](https://bun.sh)
 - **PostgreSQL**: Version 14+ with `pgvector` extension
-- **Node.js**: 18+ (for Pulumi, optional)
+- **Terraform**: 1.0+ (for infrastructure deployment)
 - **AWS CLI**: For deployment (optional)
+- **Docker**: For building container images
 
 ### Installation
 
@@ -995,26 +1016,61 @@ Key components:
 
 ## Deployment
 
-### Infrastructure as Code (Pulumi)
+### Infrastructure as Code (Terraform)
 
-The infrastructure is defined in `infra/` using Pulumi.
+The infrastructure is defined in `infra/` using Terraform. Each platform (worker, lambda, client, ecs) has its own Terraform module with separate state files.
+
+#### State Management
+
+Terraform state is stored in S3 with the following structure:
+
+- **State Bucket**: Configured via `TERRAFORM_STATE_BUCKET` environment variable
+- **State Keys**: `{platform}-{env}/terraform.tfstate` (e.g., `worker-prod/terraform.tfstate`)
+- **Locking**: Optional DynamoDB table for state locking (set via `TERRAFORM_STATE_DYNAMODB_TABLE`)
 
 #### Stack Naming
 
 Stacks follow the pattern: `<platform>-<env>`
 
-- `lambda-staging`: Lambda deployment (staging)
-- `lambda-prod`: Lambda deployment (production)
-- `ecs-staging`: ECS deployment (staging)
-- `worker-staging`: Worker deployment (staging)
-- `client-staging`: Client deployment (staging)
+- `worker-prod`, `worker-staging`: Worker deployment
+- `lambda-prod`, `lambda-staging`: Lambda deployment
+- `client-prod`, `client-staging`: Client deployment
+- `ecs-prod`, `ecs-staging`: ECS deployment
+
+#### Prerequisites
+
+Before deploying, ensure you have:
+
+1. **S3 Bucket** for Terraform state (create manually or via script)
+2. **DynamoDB Table** (optional, for state locking)
+3. **AWS Credentials** configured
+4. **Environment files** in `apps/backend/` and `apps/worker/`
+
+#### Deploy Worker
+
+```bash
+# Set environment variables
+export TERRAFORM_STATE_BUCKET="your-terraform-state-bucket"
+export TERRAFORM_STATE_DYNAMODB_TABLE="terraform-state-lock"  # Optional
+
+# Deploy
+cd infra
+bash terraform-run.sh worker prod apply
+```
+
+This creates:
+
+- ECR repository
+- SQS queue (main + dead letter queue)
+- Lambda function for worker
+- IAM roles and permissions
+- EventBridge permissions
 
 #### Deploy Backend (Lambda)
 
 ```bash
-cd infra
-pulumi stack select lambda-staging
-pulumi up
+# Deploy (worker must be deployed first for SQS queue)
+bash terraform-run.sh lambda prod apply
 ```
 
 This creates:
@@ -1023,69 +1079,76 @@ This creates:
 - Lambda function (container image)
 - API Gateway (HTTP API)
 - IAM roles and permissions
-
-#### Deploy Worker
-
-```bash
-cd infra
-pulumi stack select worker-staging
-pulumi up
-```
-
-This creates:
-
-- Lambda function for worker
-- SQS queue
-- EventBridge rules for CRON
-- IAM roles
+- References worker stack for SQS queue URL
 
 #### Deploy Client
 
 ```bash
-cd infra
-pulumi stack select client-staging
-pulumi up
+# Deploy (lambda must be deployed first for API URL)
+bash terraform-run.sh client prod apply
 ```
 
 This creates:
 
 - S3 bucket
-- CloudFront distribution
-- Route 53 (if configured)
+- CloudFront distribution with Origin Access Control (OAC)
+- Bucket policy for CloudFront access
+- References lambda stack for API URL
 
-### Environment Configuration
-
-Set environment variables in Pulumi config or CI/CD:
-
-```bash
-pulumi config set DATABASE_URL "postgresql://..."
-pulumi config set LOG_LEVEL "info"
-pulumi config set AWS_REGION "us-east-1"
-```
-
-### Docker Images
-
-The Lambda functions use container images. Build and push:
+#### Deploy All (Production)
 
 ```bash
-# Build image
-docker build -t api-lambda -f .docker/Dockerfile.lambda .
-
-# Tag and push (handled by Pulumi)
+# From project root
+bun run infra:deploy:all:prod
 ```
 
-### Cloudflare Workers
+This deploys worker, lambda, and client in order.
 
-The backend also supports Cloudflare Workers:
+#### Environment Configuration
 
-```typescript
-// apps/backend/src/servers/cloudflareworker.ts
-export default {
-  fetch: app.fetch,
-};
+Environment variables are loaded from:
+
+- `apps/backend/env.production` or `apps/backend/env.staging`
+- `apps/worker/env.production` or `apps/worker/env.staging`
+
+Required variables:
+
+```bash
+DATABASE_URL=postgresql://...
+LOG_LEVEL=info
+REGION=eu-west-3
+NODE_ENV=production
+PORT=3000  # or 8081 for worker
 ```
 
-Deploy using Wrangler or Cloudflare dashboard.
+#### Terraform State Configuration
+
+Set these environment variables before running Terraform:
+
+```bash
+export TERRAFORM_STATE_BUCKET="your-terraform-state-bucket"
+export TERRAFORM_STATE_REGION="eu-west-3"  # Optional, defaults to AWS_REGION
+export TERRAFORM_STATE_DYNAMODB_TABLE="terraform-state-lock"  # Optional
+```
+
+#### Docker Images
+
+The Lambda functions use container images. Terraform automatically builds and pushes images during deployment:
+
+- Builds Docker images using `.docker/Dockerfile.lambda` and `.docker/Dockerfile.worker`
+- Pushes to ECR repositories
+- Updates Lambda functions with new images
+
+### CI/CD Deployment
+
+The GitHub Actions workflow (`.github/workflows/deploy.yml`) automatically:
+
+1. Builds Docker images for worker and lambda
+2. Pushes images to ECR
+3. Deploys infrastructure using Terraform
+4. Builds and deploys client to S3/CloudFront
+
+The workflow uses Terraform to manage all infrastructure changes, ensuring consistency and version control.
 
 ## Configuration
 
