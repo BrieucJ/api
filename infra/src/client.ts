@@ -75,19 +75,23 @@ export function deploy(env: string) {
     `${name}-bucketPolicy`,
     {
       bucket: bucket.id,
-      policy: pulumi.interpolate`{
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Principal": {
-            "AWS": "${oai.iamArn}"
-          },
-          "Action": "s3:GetObject",
-          "Resource": "${bucket.arn}/*"
-        }
-      ]
-    }`,
+      policy: pulumi
+        .all([oai.iamArn, bucket.arn])
+        .apply(([oaiArn, bucketArn]) =>
+          JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Effect: "Allow",
+                Principal: {
+                  AWS: oaiArn,
+                },
+                Action: "s3:GetObject",
+                Resource: `${bucketArn}/*`,
+              },
+            ],
+          })
+        ),
     },
     { dependsOn: [oai, bucket] }
   );
