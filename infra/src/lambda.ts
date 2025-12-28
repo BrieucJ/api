@@ -99,7 +99,7 @@ export function deploy(env: string) {
       imageUri: pulumi.interpolate`${repo.repositoryUrl}:${env}`,
       role: lambdaRole.arn,
       timeout: 10,
-      memorySize: 256,
+      memorySize: 512,
       environment: {
         variables: {
           DATABASE_URL: DATABASE_URL || "",
