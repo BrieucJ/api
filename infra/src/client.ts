@@ -103,6 +103,7 @@ export function deploy(env: string) {
   );
 
   // 7️⃣ CloudFront Distribution
+  // Ensure the distribution uses the OAI correctly
   const distribution = new aws.cloudfront.Distribution(
     `${name}-distribution`,
     {
@@ -112,7 +113,7 @@ export function deploy(env: string) {
       priceClass: "PriceClass_100",
       origins: [
         {
-          originId: bucket.arn,
+          originId: pulumi.interpolate`s3-${bucket.id}`,
           domainName: bucket.bucketDomainName,
           s3OriginConfig: {
             originAccessIdentity: oai.cloudfrontAccessIdentityPath,
@@ -121,7 +122,7 @@ export function deploy(env: string) {
       ],
 
       defaultCacheBehavior: {
-        targetOriginId: bucket.arn,
+        targetOriginId: pulumi.interpolate`s3-${bucket.id}`,
         viewerProtocolPolicy: "redirect-to-https",
         allowedMethods: ["GET", "HEAD", "OPTIONS"],
         cachedMethods: ["GET", "HEAD"],
