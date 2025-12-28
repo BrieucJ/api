@@ -1,18 +1,19 @@
-name: Deploy Code to Production
+name: Deploy Code
 
 on:
   push:
     branches:
       - master
+      - staging
   workflow_dispatch:
 
 env:
-  NODE_ENV: production
   AWS_REGION: eu-west-3
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/master' && 'production' || 'staging' }}
     permissions:
       contents: read
       id-token: write
@@ -36,94 +37,67 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Pulumi
+      - name: Set environment variables
+        id: env
         run: |
-          mkdir -p ~/.pulumi/stacks
-          bun x pulumi login file://~/.pulumi/stacks
-
-      - name: Get Infrastructure Outputs
-        id: infra
-        working-directory: infra
-        env:
-          PULUMI_NODEJS_USE_TS_NODE: "true"
-          PULUMI_CONFIG_PASSPHRASE: ""
-        run: |
-          set -e
-          export TS_NODE_PROJECT="$(pwd)/tsconfig.json"
-
-          # Get worker stack outputs
-          WORKER_REPO=$(bun x pulumi stack output ecrRepoUrl -s worker-prod)
-          WORKER_LAMBDA=$(bun x pulumi stack output workerLambdaName -s worker-prod)
-          WORKER_QUEUE=$(bun x pulumi stack output queueUrl -s worker-prod)
-
-          # Get backend stack outputs
-          BACKEND_REPO=$(bun x pulumi stack output ecrRepoUrl -s lambda-prod)
-          BACKEND_LAMBDA=$(bun x pulumi stack output apiLambdaName -s lambda-prod)
-          API_URL=$(bun x pulumi stack output apiUrl -s lambda-prod)
-
-          # Get client stack outputs
-          CLIENT_BUCKET=$(bun x pulumi stack output bucketName -s client-prod)
-          CLIENT_DIST=$(bun x pulumi stack output distributionId -s client-prod)
-
-          echo "worker_repo=${WORKER_REPO}" >> $GITHUB_OUTPUT
-          echo "worker_lambda=${WORKER_LAMBDA}" >> $GITHUB_OUTPUT
-          echo "worker_queue=${WORKER_QUEUE}" >> $GITHUB_OUTPUT
-          echo "backend_repo=${BACKEND_REPO}" >> $GITHUB_OUTPUT
-          echo "backend_lambda=${BACKEND_LAMBDA}" >> $GITHUB_OUTPUT
-          echo "api_url=${API_URL}" >> $GITHUB_OUTPUT
-          echo "client_bucket=${CLIENT_BUCKET}" >> $GITHUB_OUTPUT
-          echo "client_dist=${CLIENT_DIST}" >> $GITHUB_OUTPUT
+          if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
+            echo "env_name=production" >> $GITHUB_OUTPUT
+            echo "docker_tag=prod" >> $GITHUB_OUTPUT
+          else
+            echo "env_name=staging" >> $GITHUB_OUTPUT
+            echo "docker_tag=staging" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build Worker Docker Image
         run: |
-          docker build -t worker-prod -f .docker/Dockerfile.worker .
+          docker build -t worker-${{ steps.env.outputs.docker_tag }} -f .docker/Dockerfile.worker .
 
       - name: Push Worker Image to ECR
         run: |
           aws ecr get-login-password --region ${{ env.AWS_REGION }} \
-            | docker login --username AWS --password-stdin ${{ steps.infra.outputs.worker_repo }}
-          docker tag worker-prod ${{ steps.infra.outputs.worker_repo }}:prod
-          docker push ${{ steps.infra.outputs.worker_repo }}:prod
+            | docker login --username AWS --password-stdin ${{ secrets.WORKER_ECR_REPO_URL }}
+          docker tag worker-${{ steps.env.outputs.docker_tag }} ${{ secrets.WORKER_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }}
+          docker push ${{ secrets.WORKER_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }}
 
       - name: Update Worker Lambda
         run: |
           aws lambda update-function-code \
-            --function-name ${{ steps.infra.outputs.worker_lambda }} \
-            --image-uri ${{ steps.infra.outputs.worker_repo }}:prod \
+            --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
+            --image-uri ${{ secrets.WORKER_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }} \
             --region ${{ env.AWS_REGION }} \
             --wait
           cat > /tmp/env.json <<EOF
-          {"Variables":{"DATABASE_URL":"${{ secrets.DATABASE_URL }}","LOG_LEVEL":"${{ secrets.LOG_LEVEL }}","NODE_ENV":"production","WORKER_MODE":"lambda","SQS_QUEUE_URL":"${{ steps.infra.outputs.worker_queue }}"}}
+          {"Variables":{"DATABASE_URL":"${{ secrets.DATABASE_URL }}","LOG_LEVEL":"${{ secrets.LOG_LEVEL }}","NODE_ENV":"${{ steps.env.outputs.env_name }}","WORKER_MODE":"lambda","SQS_QUEUE_URL":"${{ secrets.WORKER_QUEUE_URL }}"}}
           EOF
           aws lambda update-function-configuration \
-            --function-name ${{ steps.infra.outputs.worker_lambda }} \
+            --function-name ${{ secrets.WORKER_LAMBDA_NAME }} \
             --environment file:///tmp/env.json \
             --region ${{ env.AWS_REGION }} \
             --wait
 
       - name: Build Backend Docker Image
         run: |
-          docker build -t api-prod -f .docker/Dockerfile.lambda .
+          docker build -t api-${{ steps.env.outputs.docker_tag }} -f .docker/Dockerfile.lambda .
 
       - name: Push Backend Image to ECR
         run: |
           aws ecr get-login-password --region ${{ env.AWS_REGION }} \
-            | docker login --username AWS --password-stdin ${{ steps.infra.outputs.backend_repo }}
-          docker tag api-prod ${{ steps.infra.outputs.backend_repo }}:prod
-          docker push ${{ steps.infra.outputs.backend_repo }}:prod
+            | docker login --username AWS --password-stdin ${{ secrets.BACKEND_ECR_REPO_URL }}
+          docker tag api-${{ steps.env.outputs.docker_tag }} ${{ secrets.BACKEND_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }}
+          docker push ${{ secrets.BACKEND_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }}
 
       - name: Update Backend Lambda
         run: |
           aws lambda update-function-code \
-            --function-name ${{ steps.infra.outputs.backend_lambda }} \
-            --image-uri ${{ steps.infra.outputs.backend_repo }}:prod \
+            --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
+            --image-uri ${{ secrets.BACKEND_ECR_REPO_URL }}:${{ steps.env.outputs.docker_tag }} \
             --region ${{ env.AWS_REGION }} \
             --wait
           cat > /tmp/env.json <<EOF
-          {"Variables":{"DATABASE_URL":"${{ secrets.DATABASE_URL }}","LOG_LEVEL":"${{ secrets.LOG_LEVEL }}","NODE_ENV":"production","PORT":"${{ secrets.PORT }}","SQS_QUEUE_URL":"${{ steps.infra.outputs.worker_queue }}"}}
+          {"Variables":{"DATABASE_URL":"${{ secrets.DATABASE_URL }}","LOG_LEVEL":"${{ secrets.LOG_LEVEL }}","NODE_ENV":"${{ steps.env.outputs.env_name }}","PORT":"${{ secrets.PORT }}","SQS_QUEUE_URL":"${{ secrets.WORKER_QUEUE_URL }}"}}
           EOF
           aws lambda update-function-configuration \
-            --function-name ${{ steps.infra.outputs.backend_lambda }} \
+            --function-name ${{ secrets.BACKEND_LAMBDA_NAME }} \
             --environment file:///tmp/env.json \
             --region ${{ env.AWS_REGION }} \
             --wait
@@ -131,29 +105,30 @@ jobs:
       - name: Build Client
         working-directory: apps/client
         env:
-          VITE_BACKEND_URL: ${{ steps.infra.outputs.api_url }}
+          VITE_BACKEND_URL: ${{ secrets.API_URL }}
         run: |
           bun install --frozen-lockfile
           bun run build
 
       - name: Deploy Client to S3
         run: |
-          aws s3 sync apps/client/dist/ s3://${{ steps.infra.outputs.client_bucket }}/ \
+          aws s3 sync apps/client/dist/ s3://${{ secrets.CLIENT_S3_BUCKET }}/ \
             --region ${{ env.AWS_REGION }} \
             --delete \
             --cache-control "public, max-age=31536000, immutable" \
             --exclude "*.html"
-          aws s3 sync apps/client/dist/ s3://${{ steps.infra.outputs.client_bucket }}/ \
+          aws s3 sync apps/client/dist/ s3://${{ secrets.CLIENT_S3_BUCKET }}/ \
             --region ${{ env.AWS_REGION }} \
             --delete \
             --cache-control "public, max-age=0, must-revalidate" \
             --include "*.html"
 
       - name: Invalidate CloudFront Cache
-        if: steps.infra.outputs.client_dist != '' && steps.infra.outputs.client_dist != 'None'
         run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ steps.infra.outputs.client_dist }} \
-            --paths "/*" \
-            --query 'Invalidation.Id' \
-            --output text
+          if [[ -n "${{ secrets.CLIENT_CLOUDFRONT_DIST_ID }}" ]] && [[ "${{ secrets.CLIENT_CLOUDFRONT_DIST_ID }}" != "None" ]]; then
+            aws cloudfront create-invalidation \
+              --distribution-id ${{ secrets.CLIENT_CLOUDFRONT_DIST_ID }} \
+              --paths "/*" \
+              --query 'Invalidation.Id' \
+              --output text
+          fi
