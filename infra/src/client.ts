@@ -113,7 +113,7 @@ export function deploy(env: string) {
       priceClass: "PriceClass_100",
       origins: [
         {
-          originId: pulumi.interpolate`s3-${bucket.id}`,
+          originId: bucket.arn,
           domainName: bucket.bucketDomainName,
           s3OriginConfig: {
             originAccessIdentity: oai.cloudfrontAccessIdentityPath,
@@ -122,7 +122,7 @@ export function deploy(env: string) {
       ],
 
       defaultCacheBehavior: {
-        targetOriginId: pulumi.interpolate`s3-${bucket.id}`,
+        targetOriginId: bucket.arn,
         viewerProtocolPolicy: "redirect-to-https",
         allowedMethods: ["GET", "HEAD", "OPTIONS"],
         cachedMethods: ["GET", "HEAD"],
