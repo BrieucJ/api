@@ -18,15 +18,15 @@ if [[ -z "$ACTION" || -z "$PLATFORM" || -z "$ENV" ]]; then
   exit 1
 fi
 
-# Map deploy/destroy to up/destroy for pulumi-run.sh
-PULUMI_ACTION="up"
+# Map deploy/destroy to apply/destroy for terraform-run.sh
+TERRAFORM_ACTION="apply"
 if [[ "$ACTION" == "destroy" ]]; then
-  PULUMI_ACTION="destroy"
+  TERRAFORM_ACTION="destroy"
 elif [[ "$ACTION" != "deploy" ]]; then
   echo "❌ Invalid action: $ACTION (must be 'deploy' or 'destroy')"
   exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-bash "$SCRIPT_DIR/pulumi-run.sh" "$PLATFORM" "$ENV" "$PULUMI_ACTION"
+bash "$SCRIPT_DIR/terraform-run.sh" "$PLATFORM" "$ENV" "$TERRAFORM_ACTION"
 
