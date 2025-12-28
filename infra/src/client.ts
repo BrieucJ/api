@@ -23,7 +23,7 @@ export function deploy(env: string) {
     forceDestroy: true,
   });
 
-  // Block public access (CloudFront will access via OAI)
+  // Block public access (CloudFront will access via OAC)
   const publicAccessBlock = new aws.s3.BucketPublicAccessBlock(
     `${name}-publicAccessBlock`,
     {
@@ -68,44 +68,21 @@ export function deploy(env: string) {
     { dependsOn: [buildClient] }
   );
 
-  // 5️⃣ CloudFront Origin Access Identity
-  const oai = new aws.cloudfront.OriginAccessIdentity(`${name}-oai`, {
-    comment: `OAI for ${name}`,
+  // 5️⃣ CloudFront Origin Access Control (OAC) - recommended over legacy OAI
+  const oac = new aws.cloudfront.OriginAccessControl(`${name}-oac`, {
+    name: `${name}-oac`,
+    description: `OAC for ${name}`,
+    originAccessControlOriginType: "s3",
+    signingBehavior: "always",
+    signingProtocol: "sigv4",
   });
 
-  // 6️⃣ S3 Bucket Policy for CloudFront
-  // Note: Bucket policy must be created after public access block, but public access block
-  // allows bucket policies that grant access to specific principals (like OAI)
-  const bucketPolicy = new aws.s3.BucketPolicy(
-    `${name}-bucketPolicy`,
-    {
-      bucket: bucket.id,
-      policy: pulumi
-        .all([oai.iamArn, bucket.arn])
-        .apply(([oaiArn, bucketArn]) =>
-          JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [
-              {
-                Sid: "AllowCloudFrontServicePrincipal",
-                Effect: "Allow",
-                Principal: {
-                  AWS: oaiArn,
-                },
-                Action: "s3:GetObject",
-                Resource: `${bucketArn}/*`,
-              },
-            ],
-          })
-        ),
-    },
-    { dependsOn: [oai, bucket, publicAccessBlock] }
-  );
+  // Get account ID for bucket policy
+  const accountId = pulumi
+    .output(aws.getCallerIdentity())
+    .apply((caller) => caller.accountId);
 
-  // Ensure bucket policy is fully applied before distribution
-  const bucketPolicyApplied = bucketPolicy.id.apply(() => bucket.id);
-
-  // 7️⃣ CloudFront Distribution
+  // 6️⃣ CloudFront Distribution (created before bucket policy to get ARN)
   const distribution = new aws.cloudfront.Distribution(
     `${name}-distribution`,
     {
@@ -117,9 +94,7 @@ export function deploy(env: string) {
         {
           originId: bucket.arn,
           domainName: bucket.bucketDomainName,
-          s3OriginConfig: {
-            originAccessIdentity: oai.cloudfrontAccessIdentityPath,
-          },
+          originAccessControlId: oac.id,
         },
       ],
 
@@ -166,7 +141,41 @@ export function deploy(env: string) {
         cloudfrontDefaultCertificate: true,
       },
     },
-    { dependsOn: [bucketPolicy, oai, uploadFiles] }
+    { dependsOn: [oac, uploadFiles] }
+  );
+
+  // 7️⃣ S3 Bucket Policy for CloudFront OAC
+  // OAC uses the CloudFront service principal with a condition on the distribution ARN
+  // This must be created after the distribution to reference its ARN
+  const bucketPolicy = new aws.s3.BucketPolicy(
+    `${name}-bucketPolicy`,
+    {
+      bucket: bucket.id,
+      policy: pulumi
+        .all([distribution.arn, bucket.arn, accountId])
+        .apply(([distributionArn, bucketArn, accId]) =>
+          JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Sid: "AllowCloudFrontServicePrincipal",
+                Effect: "Allow",
+                Principal: {
+                  Service: "cloudfront.amazonaws.com",
+                },
+                Action: "s3:GetObject",
+                Resource: `${bucketArn}/*`,
+                Condition: {
+                  StringEquals: {
+                    "AWS:SourceArn": distributionArn,
+                  },
+                },
+              },
+            ],
+          })
+        ),
+    },
+    { dependsOn: [bucket, publicAccessBlock, distribution, oac] }
   );
 
   return {
