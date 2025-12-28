@@ -242,20 +242,23 @@ export function createApp() {
   app.use(
     cors({
       origin: (origin) => {
-        // Allow localhost on any port for development
-        if (
-          !origin ||
-          origin.includes("localhost") ||
-          origin.includes("127.0.0.1")
-        ) {
-          return origin || "*";
+        console.log("origin", origin);
+        console.log("env.CONSOLE_FRONTEND_URL", env.CONSOLE_FRONTEND_URL);
+        // Allow localhost for development
+        if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+          return origin;
         }
 
-        // Allow console frontend URL if configured
+        // Allow console frontend URL by comparing hostnames
         if (env.CONSOLE_FRONTEND_URL) {
-          const frontendOrigin = env.CONSOLE_FRONTEND_URL.replace(/\/$/, ""); // Remove trailing slash
-          if (origin === frontendOrigin || origin.startsWith(frontendOrigin)) {
-            return origin;
+          try {
+            const frontendHost = new URL(env.CONSOLE_FRONTEND_URL).hostname;
+            const originHost = new URL(origin).hostname;
+            if (frontendHost === originHost) {
+              return origin;
+            }
+          } catch {
+            // If URL parsing fails, fall through to default
           }
         }
 
