@@ -5,11 +5,11 @@
     "dev:backend": "bun --cwd apps/backend dev",
     "dev:worker": "bun --cwd apps/worker dev",
     "dev:client": "bun --cwd apps/client dev",
-    "infra:deploy:prod": "bash infra/deploy.sh deploy prod",
+    "infra:deploy:production": "bash infra/deploy.sh deploy production",
     "infra:deploy:staging": "bash infra/deploy.sh deploy staging",
-    "infra:destroy:prod": "bash infra/deploy.sh destroy prod",
+    "infra:destroy:production": "bash infra/deploy.sh destroy production",
     "infra:destroy:staging": "bash infra/deploy.sh destroy staging",
-    "infra:plan:prod": "bash infra/deploy.sh plan prod",
+    "infra:plan:production": "bash infra/deploy.sh plan production",
     "infra:plan:staging": "bash infra/deploy.sh plan staging"
   },
   "dependencies": {

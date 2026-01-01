@@ -148,7 +148,7 @@ resource "aws_lambda_function" "api_lambda" {
         DATABASE_URL  = var.database_url
         LOG_LEVEL     = var.log_level
         PORT          = var.port
-        NODE_ENV      = var.node_env
+        NODE_ENV      = var.environment
         REGION        = var.region
         SQS_QUEUE_URL = var.worker_queue_url
         API_URL       = aws_apigatewayv2_api.api_gateway.api_endpoint

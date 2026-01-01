@@ -154,7 +154,7 @@ resource "aws_ecs_task_definition" "task" {
       environment = [
         { name = "DATABASE_URL", value = var.database_url },
         { name = "LOG_LEVEL", value = var.log_level },
-        { name = "NODE_ENV", value = var.node_env },
+        { name = "NODE_ENV", value = var.environment },
         { name = "PORT", value = var.port },
         { name = "REGION", value = var.region }
       ]

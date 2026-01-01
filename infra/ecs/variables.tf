@@ -1,5 +1,5 @@
 variable "environment" {
-  description = "Environment name (prod, staging, dev)"
+  description = "Environment name (production, staging, dev)"
   type        = string
 }
 
@@ -20,12 +20,6 @@ variable "log_level" {
   description = "Log level"
   type        = string
   default     = "info"
-}
-
-variable "node_env" {
-  description = "Node environment"
-  type        = string
-  default     = "production"
 }
 
 variable "port" {

@@ -81,9 +81,9 @@ Deploy in this order (each depends on the previous):
 
 ```bash
 cd infra
-bash terraform-run.sh worker prod init    # Initialize Terraform
-bash terraform-run.sh worker prod plan    # Review changes
-bash terraform-run.sh worker prod apply   # Deploy
+bash terraform-run.sh worker production init    # Initialize Terraform
+bash terraform-run.sh worker production plan    # Review changes
+bash terraform-run.sh worker production apply   # Deploy
 ```
 
 This creates:
@@ -98,9 +98,9 @@ This creates:
 ### 5.2 Deploy Lambda (Second)
 
 ```bash
-bash terraform-run.sh lambda prod init
-bash terraform-run.sh lambda prod plan
-bash terraform-run.sh lambda prod apply
+bash terraform-run.sh lambda production init
+bash terraform-run.sh lambda production plan
+bash terraform-run.sh lambda production apply
 ```
 
 This creates:
@@ -114,9 +114,9 @@ This creates:
 ### 5.3 Deploy Client (Third)
 
 ```bash
-bash terraform-run.sh client prod init
-bash terraform-run.sh client prod plan
-bash terraform-run.sh client prod apply
+bash terraform-run.sh client production init
+bash terraform-run.sh client production plan
+bash terraform-run.sh client production apply
 ```
 
 This creates:
@@ -133,16 +133,15 @@ You can also use the npm script to deploy everything:
 
 ```bash
 # From project root
-bun run infra:deploy:all:prod
+bun run infra:deploy:all:production
 ```
 
 This runs:
 
-1. `bash infra/infra-run.sh deploy worker prod`
-2. `bash infra/infra-run.sh deploy lambda prod`
-3. `bash infra/infra-run.sh deploy client prod`
-4. `bash infra/infra-run.sh deploy lambda prod` _(second pass)_
-5. `bash infra/infra-run.sh deploy client prod` _(second pass)_
+1. `bash infra/infra-run.sh deploy worker production`
+2. `bash infra/infra-run.sh deploy lambda production`
+3. `bash infra/infra-run.sh deploy client production`
+
 
 **Why two passes?**
 
@@ -217,15 +216,15 @@ To destroy infrastructure (be careful!):
 
 ```bash
 # Destroy in reverse order
-bash terraform-run.sh client prod destroy
-bash terraform-run.sh lambda prod destroy
-bash terraform-run.sh worker prod destroy
+bash terraform-run.sh client production destroy
+bash terraform-run.sh lambda production destroy
+bash terraform-run.sh worker production destroy
 ```
 
 Or use the npm script:
 
 ```bash
-bun run infra:destroy:all:prod
+bun run infra:destroy:production
 ```
 
 ## CI/CD Deployment
@@ -257,13 +256,13 @@ Configure these secrets in your GitHub repository (Settings → Secrets and vari
 
 The workflow runs on:
 
-1. **Push to `main` branch** → Deploys to production
+1. **Push to `production` branch** → Deploys to production
 2. **Push to `staging` branch** → Deploys to staging
-3. **Manual workflow dispatch** → Choose environment (staging or prod)
+3. **Manual workflow dispatch** → Choose environment (staging or production)
 
 ### Environment Configuration
 
-Each environment (staging/prod) should have its secrets configured in:
+Each environment (staging/production) should have its secrets configured in:
 - Repository secrets (shared across all environments), or
 - Environment-specific secrets (Settings → Environments → [environment name])
 

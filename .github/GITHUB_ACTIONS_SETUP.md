@@ -40,10 +40,10 @@ For better control, create environments:
 1. Go to **Settings → Environments**
 2. Create two environments:
    - `staging`
-   - `prod`
+   - `production`
 3. Add environment-specific secrets if needed
 4. Configure protection rules:
-   - For `prod`: Enable "Required reviewers" for safety
+   - For `production`: Enable "Required reviewers" for safety
    - For `staging`: Optional, can auto-deploy
 
 ## Step 3: Verify AWS Permissions
@@ -111,7 +111,7 @@ git push origin main
 1. Go to **Actions** tab in GitHub
 2. Select "Deploy Infrastructure" workflow
 3. Click "Run workflow"
-4. Choose environment (staging or prod)
+4. Choose environment (staging or production)
 5. Click "Run workflow" button
 
 ## Step 5: Monitor Deployment

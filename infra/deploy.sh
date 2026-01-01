@@ -26,7 +26,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 case "$ENV" in
 dev) ENV_SUFFIX="dev" ;;
 staging) ENV_SUFFIX="staging" ;;
-prod) ENV_SUFFIX="production" ;;
+production) ENV_SUFFIX="production" ;;
 *)
   echo "❌ Unknown env: $ENV"
   exit 1

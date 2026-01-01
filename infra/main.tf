@@ -12,7 +12,6 @@ terraform {
   }
   backend "s3" {
     bucket = "api-terraform-bucket-state-eu-west-3"
-    key    = "infra-prod/terraform.tfstate"
     region = "eu-west-3"
   }
 }
@@ -29,7 +28,6 @@ module "worker" {
   region        = var.region
   worker_mode   = var.worker_mode
   log_level     = var.log_level
-  node_env      = var.node_env
   port          = var.port
 }
 
@@ -40,7 +38,6 @@ module "lambda" {
   region                  = var.region
   database_url            = var.database_url
   log_level               = var.log_level
-  node_env                = var.node_env
   port                    = var.port
   worker_queue_arn        = module.worker.queue_arn
   worker_queue_url        = module.worker.queue_url

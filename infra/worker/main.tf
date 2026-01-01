@@ -191,7 +191,7 @@ resource "aws_lambda_function" "worker_lambda" {
     variables = {
       DATABASE_URL  = var.database_url
       LOG_LEVEL     = var.log_level
-      NODE_ENV      = var.node_env
+      NODE_ENV      = var.environment
       PORT          = var.port
       REGION        = var.region
       WORKER_MODE   = var.worker_mode

@@ -3,7 +3,7 @@ name: Deploy
 on:
   push:
     branches:
-      - master
+      - production
       - staging
   workflow_dispatch:
     inputs:
@@ -13,22 +13,20 @@ on:
         type: choice
         options:
           - staging
-          - prod
+          - production
 
 env:
-  AWS_REGION: eu-west-3
-  TERRAFORM_STATE_BUCKET: api-terraform-bucket-state-eu-west-3
+  AWS_REGION: ${{ secrets.AWS_REGION || 'eu-west-3' }}
+  TERRAFORM_STATE_BUCKET: ${{ secrets.TERRAFORM_STATE_BUCKET || 'api-terraform-bucket-state-eu-west-3' }}
 
 jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name) }}
+    environment: ${{ github.event.inputs.environment || github.ref_name }}
     env:
-      DEPLOY_ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name) }}
-      TF_VAR_environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name) }}
-      TF_VAR_node_env: ${{ (github.event.inputs.environment || github.ref_name) == 'prod' && 'production' || (github.event.inputs.environment || github.ref_name) }}
-      TF_VAR_region: eu-west-3
+      TF_VAR_environment: ${{ github.event.inputs.environment || github.ref_name }}
+      TF_VAR_region: ${{ env.AWS_REGION }}
       TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
       TF_VAR_log_level: ${{ secrets.LOG_LEVEL || 'info' }}
       TF_VAR_port: ${{ secrets.PORT || '8080' }}
@@ -68,7 +66,7 @@ jobs:
         run: |
           terraform init \
             -backend-config="bucket=${{ env.TERRAFORM_STATE_BUCKET }}" \
-            -backend-config="key=infra-${{ env.DEPLOY_ENV }}/terraform.tfstate" \
+            -backend-config="key=infra-${{ env.TF_VAR_environment }}/terraform.tfstate" \
             -backend-config="region=${{ env.AWS_REGION }}"
 
       - name: Terraform Plan

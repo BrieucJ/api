@@ -1,5 +1,5 @@
 variable "environment" {
-  description = "Environment name (prod, staging, dev)"
+  description = "Environment name (production, staging, dev)"
   type        = string
 }
 
