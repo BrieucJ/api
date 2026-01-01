@@ -135,6 +135,16 @@ resource "null_resource" "build_worker_image" {
     command = <<-EOT
       set -e
       cd ${path.module}/../.. || exit 1
+      
+      # Check if image exists in ECR
+      if aws ecr describe-images \
+          --repository-name worker-${var.environment} \
+          --image-ids imageTag=${var.environment} \
+          --region ${var.region} >/dev/null 2>&1; then
+        echo "✅ Image already exists in ECR, skipping build"
+        exit 0
+      fi
+      
       echo "🔐 Logging into ECR..."
       aws ecr get-login-password --region ${var.region} \
         | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} 2>&1 | grep -v "error storing credentials" || true
