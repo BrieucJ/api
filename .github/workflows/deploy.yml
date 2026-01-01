@@ -1,22 +1,38 @@
-name: Deploy Code
+name: Deploy Infrastructure
 
 on:
   push:
     branches:
-      - master
+      - main
       - staging
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
 
 env:
   AWS_REGION: eu-west-3
+  TERRAFORM_STATE_BUCKET: api-terraform-bucket-state-eu-west-3
+  DEPLOY_ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name) }}
 
 jobs:
   deploy:
+    name: Deploy to ${{ env.DEPLOY_ENV }}
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/master' && 'production' || 'staging' }}
-    permissions:
-      contents: read
-      id-token: write
+    environment: ${{ env.DEPLOY_ENV }}
+    env:
+      TF_VAR_environment: ${{ env.DEPLOY_ENV }}
+      TF_VAR_node_env: ${{ env.DEPLOY_ENV == 'prod' && 'production' || env.DEPLOY_ENV }}
+      TF_VAR_region: ${{ env.AWS_REGION }}
+      TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
+      TF_VAR_log_level: ${{ secrets.LOG_LEVEL || 'info' }}
+      TF_VAR_port: ${{ secrets.PORT || '8080' }}
+      TF_VAR_worker_mode: lambda
 
     steps:
       - name: Checkout code
@@ -33,7 +49,8 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: latest
+          terraform_version: "1.6.0"
+          terraform_wrapper: true
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -42,47 +59,66 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Set environment variables
-        id: env
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
-            echo "env_name=production" >> $GITHUB_OUTPUT
-            echo "terraform_env=prod" >> $GITHUB_OUTPUT
-          else
-            echo "env_name=staging" >> $GITHUB_OUTPUT
-            echo "terraform_env=staging" >> $GITHUB_OUTPUT
-          fi
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Deploy Worker Infrastructure
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
-          PORT: ${{ secrets.PORT }}
-          REGION: ${{ env.AWS_REGION }}
-          NODE_ENV: ${{ steps.env.outputs.env_name }}
-          WORKER_MODE: lambda
+      - name: Terraform Init
+        working-directory: infra
         run: |
-          cd infra
-          bash terraform-run.sh worker ${{ steps.env.outputs.terraform_env }} apply
+          terraform init \
+            -backend-config="bucket=${{ env.TERRAFORM_STATE_BUCKET }}" \
+            -backend-config="key=infra-${{ env.DEPLOY_ENV }}/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}"
 
-      - name: Deploy Lambda Infrastructure
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
-          PORT: ${{ secrets.PORT }}
-          REGION: ${{ env.AWS_REGION }}
-          NODE_ENV: ${{ steps.env.outputs.env_name }}
-        run: |
-          cd infra
-          # Configure remote state backend for worker
-          export TF_VAR_worker_state_backend='{"backend":"local","config":{"path":"terraform/worker-${{ steps.env.outputs.terraform_env }}/terraform.tfstate"}}'
-          bash terraform-run.sh lambda ${{ steps.env.outputs.terraform_env }} apply
+      - name: Terraform Plan
+        id: plan
+        working-directory: infra
+        run: terraform plan -out=tfplan -input=false
+        continue-on-error: true
 
-      - name: Deploy Client Infrastructure
-        env:
-          REGION: ${{ env.AWS_REGION }}
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Terraform Apply
+        working-directory: infra
+        run: terraform apply -auto-approve -input=false tfplan
+
+      - name: Get deployment outputs
+        id: outputs
+        working-directory: infra
         run: |
-          cd infra
-          # Configure remote state backend for lambda
-          export TF_VAR_lambda_state_backend='{"backend":"local","config":{"path":"terraform/lambda-${{ steps.env.outputs.terraform_env }}/terraform.tfstate"}}'
-          bash terraform-run.sh client ${{ steps.env.outputs.terraform_env }} apply
+          echo "## 📋 Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform output >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment summary
+        run: |
+          echo "## ✅ Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Key | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | ${{ env.DEPLOY_ENV }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Region** | ${{ env.AWS_REGION }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Actor** | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Workflow** | [\#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "## ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Key | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | ${{ env.DEPLOY_ENV }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Region** | ${{ env.AWS_REGION }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Actor** | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Workflow** | [\#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the workflow logs for detailed error information." >> $GITHUB_STEP_SUMMARY

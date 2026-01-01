@@ -232,19 +232,40 @@ bun run infra:destroy:all:prod
 
 The GitHub Actions workflow (`.github/workflows/deploy.yml`) automatically:
 
-1. Builds Docker images
-2. Pushes to ECR
-3. Deploys using Terraform
+1. Checks out code and sets up Bun
+2. Configures AWS credentials
+3. Creates environment files from secrets
+4. Builds Docker images
+5. Pushes images to ECR
+6. Deploys infrastructure using Terraform
 
-Ensure these GitHub secrets are configured:
+### Required GitHub Secrets
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `DATABASE_URL`
-- `LOG_LEVEL`
-- `PORT`
-- `TERRAFORM_STATE_BUCKET` (optional, can be set in workflow)
-- `TERRAFORM_STATE_DYNAMODB_TABLE` (optional)
+Configure these secrets in your GitHub repository (Settings → Secrets and variables → Actions):
+
+- `AWS_ACCESS_KEY_ID` - AWS access key for deployment
+- `AWS_SECRET_ACCESS_KEY` - AWS secret key for deployment
+- `DATABASE_URL` - PostgreSQL connection string
+
+### Optional GitHub Secrets
+
+- `LOG_LEVEL` - Log level (defaults to 'info')
+- `PORT` - Backend API port (defaults to 3000)
+- `WORKER_PORT` - Worker service port (defaults to 8081)
+
+### Deployment Triggers
+
+The workflow runs on:
+
+1. **Push to `main` branch** → Deploys to production
+2. **Push to `staging` branch** → Deploys to staging
+3. **Manual workflow dispatch** → Choose environment (staging or prod)
+
+### Environment Configuration
+
+Each environment (staging/prod) should have its secrets configured in:
+- Repository secrets (shared across all environments), or
+- Environment-specific secrets (Settings → Environments → [environment name])
 
 ## Next Steps
 
