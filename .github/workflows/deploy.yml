@@ -18,17 +18,17 @@ on:
 env:
   AWS_REGION: eu-west-3
   TERRAFORM_STATE_BUCKET: api-terraform-bucket-state-eu-west-3
-  DEPLOY_ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name) }}
 
 jobs:
   deploy:
-    name: Deploy to ${{ env.DEPLOY_ENV }}
+    name: Deploy
     runs-on: ubuntu-latest
-    environment: ${{ env.DEPLOY_ENV }}
+    environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name) }}
     env:
-      TF_VAR_environment: ${{ env.DEPLOY_ENV }}
-      TF_VAR_node_env: ${{ env.DEPLOY_ENV == 'prod' && 'production' || env.DEPLOY_ENV }}
-      TF_VAR_region: ${{ env.AWS_REGION }}
+      DEPLOY_ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name) }}
+      TF_VAR_environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name) }}
+      TF_VAR_node_env: ${{ (github.event.inputs.environment || github.ref_name) == 'prod' && 'production' || (github.event.inputs.environment || github.ref_name) }}
+      TF_VAR_region: eu-west-3
       TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
       TF_VAR_log_level: ${{ secrets.LOG_LEVEL || 'info' }}
       TF_VAR_port: ${{ secrets.PORT || '8080' }}
