@@ -37,12 +37,6 @@ variable "worker_queue_url" {
   type        = string
 }
 
-variable "client_distribution_url" {
-  description = "CloudFront distribution URL from client module"
-  type        = string
-  default     = ""
-}
-
 variable "state_backend" {
   description = "Backend configuration passed from root module"
   type        = string

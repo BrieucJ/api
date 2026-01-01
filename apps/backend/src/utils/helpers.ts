@@ -241,9 +241,33 @@ export function createApp() {
   app.use(requestId());
   app.use(
     cors({
-      // CORS is handled at API Gateway level in production
-      // This just ensures CORS works in all environments
-      origin: (origin) => origin,
+      origin: (origin) => {
+        // Allow localhost for development
+        if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+          return origin;
+        }
+
+        // Allow CloudFront distributions (production)
+        if (origin.includes("cloudfront.net")) {
+          return origin;
+        }
+
+        // Allow console frontend URL if configured
+        if (env.CONSOLE_FRONTEND_URL) {
+          try {
+            const frontendHost = new URL(env.CONSOLE_FRONTEND_URL).hostname;
+            const originHost = new URL(origin).hostname;
+            if (frontendHost === originHost) {
+              return origin;
+            }
+          } catch {
+            // If URL parsing fails, fall through
+          }
+        }
+
+        // Default fallback for development
+        return "http://localhost:5173";
+      },
       allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization"],
       exposeHeaders: ["Content-Type"],
