@@ -25,7 +25,10 @@ provider "aws" {
 module "worker" {
   source        = "./worker"
   environment   = var.environment
+  database_url  = var.database_url
   region        = var.region
+  worker_mode   = var.worker_mode
+  state_backend = var.state_backend
 }
 
 # --- Lambda Module ---
@@ -33,6 +36,10 @@ module "lambda" {
   source                  = "./lambda"
   environment             = var.environment
   region                  = var.region
+  database_url            = var.database_url
+  log_level               = var.log_level
+  node_env                = var.node_env
+  port                    = var.port
   worker_queue_arn        = module.worker.queue_arn
   worker_queue_url        = module.worker.queue_url
   client_distribution_url = "" # optional, set after first deploy
