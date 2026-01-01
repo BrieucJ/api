@@ -131,6 +131,21 @@ resource "null_resource" "verify_lambda_image" {
 resource "aws_apigatewayv2_api" "api_gateway" {
   name          = "${local.name}-apiGateway"
   protocol_type = "HTTP"
+  
+  cors_configuration {
+    allow_origins = concat(
+      [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+      ],
+      var.client_distribution_url != "" ? [var.client_distribution_url] : []
+    )
+    allow_methods     = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers     = ["Content-Type", "Authorization", "x-test-job-id", "x-request-id"]
+    expose_headers    = ["Content-Type"]
+    max_age           = 600
+    allow_credentials = true
+  }
 }
 
 # 5️⃣ Lambda function

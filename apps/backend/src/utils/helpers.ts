@@ -241,31 +241,11 @@ export function createApp() {
   app.use(requestId());
   app.use(
     cors({
-      origin: (origin) => {
-        console.log("origin", origin);
-        console.log("env.CONSOLE_FRONTEND_URL", env.CONSOLE_FRONTEND_URL);
-        // Allow localhost for development
-        if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
-          return origin;
-        }
-
-        // Allow console frontend URL by comparing hostnames
-        if (env.CONSOLE_FRONTEND_URL) {
-          try {
-            const frontendHost = new URL(env.CONSOLE_FRONTEND_URL).hostname;
-            const originHost = new URL(origin).hostname;
-            if (frontendHost === originHost) {
-              return origin;
-            }
-          } catch {
-            // If URL parsing fails, fall through to default
-          }
-        }
-
-        return "http://localhost:5173";
-      },
+      // CORS is handled at API Gateway level in production
+      // This just ensures CORS works in all environments
+      origin: (origin) => origin,
       allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowHeaders: ["Content-Type", "Authorization", "x-test-job-id"],
+      allowHeaders: ["Content-Type", "Authorization"],
       exposeHeaders: ["Content-Type"],
       maxAge: 600,
       credentials: true,
