@@ -150,7 +150,25 @@ resource "aws_cloudfront_distribution" "distribution" {
   depends_on = [aws_cloudfront_origin_access_control.oac, null_resource.upload_files]
 }
 
-# 6️⃣ S3 Bucket Policy for CloudFront OAC
+# 6️⃣ Wait for CloudFront distribution to be fully deployed
+resource "null_resource" "wait_for_distribution" {
+  triggers = {
+    distribution_id = aws_cloudfront_distribution.distribution.id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "⏳ Waiting for CloudFront distribution to deploy..."
+      aws cloudfront wait distribution-deployed \
+        --id ${aws_cloudfront_distribution.distribution.id}
+      echo "✅ CloudFront distribution is deployed"
+    EOT
+  }
+
+  depends_on = [aws_cloudfront_distribution.distribution]
+}
+
+# 7️⃣ S3 Bucket Policy for CloudFront OAC
 # OAC uses CloudFront service principal with distribution ARN condition
 resource "aws_s3_bucket_policy" "bucket_policy" {
   bucket = aws_s3_bucket.bucket.id
@@ -179,13 +197,13 @@ resource "aws_s3_bucket_policy" "bucket_policy" {
     aws_s3_bucket.bucket,
     aws_s3_bucket_public_access_block.public_access_block,
     aws_cloudfront_distribution.distribution,
-    aws_cloudfront_origin_access_control.oac
+    aws_cloudfront_origin_access_control.oac,
+    null_resource.wait_for_distribution
   ]
 }
 
-# 7️⃣ Force CloudFront to re-validate origin after bucket policy is created
-# This updates the distribution comment, which triggers origin re-validation
-resource "null_resource" "update_distribution" {
+# 8️⃣ Invalidate CloudFront cache after bucket policy is applied
+resource "null_resource" "invalidate_and_verify" {
   triggers = {
     distribution_id = aws_cloudfront_distribution.distribution.id
     bucket_policy_id = aws_s3_bucket_policy.bucket_policy.id
@@ -193,14 +211,16 @@ resource "null_resource" "update_distribution" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      DIST_ID="${aws_cloudfront_distribution.distribution.id}" &&
-      aws cloudfront get-distribution-config --id $DIST_ID --output json > /tmp/dist-config-$DIST_ID.json &&
-      ETAG=$(jq -r '.ETag' /tmp/dist-config-$DIST_ID.json) &&
-      jq '.DistributionConfig.Comment = "Updated after bucket policy - $(date +%s)" | .DistributionConfig' /tmp/dist-config-$DIST_ID.json > /tmp/dist-config-updated-$DIST_ID.json &&
-      aws cloudfront update-distribution --id $DIST_ID --if-match "$ETAG" --distribution-config file:///tmp/dist-config-updated-$DIST_ID.json > /dev/null 2>&1 || echo "Distribution update may have failed, but this is expected on first run"
+      echo "⏳ Waiting for S3 bucket policy to propagate..."
+      sleep 15
+      echo "🔄 Invalidating CloudFront cache..."
+      aws cloudfront create-invalidation \
+        --distribution-id ${aws_cloudfront_distribution.distribution.id} \
+        --paths "/*" || echo "⚠️  Cache invalidation failed but continuing"
+      echo "✅ Setup complete!"
     EOT
   }
 
-  depends_on = [aws_s3_bucket_policy.bucket_policy, aws_cloudfront_distribution.distribution]
+  depends_on = [aws_s3_bucket_policy.bucket_policy]
 }
 

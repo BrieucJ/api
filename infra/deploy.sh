@@ -71,10 +71,10 @@ echo "🌐 Terraform $ACTION — All Modules ($ENV)"
 echo "=============================================="
 
 # Load environment variables from backend (for database_url, etc.)
-load_env_as_tf_vars "$REPO_ROOT/apps/backend/env.$ENV_SUFFIX" "Backend"
+load_env_as_tf_vars "$REPO_ROOT/apps/backend/.env.$ENV_SUFFIX" "Backend"
 
 # Load environment variables from worker (for worker-specific vars)
-load_env_as_tf_vars "$REPO_ROOT/apps/worker/env.$ENV_SUFFIX" "Worker"
+load_env_as_tf_vars "$REPO_ROOT/apps/worker/.env.$ENV_SUFFIX" "Worker"
 
 # Debug: show loaded TF_VARs
 echo "----------------------------------------------"
