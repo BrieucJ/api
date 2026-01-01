@@ -127,13 +127,13 @@ resource "aws_iam_role_policy" "eventbridge_policy" {
 # 4️⃣ Docker build & push
 resource "null_resource" "build_worker_image" {
   triggers = {
-    dockerfile_hash = filemd5("${path.module}/../../../.docker/Dockerfile.worker")
+    dockerfile_hash = filemd5("${path.module}/../../.docker/Dockerfile.worker")
     environment     = var.environment
   }
 
   provisioner "local-exec" {
     command = <<-EOT
-      cd ${path.module}/../../.. &&
+      cd ${path.module}/../.. &&
       aws ecr get-login-password --region ${var.region} \
         | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} &&
       docker build -t ${local.name} -f .docker/Dockerfile.worker . &&

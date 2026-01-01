@@ -20,23 +20,8 @@ locals {
   name = "api-${var.environment}"
 }
 
-# Reference worker stack to get SQS queue URL
-locals {
-  worker_backend_config = jsondecode(var.worker_state_backend)
-  client_backend_config = var.client_state_backend != "" ? jsondecode(var.client_state_backend) : null
-}
-
-data "terraform_remote_state" "worker" {
-  backend = local.worker_backend_config.backend
-  config  = local.worker_backend_config.config
-}
-
-# Optionally reference client stack to get CloudFront distribution URL
-data "terraform_remote_state" "client" {
-  count   = local.client_backend_config != null ? 1 : 0
-  backend = local.client_backend_config.backend
-  config  = local.client_backend_config.config
-}
+# Remove terraform_remote_state references
+# Use variables for worker_queue_arn, worker_queue_url, client_distribution_url
 
 # 1️⃣ ECR Repository
 resource "aws_ecr_repository" "repo" {
@@ -82,7 +67,7 @@ resource "aws_iam_role_policy" "sqs_policy" {
           "sqs:SendMessage",
           "sqs:GetQueueAttributes"
         ]
-        Resource = data.terraform_remote_state.worker.outputs.queue_arn
+        Resource = var.worker_queue_arn
       }
     ]
   })
@@ -91,13 +76,13 @@ resource "aws_iam_role_policy" "sqs_policy" {
 # 3️⃣ Docker build & push
 resource "null_resource" "build_lambda_image" {
   triggers = {
-    dockerfile_hash = filemd5("${path.module}/../../../.docker/Dockerfile.lambda")
+    dockerfile_hash = filemd5("${path.module}/../../.docker/Dockerfile.lambda")
     environment     = var.environment
   }
 
   provisioner "local-exec" {
     command = <<-EOT
-      cd ${path.module}/../../.. &&
+      cd ${path.module}/../.. &&
       aws ecr get-login-password --region ${var.region} \
         | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} &&
       docker build -t ${local.name} -f .docker/Dockerfile.lambda . &&
@@ -130,11 +115,11 @@ resource "aws_lambda_function" "api_lambda" {
         PORT          = var.port
         NODE_ENV      = var.node_env
         REGION        = var.region
-        SQS_QUEUE_URL = data.terraform_remote_state.worker.outputs.queue_url
+        SQS_QUEUE_URL = var.worker_queue_url
         API_URL       = aws_apigatewayv2_api.api_gateway.api_endpoint
       },
-      local.client_backend_config != null && length(data.terraform_remote_state.client) > 0 ? {
-        CONSOLE_FRONTEND_URL = data.terraform_remote_state.client[0].outputs.distribution_url
+      var.client_distribution_url != "" ? {
+        CONSOLE_FRONTEND_URL = var.client_distribution_url
       } : {}
     )
   }

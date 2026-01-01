@@ -12,7 +12,6 @@ variable "region" {
 variable "database_url" {
   description = "Database connection URL"
   type        = string
-  default     = ""
   sensitive   = true
 }
 
@@ -25,24 +24,33 @@ variable "log_level" {
 variable "node_env" {
   description = "Node environment"
   type        = string
-  default     = "production"
+  default = "production"
 }
 
 variable "port" {
   description = "Port number"
   type        = string
-  default     = "3000"
+  default = "8080"
 }
 
-variable "worker_state_backend" {
-  description = "Backend configuration for worker state (for remote state data source) - JSON string"
+variable "worker_queue_arn" {
+  description = "ARN of the worker SQS queue"
   type        = string
-  default     = "{\"backend\":\"local\",\"config\":{\"path\":\"\"}}"
 }
 
-variable "client_state_backend" {
-  description = "Backend configuration for client state (optional, for remote state data source) - JSON string"
+variable "worker_queue_url" {
+  description = "URL of the worker SQS queue"
+  type        = string
+}
+
+variable "client_distribution_url" {
+  description = "CloudFront distribution URL from client module"
   type        = string
   default     = ""
 }
 
+variable "state_backend" {
+  description = "Backend configuration passed from root module"
+  type        = string
+  default     = ""
+}

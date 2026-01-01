@@ -9,12 +9,12 @@ output "worker_lambda_name" {
 }
 
 output "queue_url" {
-  description = "URL of the SQS queue"
-  value       = aws_sqs_queue.queue.url
+  description = "URL of the worker SQS queue"
+  value       = aws_sqs_queue.queue.id
 }
 
 output "queue_arn" {
-  description = "ARN of the SQS queue"
+  description = "ARN of the worker SQS queue"
   value       = aws_sqs_queue.queue.arn
 }
 
@@ -32,4 +32,3 @@ output "ecr_repo_url" {
   description = "URL of the ECR repository"
   value       = aws_ecr_repository.repo.repository_url
 }
-

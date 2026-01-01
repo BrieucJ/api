@@ -9,9 +9,14 @@ variable "region" {
   default     = "eu-west-3"
 }
 
-variable "lambda_state_backend" {
-  description = "Backend configuration for lambda state (for remote state data source) - JSON string"
+variable "api_url" {
+  description = "API Gateway URL from lambda module"
   type        = string
-  default     = "{\"backend\":\"local\",\"config\":{\"path\":\"\"}}"
+  default     = ""
 }
 
+variable "state_backend" {
+  description = "Backend configuration passed from root module"
+  type        = string
+  default     = ""
+}

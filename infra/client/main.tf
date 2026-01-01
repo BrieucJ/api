@@ -17,27 +17,18 @@ provider "aws" {
 }
 
 locals {
-  name                 = "client-${var.environment}"
-  lambda_backend_config = jsondecode(var.lambda_state_backend)
-}
-
-# Reference lambda stack to get API URL
-
-data "terraform_remote_state" "lambda" {
-  backend = local.lambda_backend_config.backend
-  config  = local.lambda_backend_config.config
+  name = "client-${var.environment}"
 }
 
 # 1️⃣ S3 Bucket for static website hosting
 resource "aws_s3_bucket" "bucket" {
-  bucket        = "${local.name}-bucket"
+  bucket        = "client-prod-bucket-${var.environment}-${substr(md5(timestamp()),0,6)}"
   force_destroy = true
 }
 
 # Block public access (CloudFront will access via OAC)
 resource "aws_s3_bucket_public_access_block" "public_access_block" {
   bucket = aws_s3_bucket.bucket.id
-
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -47,15 +38,15 @@ resource "aws_s3_bucket_public_access_block" "public_access_block" {
 # 2️⃣ Build client with API URL
 resource "null_resource" "build_client" {
   triggers = {
-    api_url    = data.terraform_remote_state.lambda.outputs.api_url
+    api_url    = var.api_url
     environment = var.environment
   }
 
   provisioner "local-exec" {
     command = <<-EOT
-      cd ${path.module}/../../.. &&
+      cd ${path.module}/../.. &&
       cd apps/client &&
-      export VITE_BACKEND_URL="${data.terraform_remote_state.lambda.outputs.api_url}" &&
+      export VITE_BACKEND_URL="${var.api_url}" &&
       bun install --frozen-lockfile &&
       bun run build
     EOT
@@ -72,7 +63,7 @@ resource "null_resource" "upload_files" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      cd ${path.module}/../../.. &&
+      cd ${path.module}/../.. &&
       cd apps/client &&
       aws s3 sync dist/ s3://${aws_s3_bucket.bucket.id}/ \
         --region ${var.region} \

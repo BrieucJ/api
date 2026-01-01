@@ -30,13 +30,13 @@ resource "aws_ecr_repository" "repo" {
 # Build & push Docker image
 resource "null_resource" "build_image" {
   triggers = {
-    dockerfile_hash = filemd5("${path.module}/../../../.docker/Dockerfile.ecs")
+    dockerfile_hash = filemd5("${path.module}/../../.docker/Dockerfile.ecs")
     environment     = var.environment
   }
 
   provisioner "local-exec" {
     command = <<-EOT
-      cd ${path.module}/../../.. &&
+      cd ${path.module}/../.. &&
       aws ecr get-login-password --region ${var.region} \
         | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} &&
       docker build -t ${local.name} -f .docker/Dockerfile.ecs . &&

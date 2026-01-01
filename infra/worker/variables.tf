@@ -12,7 +12,6 @@ variable "region" {
 variable "database_url" {
   description = "Database connection URL"
   type        = string
-  default     = ""
   sensitive   = true
 }
 
@@ -40,3 +39,8 @@ variable "worker_mode" {
   default     = "lambda"
 }
 
+variable "state_backend" {
+  description = "Backend configuration passed from root module"
+  type        = string
+  default     = ""
+}
