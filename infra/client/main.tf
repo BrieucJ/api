@@ -22,7 +22,7 @@ locals {
 
 # 1️⃣ S3 Bucket for static website hosting
 resource "aws_s3_bucket" "bucket" {
-  bucket        = "client-prod-bucket-${var.environment}}"
+  bucket        = "client-prod-bucket-${var.environment}"
   force_destroy = true
 }
 
