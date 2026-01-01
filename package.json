@@ -5,10 +5,12 @@
     "dev:backend": "bun --cwd apps/backend dev",
     "dev:worker": "bun --cwd apps/worker dev",
     "dev:client": "bun --cwd apps/client dev",
-    "infra:deploy:all:prod": "bash infra/infra-run.sh deploy prod",
-    "infra:deploy:all:staging": "bash infra/infra-run.sh deploy worker staging && bash infra/infra-run.sh deploy lambda staging && bash infra/infra-run.sh deploy client staging",
-    "infra:destroy:all:prod": "bash infra/infra-run.sh destroy prod",
-    "infra:destroy:all:staging": "bash infra/infra-run.sh destroy client staging && bash infra/infra-run.sh destroy lambda staging && bash infra/infra-run.sh destroy worker staging"
+    "infra:deploy:prod": "bash infra/deploy.sh deploy prod",
+    "infra:deploy:staging": "bash infra/deploy.sh deploy staging",
+    "infra:destroy:prod": "bash infra/deploy.sh destroy prod",
+    "infra:destroy:staging": "bash infra/deploy.sh destroy staging",
+    "infra:plan:prod": "bash infra/deploy.sh plan prod",
+    "infra:plan:staging": "bash infra/deploy.sh plan staging"
   },
   "dependencies": {
     "dotenv": "^17.2.3",

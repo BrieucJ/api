@@ -28,7 +28,9 @@ module "worker" {
   database_url  = var.database_url
   region        = var.region
   worker_mode   = var.worker_mode
-  state_backend = var.state_backend
+  log_level     = var.log_level
+  node_env      = var.node_env
+  port          = var.port
 }
 
 # --- Lambda Module ---
