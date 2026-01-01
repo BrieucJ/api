@@ -76,14 +76,21 @@ resource "null_resource" "update_lambda_with_client_url" {
         --query 'Environment.Variables' \
         --output json)
       
-      # Add CONSOLE_FRONTEND_URL to existing variables
-      UPDATED_ENV=$(echo "$CURRENT_ENV" | jq '. + {"CONSOLE_FRONTEND_URL": "${module.client.distribution_url}"}')
+      # Add CONSOLE_FRONTEND_URL to existing variables and wrap in Variables key
+      UPDATED_ENV=$(echo "$CURRENT_ENV" | jq '{Variables: (. + {"CONSOLE_FRONTEND_URL": "${module.client.distribution_url}"})}')
       
-      # Update Lambda function configuration
+      # Write to temp file (AWS CLI needs file:// for JSON)
+      TEMP_FILE=$(mktemp)
+      echo "$UPDATED_ENV" > "$TEMP_FILE"
+      
+      # Update Lambda function configuration using file
       aws lambda update-function-configuration \
         --function-name ${module.lambda.api_lambda_name} \
-        --environment Variables="$UPDATED_ENV" \
+        --environment "file://$TEMP_FILE" \
         --region ${var.region} > /dev/null
+      
+      # Clean up temp file
+      rm "$TEMP_FILE"
       
       echo "✅ Lambda environment updated with CONSOLE_FRONTEND_URL"
       
