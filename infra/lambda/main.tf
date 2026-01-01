@@ -133,13 +133,11 @@ resource "aws_apigatewayv2_api" "api_gateway" {
   protocol_type = "HTTP"
   
   cors_configuration {
-    allow_origins = concat(
-      [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-      ],
-      var.client_distribution_url != "" ? [var.client_distribution_url] : []
-    )
+    allow_origins = [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "https://*.cloudfront.net"  # Allow all CloudFront distributions
+    ]
     allow_methods     = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     allow_headers     = ["Content-Type", "Authorization", "x-test-job-id", "x-request-id"]
     expose_headers    = ["Content-Type"]
@@ -158,20 +156,15 @@ resource "aws_lambda_function" "api_lambda" {
   memory_size   = 512
 
   environment {
-    variables = merge(
-      {
-        DATABASE_URL  = var.database_url
-        LOG_LEVEL     = var.log_level
-        PORT          = var.port
-        NODE_ENV      = var.environment
-        REGION        = var.region
-        SQS_QUEUE_URL = var.worker_queue_url
-        API_URL       = aws_apigatewayv2_api.api_gateway.api_endpoint
-      },
-      var.client_distribution_url != "" ? {
-        CONSOLE_FRONTEND_URL = var.client_distribution_url
-      } : {}
-    )
+    variables = {
+      DATABASE_URL  = var.database_url
+      LOG_LEVEL     = var.log_level
+      PORT          = var.port
+      NODE_ENV      = var.environment
+      REGION        = var.region
+      SQS_QUEUE_URL = var.worker_queue_url
+      API_URL       = aws_apigatewayv2_api.api_gateway.api_endpoint
+    }
   }
 
   depends_on = [null_resource.verify_lambda_image]

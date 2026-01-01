@@ -41,7 +41,6 @@ module "lambda" {
   port                    = var.port
   worker_queue_arn        = module.worker.queue_arn
   worker_queue_url        = module.worker.queue_url
-  client_distribution_url = module.client.distribution_url
 }
 
 # --- Client Module ---
