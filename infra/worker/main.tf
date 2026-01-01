@@ -137,7 +137,7 @@ resource "null_resource" "build_worker_image" {
       cd ${path.module}/../.. || exit 1
       echo "🔐 Logging into ECR..."
       aws ecr get-login-password --region ${var.region} \
-        | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} || exit 1
+        | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} 2>&1 | grep -v "error storing credentials" || true
       echo "🐳 Building Worker image..."
       docker build -t ${local.name} -f .docker/Dockerfile.worker . || exit 1
       echo "🏷️  Tagging image..."
