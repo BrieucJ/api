@@ -25,7 +25,7 @@ locals {
 
 # 1️⃣ ECR Repository
 resource "aws_ecr_repository" "repo" {
-  name                 = local.name
+  name                 = "api-lambda-${var.environment}"
   force_delete         = true
   image_tag_mutability = "MUTABLE"
 }
@@ -82,14 +82,49 @@ resource "null_resource" "build_lambda_image" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      cd ${path.module}/../.. &&
+      set -e
+      cd ${path.module}/../.. || exit 1
+      echo "🔐 Logging into ECR..."
       aws ecr get-login-password --region ${var.region} \
-        | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} &&
-      docker build -t ${local.name} -f .docker/Dockerfile.lambda . &&
-      docker tag ${local.name} ${aws_ecr_repository.repo.repository_url}:${var.environment} &&
-      docker push ${aws_ecr_repository.repo.repository_url}:${var.environment}
+        | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} || exit 1
+      echo "🐳 Building Lambda image..."
+      docker build -t api-lambda-${var.environment} -f .docker/Dockerfile.lambda . || exit 1
+      echo "🏷️  Tagging image..."
+      docker tag api-lambda-${var.environment} ${aws_ecr_repository.repo.repository_url}:${var.environment} || exit 1
+      echo "📤 Pushing to ECR..."
+      docker push ${aws_ecr_repository.repo.repository_url}:${var.environment} || exit 1
+      echo "✅ Lambda image pushed successfully"
     EOT
   }
+}
+
+# 3.5️⃣ Verify image exists in ECR before creating Lambda
+resource "null_resource" "verify_lambda_image" {
+  triggers = {
+    build_id = null_resource.build_lambda_image.id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      echo "⏳ Verifying Lambda image in ECR..."
+      for i in {1..60}; do
+        if aws ecr describe-images \
+          --repository-name api-lambda-${var.environment} \
+          --image-ids imageTag=${var.environment} \
+          --region ${var.region} >/dev/null 2>&1; then
+          echo "✅ Image verified in ECR"
+          exit 0
+        fi
+        echo "Waiting for image... (attempt $i/60)"
+        sleep 5
+      done
+      echo "❌ ERROR: Image not found in ECR after 5 minutes"
+      exit 1
+    EOT
+  }
+
+  depends_on = [null_resource.build_lambda_image]
 }
 
 # 4️⃣ API Gateway (created before Lambda so we can use its endpoint in Lambda env vars)
@@ -124,7 +159,7 @@ resource "aws_lambda_function" "api_lambda" {
     )
   }
 
-  depends_on = [null_resource.build_lambda_image]
+  depends_on = [null_resource.verify_lambda_image]
 }
 
 # 6️⃣ API Gateway Integration

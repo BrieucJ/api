@@ -22,7 +22,7 @@ locals {
 
 # 1️⃣ ECR repository
 resource "aws_ecr_repository" "repo" {
-  name                 = local.name
+  name                 = "api-ecs-${var.environment}"
   force_delete         = true
   image_tag_mutability = "MUTABLE"
 }
@@ -36,14 +36,49 @@ resource "null_resource" "build_image" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      cd ${path.module}/../.. &&
+      set -e
+      cd ${path.module}/../.. || exit 1
+      echo "🔐 Logging into ECR..."
       aws ecr get-login-password --region ${var.region} \
-        | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} &&
-      docker build -t ${local.name} -f .docker/Dockerfile.ecs . &&
-      docker tag ${local.name} ${aws_ecr_repository.repo.repository_url}:${var.environment} &&
-      docker push ${aws_ecr_repository.repo.repository_url}:${var.environment}
+        | docker login --username AWS --password-stdin ${aws_ecr_repository.repo.repository_url} || exit 1
+      echo "🐳 Building ECS image..."
+      docker build -t api-ecs-${var.environment} -f .docker/Dockerfile.ecs . || exit 1
+      echo "🏷️  Tagging image..."
+      docker tag api-ecs-${var.environment} ${aws_ecr_repository.repo.repository_url}:${var.environment} || exit 1
+      echo "📤 Pushing to ECR..."
+      docker push ${aws_ecr_repository.repo.repository_url}:${var.environment} || exit 1
+      echo "✅ ECS image pushed successfully"
     EOT
   }
+}
+
+# Verify image exists in ECR before creating task
+resource "null_resource" "verify_ecs_image" {
+  triggers = {
+    build_id = null_resource.build_image.id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      echo "⏳ Verifying ECS image in ECR..."
+      for i in {1..60}; do
+        if aws ecr describe-images \
+          --repository-name api-ecs-${var.environment} \
+          --image-ids imageTag=${var.environment} \
+          --region ${var.region} >/dev/null 2>&1; then
+          echo "✅ Image verified in ECR"
+          exit 0
+        fi
+        echo "Waiting for image... (attempt $i/60)"
+        sleep 5
+      done
+      echo "❌ ERROR: Image not found in ECR after 5 minutes"
+      exit 1
+    EOT
+  }
+
+  depends_on = [null_resource.build_image]
 }
 
 # 2️⃣ Networking
@@ -132,7 +167,7 @@ resource "aws_ecs_task_definition" "task" {
     }
   ])
 
-  depends_on = [null_resource.build_image]
+  depends_on = [null_resource.verify_ecs_image]
 }
 
 # 5️⃣ Fargate service

@@ -22,7 +22,7 @@ locals {
 
 # 1️⃣ S3 Bucket for static website hosting
 resource "aws_s3_bucket" "bucket" {
-  bucket        = "client-prod-bucket-${var.environment}-${substr(md5(timestamp()),0,6)}"
+  bucket        = "client-prod-bucket-${var.environment}}"
   force_destroy = true
 }
 
@@ -44,11 +44,21 @@ resource "null_resource" "build_client" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      cd ${path.module}/../.. &&
-      cd apps/client &&
-      export VITE_BACKEND_URL="${var.api_url}" &&
-      bun install --frozen-lockfile &&
-      bun run build
+      set -e
+      cd ${path.module}/../.. || exit 1
+      cd apps/client || exit 1
+      echo "🔧 Installing client dependencies..."
+      export VITE_BACKEND_URL="${var.api_url}"
+      bun install --frozen-lockfile || exit 1
+      echo "🏗️  Building client..."
+      bun run build || exit 1
+      echo "✅ Client build complete"
+      # Verify dist exists
+      if [ ! -d "dist" ] || [ -z "$(ls -A dist)" ]; then
+        echo "❌ ERROR: dist/ folder is empty or missing"
+        exit 1
+      fi
+      echo "📦 dist/ folder verified with $(find dist -type f | wc -l) files"
     EOT
   }
 
@@ -63,18 +73,25 @@ resource "null_resource" "upload_files" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      cd ${path.module}/../.. &&
-      cd apps/client &&
+      set -e
+      cd ${path.module}/../.. || exit 1
+      cd apps/client || exit 1
+      echo "📤 Uploading static assets to S3..."
       aws s3 sync dist/ s3://${aws_s3_bucket.bucket.id}/ \
         --region ${var.region} \
         --delete \
         --cache-control "public, max-age=31536000, immutable" \
-        --exclude "*.html" &&
+        --exclude "*.html" || exit 1
+      echo "📤 Uploading HTML files to S3..."
       aws s3 sync dist/ s3://${aws_s3_bucket.bucket.id}/ \
         --region ${var.region} \
         --delete \
         --cache-control "public, max-age=0, must-revalidate" \
-        --include "*.html"
+        --include "*.html" || exit 1
+      echo "✅ Upload complete"
+      # Verify upload
+      FILE_COUNT=$(aws s3 ls s3://${aws_s3_bucket.bucket.id}/ --recursive | wc -l)
+      echo "📊 Uploaded $FILE_COUNT files to S3"
     EOT
   }
 

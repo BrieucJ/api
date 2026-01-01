@@ -85,6 +85,31 @@ echo "----------------------------------------------"
 # Change to root infra directory
 cd "$SCRIPT_DIR"
 
+# Validate prerequisites
+echo "🔍 Validating prerequisites..."
+if ! command -v docker &> /dev/null; then
+  echo "❌ Docker not found. Please install Docker."
+  exit 1
+fi
+
+if ! docker info &> /dev/null; then
+  echo "❌ Docker daemon not running. Please start Docker."
+  exit 1
+fi
+
+if ! command -v aws &> /dev/null; then
+  echo "❌ AWS CLI not found. Please install AWS CLI."
+  exit 1
+fi
+
+if ! aws sts get-caller-identity &> /dev/null; then
+  echo "❌ AWS credentials not configured or invalid."
+  exit 1
+fi
+
+echo "✅ All prerequisites validated"
+echo "----------------------------------------------"
+
 # Init Terraform if needed
 if [[ ! -d ".terraform" ]]; then
   echo "🔧 Initializing Terraform..."
@@ -97,10 +122,19 @@ fi
 # Deploy or destroy
 if [[ "$ACTION" == "deploy" ]]; then
   echo "🚀 Deploying infrastructure..."
-  terraform apply -auto-approve
+  if ! terraform apply -auto-approve; then
+    echo ""
+    echo "❌ Deployment failed!"
+    echo "💡 Tip: Check Docker is running and AWS credentials are valid"
+    exit 1
+  fi
 elif [[ "$ACTION" == "destroy" ]]; then
   echo "💣 Destroying infrastructure..."
-  terraform destroy -auto-approve
+  if ! terraform destroy -auto-approve; then
+    echo ""
+    echo "⚠️  Destroy had issues. Some resources may remain."
+    exit 1
+  fi
 elif [[ "$ACTION" == "plan" ]]; then
   echo "📋 Planning infrastructure changes..."
   terraform plan

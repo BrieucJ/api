@@ -45,6 +45,8 @@ module "lambda" {
   worker_queue_arn        = module.worker.queue_arn
   worker_queue_url        = module.worker.queue_url
   client_distribution_url = "" # optional, set after first deploy
+  
+  depends_on = [module.worker]
 }
 
 # --- Client Module ---
@@ -53,4 +55,6 @@ module "client" {
   environment   = var.environment
   region        = var.region
   api_url       = module.lambda.api_url
+  
+  depends_on = [module.lambda]
 }
