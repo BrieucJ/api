@@ -60,30 +60,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Build and push Backend Lambda image
-      - name: Build and Push Backend Lambda Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ env.TF_VAR_environment }}
-        run: |
-          echo "Building Backend Lambda image..."
-          docker build -t $ECR_REGISTRY/api-lambda-$IMAGE_TAG:$IMAGE_TAG \
-            -f .docker/Dockerfile.lambda .
-          echo "Pushing Backend Lambda image..."
-          docker push $ECR_REGISTRY/api-lambda-$IMAGE_TAG:$IMAGE_TAG
-
-      # Build and push Worker Lambda image
-      - name: Build and Push Worker Lambda Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ env.TF_VAR_environment }}
-        run: |
-          echo "Building Worker Lambda image..."
-          docker build -t $ECR_REGISTRY/worker-$IMAGE_TAG:$IMAGE_TAG \
-            -f .docker/Dockerfile.worker .
-          echo "Pushing Worker Lambda image..."
-          docker push $ECR_REGISTRY/worker-$IMAGE_TAG:$IMAGE_TAG
-
       - name: Terraform Init
         working-directory: infra
         run: |
