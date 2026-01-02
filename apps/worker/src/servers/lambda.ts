@@ -9,6 +9,9 @@ import { getJobHandler, hasJobHandler } from "@/jobs/registry";
 import { JobType } from "@/jobs/types";
 import { SQSQueue } from "@/queue/sqs";
 import { StatsPusher } from "@/services/statsPusher";
+import { getScheduler } from "@/scheduler";
+import { defaultCronJobs } from "@/scheduler/jobs";
+import env from "@/env";
 
 // Initialize stats pusher at module level for Lambda container reuse
 const statsPusher = new StatsPusher();
@@ -16,6 +19,32 @@ statsPusher.pushStats().catch((error) => {
   logger.error("Failed to push initial stats in Lambda", { error });
 });
 statsPusher.startInterval();
+
+// Initialize scheduler and schedule default cron jobs
+const scheduler = getScheduler(env.LAMBDA_ARN);
+logger.info("Scheduling default CRON jobs in Lambda", {
+  count: defaultCronJobs.length,
+});
+
+for (const jobDef of defaultCronJobs) {
+  if (jobDef.enabled) {
+    scheduler
+      .schedule(jobDef.cronExpression, jobDef.jobType, jobDef.payload)
+      .then((id) => {
+        logger.info("Scheduled cron job", {
+          id,
+          jobType: jobDef.jobType,
+          cronExpression: jobDef.cronExpression,
+        });
+      })
+      .catch((error) => {
+        logger.error("Failed to schedule cron job", {
+          jobType: jobDef.jobType,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+  }
+}
 
 interface EventBridgeJobEvent {
   source: "eventbridge";
