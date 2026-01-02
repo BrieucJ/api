@@ -48,10 +48,10 @@ const securityHeaders = createMiddleware(async (c: Context, next) => {
   // This is a restrictive policy - adjust based on your needs
   const cspDirectives = [
     "default-src 'self'", // Only allow resources from same origin by default
-    "script-src 'self' 'unsafe-inline'", // Allow inline scripts for API documentation (Scalar)
-    "style-src 'self' 'unsafe-inline'", // Allow inline styles for API documentation
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net", // Allow inline scripts and Scalar API reference CDN
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net", // Allow inline styles and Scalar CDN stylesheets
     "img-src 'self' data: https:", // Allow images from same origin, data URIs, and HTTPS
-    "font-src 'self' data:", // Allow fonts from same origin and data URIs
+    "font-src 'self' data: https://cdn.jsdelivr.net", // Allow fonts from same origin, data URIs, and Scalar CDN
     "connect-src 'self'", // Only allow API calls to same origin
     "frame-ancestors 'none'", // Don't allow embedding (similar to X-Frame-Options)
     "base-uri 'self'", // Restrict base tag URLs
