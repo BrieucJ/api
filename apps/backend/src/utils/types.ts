@@ -34,4 +34,11 @@ declare module "hono" {
   interface HonoRequest {
     id: string;
   }
+  interface ContextVariableMap {
+    user: {
+      userId: number;
+      email: string;
+      role: string;
+    };
+  }
 }

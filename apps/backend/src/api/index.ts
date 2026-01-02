@@ -2,9 +2,11 @@ import env from "@/env";
 import { createApp } from "@/utils/helpers";
 import { logger } from "@/utils/logger";
 import configureOpenAPI from "@/utils/openApi";
+import { auth } from "@/api/middlewares";
 //PUBLIC ROUTES
 import users from "@/api/routes/public/users/users.index";
 // PRIVATE ROUTES
+import authRoutes from "@/api/routes/private/auth/auth.index";
 import logs from "@/api/routes/private/logs/logs.index";
 import info from "@/api/routes/private/info/info.index";
 import health from "@/api/routes/private/health/health.index";
@@ -47,6 +49,7 @@ app.get(
 const publicRoutes = [users] as const;
 
 const privateRoutes = [
+  authRoutes,
   logs,
   info,
   health,
@@ -58,7 +61,23 @@ const privateRoutes = [
 
 const allRoutes = [...publicRoutes, ...privateRoutes] as const;
 
-// Register all routes first
+// Apply auth middleware to private routes only (skip /auth/login)
+app.use("/*", async (c, next) => {
+  // Skip auth for public routes (mounted at /api/v1)
+  if (c.req.path.startsWith("/api/v1")) {
+    await next();
+    return;
+  }
+  // Skip auth for /auth/login (public endpoint)
+  if (c.req.path === "/auth/login") {
+    await next();
+    return;
+  }
+  // Apply auth middleware for all other private routes
+  return auth(c, next);
+});
+
+// Register all routes
 allRoutes.forEach((route) => {
   const path = publicRoutes.includes(route) ? "/api/v1" : "/";
   app.route(path, route);

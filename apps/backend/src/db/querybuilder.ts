@@ -133,7 +133,7 @@ function castFilterValue(col: Column<any>, lookup: string, rawValue: any) {
 }
 
 export function createQueryBuilder<T extends Table>(table: T) {
-  const columnsToExclude = ["embedding", "deleted_at"];
+  const columnsToExclude = ["embedding", "deleted_at", "password_hash"];
   const columns = getTableColumns(table);
   const colNames = Object.keys(columns);
   const baseQuery = (qb: any) => {

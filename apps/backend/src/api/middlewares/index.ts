@@ -7,3 +7,4 @@ export { default as snapshot } from "./snapshot";
 export { default as logging } from "./logging";
 export { default as securityHeaders } from "./securityHeaders";
 export { default as bodyLimit } from "./bodyLimit";
+export { default as auth } from "./auth";

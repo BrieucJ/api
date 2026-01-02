@@ -1,5 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TYPE "public"."geo_source" AS ENUM('platform', 'header', 'ip', 'none');--> statement-breakpoint
+CREATE TYPE "public"."user_role" AS ENUM('admin', 'user');--> statement-breakpoint
 CREATE TABLE "logs" (
 	"source" text NOT NULL,
 	"level" text NOT NULL,
@@ -60,13 +61,30 @@ CREATE TABLE "request_snapshots" (
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
-	"name" text NOT NULL,
-	"age" integer NOT NULL,
+	"email" text NOT NULL,
+	"password_hash" text NOT NULL,
+	"user_role" "user_role" DEFAULT 'user' NOT NULL,
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "users_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"updated_at" timestamp DEFAULT now(),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"deleted_at" timestamp,
-	"embedding" vector(16),
-	CONSTRAINT "name_not_blank" CHECK (char_length("users"."name") > 0),
-	CONSTRAINT "age_above_0" CHECK ("users"."age" >= 0)
+	"embedding" vector(16)
 );
+--> statement-breakpoint
+CREATE TABLE "worker_stats" (
+	"worker_mode" text NOT NULL,
+	"queue_size" integer DEFAULT 0 NOT NULL,
+	"processing_count" integer DEFAULT 0 NOT NULL,
+	"scheduled_jobs_count" integer DEFAULT 0 NOT NULL,
+	"available_jobs_count" integer DEFAULT 0 NOT NULL,
+	"scheduled_jobs" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"available_jobs" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"last_heartbeat" timestamp DEFAULT now() NOT NULL,
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "worker_stats_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"deleted_at" timestamp,
+	"embedding" vector(16)
+);
+--> statement-breakpoint
+CREATE INDEX "worker_stats_last_heartbeat_idx" ON "worker_stats" USING btree ("last_heartbeat");

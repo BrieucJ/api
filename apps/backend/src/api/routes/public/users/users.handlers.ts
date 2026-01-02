@@ -53,7 +53,16 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
 
 export const create: AppRouteHandler<CreateRoute> = async (c) => {
   const input = c.req.valid("json");
-  const created = await userQuery.create(input);
+  const { password, ...rest } = input;
+
+  // Hash the password before storing
+  const password_hash = await Bun.password.hash(password);
+
+  // Create user with hashed password
+  const created = await userQuery.create({
+    ...rest,
+    password_hash,
+  });
 
   return c.json(
     {
@@ -68,7 +77,14 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
 export const patch: AppRouteHandler<PatchRoute> = async (c) => {
   const { id } = c.req.valid("param");
   const input = c.req.valid("json");
-  const updated = await userQuery.update(id, input);
+  const { password, ...rest } = input;
+
+  // If password is provided, hash it before updating
+  const updateData = password
+    ? { ...rest, password_hash: await Bun.password.hash(password) }
+    : rest;
+
+  const updated = await userQuery.update(id, updateData);
 
   return c.json(
     {

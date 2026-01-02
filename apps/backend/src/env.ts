@@ -69,6 +69,8 @@ const BaseEnvSchema = z.object({
     "silent",
   ]),
   DATABASE_URL: z.url(),
+  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
+  JWT_EXPIRES_IN: z.string().default("24h"),
   // Optional fields that may be required based on NODE_ENV
   REGION: z.string().optional(),
   SQS_QUEUE_URL: z.url().optional(),
