@@ -22,8 +22,8 @@ export interface JobMetadata {
 }
 
 export interface QueueStats {
-  queueSize: number;
-  processingCount: number;
+  queue_size: number;
+  processing_count: number;
   mode: string;
 }
 
@@ -38,10 +38,10 @@ export interface ScheduledJob {
 export interface WorkerStats {
   queue: QueueStats;
   scheduler: {
-    scheduledJobsCount: number;
+    scheduled_jobs_count: number;
     jobs: ScheduledJob[];
   };
-  availableJobs: {
+  available_jobs: {
     count: number;
     jobs: Array<{
       type: string;

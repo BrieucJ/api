@@ -59,7 +59,7 @@ export default function WorkerPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {queueStats?.queueSize ?? 0}
+              {queueStats?.queue_size ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">
               Jobs waiting to be processed
@@ -74,7 +74,7 @@ export default function WorkerPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {queueStats?.processingCount ?? 0}
+              {queueStats?.processing_count ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">
               Jobs currently being processed
@@ -122,7 +122,9 @@ export default function WorkerPage() {
                       <code className="text-sm">{job.jobType}</code>
                     </TableCell>
                     <TableCell>
-                      <code className="text-sm font-mono">{job.cronExpression}</code>
+                      <code className="text-sm font-mono">
+                        {job.cronExpression}
+                      </code>
                     </TableCell>
                     <TableCell>
                       {job.enabled ? (
@@ -166,10 +168,7 @@ export default function WorkerPage() {
           {availableJobs.length > 0 ? (
             <div className="space-y-4">
               {availableJobs.map((job) => (
-                <div
-                  key={job.type}
-                  className="border rounded-lg p-4 space-y-2"
-                >
+                <div key={job.type} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -249,4 +248,3 @@ export default function WorkerPage() {
     </div>
   );
 }
-

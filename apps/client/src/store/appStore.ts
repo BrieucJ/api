@@ -353,6 +353,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
           const data = (await response.json()) as { data?: WorkerStats };
           if (data.data) {
             get().setWorkerStats(data.data);
+            // Extract available jobs from stats response
+            if (data.data.available_jobs?.jobs) {
+              get().setAvailableJobs(data.data.available_jobs.jobs);
+            }
           }
         }
       } catch (error) {
@@ -360,25 +364,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
     };
 
-    const fetchJobs = async () => {
-      try {
-        const response = await (client as any).worker.jobs.$get({});
-        if (response.ok) {
-          const data = (await response.json()) as {
-            data?: { jobs: JobMetadata[] };
-          };
-          if (data.data?.jobs) {
-            get().setAvailableJobs(data.data.jobs);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch available jobs:", error);
-      }
-    };
-
     // Fetch immediately
     fetchWorkerStats();
-    fetchJobs();
 
     // Then poll every 5 seconds
     const intervalId = setInterval(() => {
