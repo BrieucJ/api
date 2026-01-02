@@ -3,7 +3,7 @@ import { logSelectSchema } from "@backend/db/models/logs";
 import { metricsSelectSchema } from "@backend/db/models/metrics";
 import { snapshotSelectSchema } from "@backend/db/models/requestSnapshots";
 import { infoResponseSchema } from "@backend/api/routes/private/info/info.routes";
-import { healthResponseSchema } from "@backend/api/routes/private/health/health.routes";
+import { overallHealthSchema } from "@backend/api/routes/private/health/health.routes";
 import {
   workerStatsSelectSchema,
   scheduledJobSchema,
@@ -14,7 +14,7 @@ export type LogSelectType = z.infer<typeof logSelectSchema>;
 export type MetricsSelectType = z.infer<typeof metricsSelectSchema>;
 export type SnapshotSelectType = z.infer<typeof snapshotSelectSchema>;
 export type ApiInfo = z.infer<typeof infoResponseSchema>;
-export type HealthStatus = z.infer<typeof healthResponseSchema>;
+export type HealthStatus = z.infer<typeof overallHealthSchema>;
 export type WorkerStatsType = z.infer<typeof workerStatsSelectSchema>;
 export type ScheduledJobType = z.infer<typeof scheduledJobSchema>;
 export type AvailableJobType = z.infer<typeof availableJobSchema>;

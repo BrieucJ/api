@@ -65,10 +65,28 @@ async function checkWorkerHealth() {
     }
 
     const stats = latestStats[0];
+    if (!stats) {
+      return {
+        status: "unknown" as const,
+        workerMode: "unknown" as const,
+        error: "Worker stats not found",
+      };
+    }
+
     const now = new Date();
-    const lastHeartbeat = new Date(stats?.last_heartbeat);
+
+    // Ensure last_heartbeat exists (should always be present due to schema, but TypeScript needs this)
+    if (!stats.last_heartbeat) {
+      return {
+        status: "unknown" as const,
+        workerMode: "unknown" as const,
+        error: "Worker heartbeat timestamp is missing",
+      };
+    }
+
+    const lastHeartbeat = new Date(stats.last_heartbeat);
     const heartbeatAge = Math.floor(
-      (now.getTime() - lastHeartbeat?.getTime() ?? 0) / 1000
+      (now.getTime() - lastHeartbeat.getTime()) / 1000
     );
 
     // Consider worker unhealthy if heartbeat is older than 5 minutes (300 seconds)
@@ -77,11 +95,11 @@ async function checkWorkerHealth() {
 
     return {
       status: isHealthy ? ("healthy" as const) : ("unhealthy" as const),
-      workerMode: stats?.worker_mode as "local" | "lambda",
+      workerMode: stats.worker_mode as "local" | "lambda",
       lastHeartbeat: lastHeartbeat.toISOString(),
       heartbeatAge,
-      queueSize: stats?.queue_size,
-      processingCount: stats?.processing_count,
+      queueSize: stats.queue_size,
+      processingCount: stats.processing_count,
       ...(isHealthy
         ? {}
         : {
