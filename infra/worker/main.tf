@@ -119,6 +119,14 @@ resource "aws_iam_role_policy" "eventbridge_policy" {
           "events:ListRules"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:AddPermission",
+          "lambda:RemovePermission"
+        ]
+        Resource = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${local.name}-lambda"
       }
     ]
   })
