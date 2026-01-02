@@ -120,3 +120,18 @@ jobs:
       - name: Terraform Apply
         working-directory: infra
         run: terraform apply -auto-approve -input=false tfplan
+
+      - name: Initialize Worker Lambda (Schedule Cron Jobs)
+        run: |
+          echo "🔄 Invoking worker Lambda to initialize cron jobs..."
+          echo '{"detail":{"source":"eventbridge","jobType":"heartbeat","payload":{}}}' > payload.json
+          aws lambda invoke \
+            --function-name "worker-${{ env.TF_VAR_environment }}-lambda" \
+            --region ${{ secrets.AWS_REGION }} \
+            --payload file://payload.json \
+            response.json
+          echo "📋 Lambda response:"
+          cat response.json
+          echo ""
+          echo "✅ Worker Lambda initialized - cron jobs scheduled!"
+          rm payload.json response.json

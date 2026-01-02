@@ -20,29 +20,63 @@ statsPusher.pushStats().catch((error) => {
 });
 statsPusher.startInterval();
 
-// Initialize scheduler and schedule default cron jobs
-const scheduler = getScheduler(env.LAMBDA_ARN);
-logger.info("Scheduling default CRON jobs in Lambda", {
-  count: defaultCronJobs.length,
-});
+// Lazy initialization for cron jobs (runs once on first invocation)
+let cronJobsInitialized = false;
+let cronJobsInitializing = false;
 
-for (const jobDef of defaultCronJobs) {
-  if (jobDef.enabled) {
-    scheduler
-      .schedule(jobDef.cronExpression, jobDef.jobType, jobDef.payload)
-      .then((id) => {
-        logger.info("Scheduled cron job", {
-          id,
-          jobType: jobDef.jobType,
-          cronExpression: jobDef.cronExpression,
-        });
+async function ensureCronJobsScheduled(): Promise<void> {
+  // Return immediately if already initialized
+  if (cronJobsInitialized) return;
+
+  // Prevent concurrent initialization
+  if (cronJobsInitializing) {
+    // Wait for initialization to complete
+    while (!cronJobsInitialized) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return;
+  }
+
+  cronJobsInitializing = true;
+
+  try {
+    const scheduler = getScheduler(env.LAMBDA_ARN);
+    logger.info("Scheduling default CRON jobs in Lambda", {
+      count: defaultCronJobs.length,
+    });
+
+    await Promise.all(
+      defaultCronJobs.map(async (jobDef) => {
+        if (jobDef.enabled) {
+          try {
+            const id = await scheduler.schedule(
+              jobDef.cronExpression,
+              jobDef.jobType,
+              jobDef.payload
+            );
+            logger.info("Scheduled cron job", {
+              id,
+              jobType: jobDef.jobType,
+              cronExpression: jobDef.cronExpression,
+            });
+          } catch (error) {
+            logger.error("Failed to schedule cron job", {
+              jobType: jobDef.jobType,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
       })
-      .catch((error) => {
-        logger.error("Failed to schedule cron job", {
-          jobType: jobDef.jobType,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
+    );
+
+    cronJobsInitialized = true;
+    logger.info("All cron jobs scheduled successfully");
+  } catch (error) {
+    logger.error("Failed to schedule cron jobs", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    cronJobsInitializing = false;
+    throw error;
   }
 }
 
@@ -119,6 +153,9 @@ export const handler = async (
   event: SQSEvent | EventBridgeEvent<"Scheduled Event", EventBridgeJobEvent>,
   context: Context
 ): Promise<void> => {
+  // Ensure cron jobs are scheduled on first invocation (this runs once)
+  await ensureCronJobsScheduled();
+
   logger.info("Lambda handler invoked", {
     requestId: context.awsRequestId,
     eventSource: "Records" in event ? "sqs" : "eventbridge",
