@@ -123,7 +123,6 @@ export class Logger {
       });
       await logQuery.create(data);
     } catch (e) {
-      console.error(`[Logger][DB] Failed to insert log:`, e);
       throw e;
     }
   }

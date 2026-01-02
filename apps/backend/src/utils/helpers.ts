@@ -139,36 +139,37 @@ function enumFromSchema<T extends z.ZodObject<any>>(schema: T) {
 export function paginationWithOrderingSchema<T extends z.ZodObject<any>>(
   schema: T
 ) {
-  return z.object({
-    limit: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(1000)
-      .openapi({
-        param: {
-          name: "limit",
-          in: "query",
-        },
-        example: 20,
-      })
-      .default(20),
-    offset: z.coerce
-      .number()
-      .int()
-      .min(0)
-      .openapi({
-        param: {
-          name: "offset",
-          in: "query",
-        },
-        example: 0,
-      })
-      .default(0),
-    order_by: enumFromSchema(schema).default("id"),
-    order: z.enum(["asc", "desc"]).default("asc"),
-    search: z.string().optional(),
-    filters: z.string().optional().describe(`Available operators:
+  return z
+    .object({
+      limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(1000)
+        .openapi({
+          param: {
+            name: "limit",
+            in: "query",
+          },
+          example: 20,
+        })
+        .default(20),
+      offset: z.coerce
+        .number()
+        .int()
+        .min(0)
+        .openapi({
+          param: {
+            name: "offset",
+            in: "query",
+          },
+          example: 0,
+        })
+        .default(0),
+      order_by: enumFromSchema(schema).default("id"),
+      order: z.enum(["asc", "desc"]).default("asc"),
+      search: z.string().optional(),
+      filters: z.string().optional().describe(`Available operators:
 ${Object.keys(LOOKUP_MAP).join(", ")}
 
 Example usage:
@@ -176,7 +177,8 @@ Example usage:
 - ?age__gte=18
 - ?created_at__between=2023-01-01,2023-12-31
   `),
-  });
+    })
+    .passthrough();
 }
 
 type NullableInfer<T extends ZodTypeAny | null> = T extends ZodTypeAny
@@ -311,33 +313,41 @@ export function createApp() {
   app.use(snapshot);
   app.use("/api/v1/*", async (c, next) => {
     const start = Date.now();
-    let body: any = null;
 
-    // Parse request body safely
-    try {
-      body = await c.req.json();
-    } catch {
-      // If not JSON, leave body null
-    }
+    // Log the incoming request (fire-and-forget, don't block)
+    logger.info(`→ ${c.req.method} ${c.req.url}`, {
+      method: c.req.method,
+      url: c.req.url,
+      path: c.req.path,
+      headers: c.req.header(),
+      query: c.req.query(),
+    });
 
     try {
       // Continue to next middleware / route
       await next();
 
-      // After response, log info
+      // After response, log completion (fire-and-forget)
       const durationMs = Date.now() - start;
-
-      const meta = serializeContext(c, body, durationMs);
-      logger.info(`${c.req.method} ${c.req.url}`, meta);
+      const meta = serializeContext(c, null, durationMs);
+      logger.info(
+        `← ${c.req.method} ${c.req.url} [${c.res.status}] ${durationMs}ms`,
+        meta
+      );
     } catch (err) {
-      // Log errors with structured meta
+      // Log errors with structured meta (fire-and-forget)
       const durationMs = Date.now() - start;
-      const meta = serializeContext(c, body, durationMs);
+      const meta = serializeContext(c, null, durationMs);
 
-      logger.error(err instanceof Error ? err.message : String(err), {
-        ...meta,
-        stack: err instanceof Error ? err.stack : undefined,
-      });
+      logger.error(
+        `✗ ${c.req.method} ${c.req.url} ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        {
+          ...meta,
+          stack: err instanceof Error ? err.stack : undefined,
+        }
+      );
 
       throw err; // Let Hono handle the error
     }
