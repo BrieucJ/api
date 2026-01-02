@@ -20,3 +20,9 @@ export {
   userSelectSchema,
   userInsertSchema,
 } from "@backend/db/models/users";
+export {
+  workerStats,
+  workerStatsSelectSchema,
+  workerStatsInsertSchema,
+  workerStatsUpdateSchema,
+} from "@backend/db/models/workerStats";

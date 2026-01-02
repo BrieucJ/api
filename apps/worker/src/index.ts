@@ -6,6 +6,7 @@ import { defaultCronJobs } from "@/scheduler/jobs";
 import { getJobHandler, hasJobHandler } from "@/jobs/registry";
 import type { Job } from "@/jobs/types";
 import { LocalQueue } from "@/queue/local";
+import { StatsPusher } from "@/services/statsPusher";
 
 async function processJob(job: Job): Promise<void> {
   const { type, payload, attempts, maxAttempts } = job;
@@ -99,6 +100,12 @@ async function startWorker(): Promise<void> {
   const queue = getQueue();
   const scheduler = getScheduler();
 
+  // Initialize and start stats pusher (30s interval for both local and lambda)
+  const statsPusher = new StatsPusher();
+  await statsPusher.pushStats(); // Push initial stats
+  statsPusher.startInterval(); // Start 30s interval
+  logger.info("Stats pusher initialized", { mode: env.WORKER_MODE });
+
   // Schedule default CRON jobs
   if (env.WORKER_MODE === "local") {
     logger.info("Scheduling default CRON jobs", {
@@ -134,6 +141,9 @@ async function startWorker(): Promise<void> {
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down gracefully...`);
+
+    // Stop stats pusher
+    statsPusher.stopInterval();
 
     if (env.WORKER_MODE === "local") {
       if (queue instanceof LocalQueue) {

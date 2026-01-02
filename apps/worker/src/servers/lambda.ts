@@ -8,6 +8,14 @@ import { logger } from "@/utils/logger";
 import { getJobHandler, hasJobHandler } from "@/jobs/registry";
 import { JobType } from "@/jobs/types";
 import { SQSQueue } from "@/queue/sqs";
+import { StatsPusher } from "@/services/statsPusher";
+
+// Initialize stats pusher at module level for Lambda container reuse
+const statsPusher = new StatsPusher();
+statsPusher.pushStats().catch((error) => {
+  logger.error("Failed to push initial stats in Lambda", { error });
+});
+statsPusher.startInterval();
 
 interface EventBridgeJobEvent {
   source: "eventbridge";
