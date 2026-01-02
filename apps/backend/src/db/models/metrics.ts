@@ -11,16 +11,16 @@ import base from "./_base";
 extendZodWithOpenApi(z);
 
 export const metrics = pgTable("metrics", {
-  windowStart: timestamp("window_start", { mode: "date" }).notNull(),
-  windowEnd: timestamp("window_end", { mode: "date" }).notNull(),
+  window_start: timestamp("window_start", { mode: "date" }).notNull(),
+  window_end: timestamp("window_end", { mode: "date" }).notNull(),
   endpoint: text().notNull(),
-  p50Latency: integer("p50_latency").notNull(),
-  p95Latency: integer("p95_latency").notNull(),
-  p99Latency: integer("p99_latency").notNull(),
-  errorRate: integer("error_rate").notNull(),
-  trafficCount: integer("traffic_count").notNull(),
-  requestSize: bigint("request_size", { mode: "number" }),
-  responseSize: bigint("response_size", { mode: "number" }),
+  p50_latency: integer("p50_latency").notNull(),
+  p95_latency: integer("p95_latency").notNull(),
+  p99_latency: integer("p99_latency").notNull(),
+  error_rate: integer("error_rate").notNull(),
+  traffic_count: integer("traffic_count").notNull(),
+  request_size: bigint("request_size", { mode: "number" }),
+  response_size: bigint("response_size", { mode: "number" }),
   ...base,
 });
 
@@ -46,13 +46,13 @@ const responseSizeField = z
 export const metricsSelectSchema = createSelectSchema(metrics)
   .extend({
     endpoint: endpointField,
-    p50Latency: p50LatencyField,
-    p95Latency: p95LatencyField,
-    p99Latency: p99LatencyField,
-    errorRate: errorRateField,
-    trafficCount: trafficCountField,
-    requestSize: requestSizeField,
-    responseSize: responseSizeField,
+    p50_latency: p50LatencyField,
+    p95_latency: p95LatencyField,
+    p99_latency: p99LatencyField,
+    error_rate: errorRateField,
+    traffic_count: trafficCountField,
+    request_size: requestSizeField,
+    response_size: responseSizeField,
   })
   .omit({ deleted_at: true, embedding: true })
   .openapi("MetricsSelect");
@@ -60,13 +60,13 @@ export const metricsSelectSchema = createSelectSchema(metrics)
 export const metricsInsertSchema = createInsertSchema(metrics)
   .extend({
     endpoint: endpointField,
-    p50Latency: p50LatencyField,
-    p95Latency: p95LatencyField,
-    p99Latency: p99LatencyField,
-    errorRate: errorRateField,
-    trafficCount: trafficCountField,
-    requestSize: requestSizeField,
-    responseSize: responseSizeField,
+    p50_latency: p50LatencyField,
+    p95_latency: p95LatencyField,
+    p99_latency: p99LatencyField,
+    error_rate: errorRateField,
+    traffic_count: trafficCountField,
+    request_size: requestSizeField,
+    response_size: responseSizeField,
   })
   .omit({
     updated_at: true,
@@ -79,13 +79,13 @@ export const metricsInsertSchema = createInsertSchema(metrics)
 export const metricsUpdateSchema = createUpdateSchema(metrics)
   .extend({
     endpoint: endpointField.optional(),
-    p50Latency: p50LatencyField.optional(),
-    p95Latency: p95LatencyField.optional(),
-    p99Latency: p99LatencyField.optional(),
-    errorRate: errorRateField.optional(),
-    trafficCount: trafficCountField.optional(),
-    requestSize: requestSizeField.optional(),
-    responseSize: responseSizeField.optional(),
+    p50_latency: p50LatencyField.optional(),
+    p95_latency: p95LatencyField.optional(),
+    p99_latency: p99LatencyField.optional(),
+    error_rate: errorRateField.optional(),
+    traffic_count: trafficCountField.optional(),
+    request_size: requestSizeField.optional(),
+    response_size: responseSizeField.optional(),
   })
   .omit({
     updated_at: true,

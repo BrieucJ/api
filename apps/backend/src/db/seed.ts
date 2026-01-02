@@ -138,22 +138,22 @@ async function main() {
           },
           metrics: {
             columns: {
-              windowStart: funcs.date({
+              window_start: funcs.date({
                 minDate: "2024-01-01T00:00:00Z",
                 maxDate: "2024-12-31T23:59:59Z",
               }),
-              windowEnd: funcs.date({
+              window_end: funcs.date({
                 minDate: "2024-01-01T00:00:00Z",
                 maxDate: "2024-12-31T23:59:59Z",
               }),
               endpoint: funcs.valuesFromArray({ values: apiPaths }),
-              p50Latency: funcs.int({ minValue: 50, maxValue: 200 }),
-              p95Latency: funcs.int({ minValue: 100, maxValue: 500 }),
-              p99Latency: funcs.int({ minValue: 200, maxValue: 1000 }),
-              errorRate: funcs.int({ minValue: 0, maxValue: 5 }),
-              trafficCount: funcs.int({ minValue: 10, maxValue: 10000 }),
-              requestSize: funcs.int({ minValue: 100, maxValue: 100000 }),
-              responseSize: funcs.int({ minValue: 200, maxValue: 200000 }),
+              p50_latency: funcs.int({ minValue: 50, maxValue: 200 }),
+              p95_latency: funcs.int({ minValue: 100, maxValue: 500 }),
+              p99_latency: funcs.int({ minValue: 200, maxValue: 1000 }),
+              error_rate: funcs.int({ minValue: 0, maxValue: 5 }),
+              traffic_count: funcs.int({ minValue: 10, maxValue: 10000 }),
+              request_size: funcs.int({ minValue: 100, maxValue: 100000 }),
+              response_size: funcs.int({ minValue: 200, maxValue: 200000 }),
               created_at: funcs.date({
                 minDate,
                 maxDate,
@@ -173,35 +173,35 @@ async function main() {
               query: funcs.valuesFromArray({ values: queryOptions }),
               body: funcs.valuesFromArray({ values: bodyOptions }),
               headers: funcs.valuesFromArray({ values: headersOptions }),
-              userId: funcs.string(),
+              user_id: funcs.string(),
               timestamp: funcs.date({
                 minDate: "2024-01-01T00:00:00Z",
                 maxDate: "2024-12-31T23:59:59Z",
               }),
               version: funcs.valuesFromArray({ values: versions }),
               stage: funcs.valuesFromArray({ values: stages }),
-              statusCode: funcs.valuesFromArray({ values: statusCodes }),
-              responseBody: funcs.valuesFromArray({
+              status_code: funcs.valuesFromArray({ values: statusCodes }),
+              response_body: funcs.valuesFromArray({
                 values: responseBodyOptions,
               }),
-              responseHeaders: funcs.valuesFromArray({
+              response_headers: funcs.valuesFromArray({
                 values: responseHeadersOptions,
               }),
               duration: funcs.int({ minValue: 10, maxValue: 5000 }),
-              geoCountry: funcs.valuesFromArray({ values: geoCountries }),
-              geoRegion: funcs.valuesFromArray({ values: geoRegions }),
-              geoCity: funcs.valuesFromArray({ values: geoCities }),
-              geoLat: funcs.number({
+              geo_country: funcs.valuesFromArray({ values: geoCountries }),
+              geo_region: funcs.valuesFromArray({ values: geoRegions }),
+              geo_city: funcs.valuesFromArray({ values: geoCities }),
+              geo_lat: funcs.number({
                 minValue: -90,
                 maxValue: 90,
                 precision: 1000000,
               }),
-              geoLon: funcs.number({
+              geo_lon: funcs.number({
                 minValue: -180,
                 maxValue: 180,
                 precision: 1000000,
               }),
-              geoSource: funcs.valuesFromArray({
+              geo_source: funcs.valuesFromArray({
                 values: ["platform", "header", "ip", "none"],
               }),
               created_at: funcs.date({

@@ -33,7 +33,7 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     queryBuilderFilters.path__eq = path;
   }
   if (statusCode !== undefined) {
-    queryBuilderFilters.statusCode__eq = statusCode;
+    queryBuilderFilters.status_code__eq = statusCode;
   }
   if (startDate) {
     queryBuilderFilters.timestamp__gte = startDate;

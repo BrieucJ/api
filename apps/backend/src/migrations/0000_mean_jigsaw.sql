@@ -1,4 +1,5 @@
-CREATE TYPE "public"."geoSource" AS ENUM('platform', 'header', 'ip', 'none');--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE TYPE "public"."geo_source" AS ENUM('platform', 'header', 'ip', 'none');--> statement-breakpoint
 CREATE TABLE "logs" (
 	"source" text NOT NULL,
 	"level" text NOT NULL,
@@ -37,7 +38,7 @@ CREATE TABLE "request_snapshots" (
 	"query" jsonb,
 	"body" jsonb,
 	"headers" jsonb,
-	"userId" text,
+	"user_id" text,
 	"timestamp" timestamp DEFAULT now(),
 	"version" text NOT NULL,
 	"stage" text NOT NULL,
@@ -50,7 +51,7 @@ CREATE TABLE "request_snapshots" (
 	"geo_city" text,
 	"geo_lat" double precision,
 	"geo_lon" double precision,
-	"geoSource" "geoSource",
+	"geo_source" "geo_source",
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "request_snapshots_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"updated_at" timestamp DEFAULT now(),
 	"created_at" timestamp DEFAULT now() NOT NULL,

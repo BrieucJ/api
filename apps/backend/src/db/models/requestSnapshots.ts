@@ -18,7 +18,12 @@ import base from "./_base";
 
 extendZodWithOpenApi(z);
 
-const geoSourceEnum = pgEnum("geoSource", ["platform", "header", "ip", "none"]);
+export const geoSourceEnum = pgEnum("geo_source", [
+  "platform",
+  "header",
+  "ip",
+  "none",
+]);
 
 export const requestSnapshots = pgTable("request_snapshots", {
   method: text().notNull(),
@@ -26,20 +31,20 @@ export const requestSnapshots = pgTable("request_snapshots", {
   query: jsonb(),
   body: jsonb(),
   headers: jsonb(),
-  userId: text(),
+  user_id: text("user_id"),
   timestamp: timestamp({ mode: "date" }).defaultNow(),
   version: text().notNull(),
   stage: text().notNull(),
-  statusCode: integer("status_code"),
-  responseBody: jsonb("response_body"),
-  responseHeaders: jsonb("response_headers"),
+  status_code: integer("status_code"),
+  response_body: jsonb("response_body"),
+  response_headers: jsonb("response_headers"),
   duration: integer("duration"),
-  geoCountry: text("geo_country"),
-  geoRegion: text("geo_region"),
-  geoCity: text("geo_city"),
-  geoLat: doublePrecision("geo_lat"),
-  geoLon: doublePrecision("geo_lon"),
-  geoSource: geoSourceEnum(),
+  geo_country: text("geo_country"),
+  geo_region: text("geo_region"),
+  geo_city: text("geo_city"),
+  geo_lat: doublePrecision("geo_lat"),
+  geo_lon: doublePrecision("geo_lon"),
+  geo_source: geoSourceEnum("geo_source"),
   ...base,
 });
 
@@ -79,14 +84,14 @@ export const snapshotSelectSchema = createSelectSchema(requestSnapshots)
     path: pathField,
     version: versionField,
     stage: stageField,
-    statusCode: statusCodeField,
+    status_code: statusCodeField,
     duration: durationField,
-    geoCountry: geoCountryField,
-    geoRegion: geoRegionField,
-    geoCity: geoCityField,
-    geoLat: geoLatField,
-    geoLon: geoLonField,
-    geoSource: geoSourceField,
+    geo_country: geoCountryField,
+    geo_region: geoRegionField,
+    geo_city: geoCityField,
+    geo_lat: geoLatField,
+    geo_lon: geoLonField,
+    geo_source: geoSourceField,
   })
   .omit({ deleted_at: true, embedding: true })
   .openapi("SnapshotSelect");
@@ -97,14 +102,14 @@ export const snapshotInsertSchema = createInsertSchema(requestSnapshots)
     path: pathField,
     version: versionField,
     stage: stageField,
-    statusCode: statusCodeField,
+    status_code: statusCodeField,
     duration: durationField,
-    geoCountry: geoCountryField,
-    geoRegion: geoRegionField,
-    geoCity: geoCityField,
-    geoLat: geoLatField,
-    geoLon: geoLonField,
-    geoSource: geoSourceField,
+    geo_country: geoCountryField,
+    geo_region: geoRegionField,
+    geo_city: geoCityField,
+    geo_lat: geoLatField,
+    geo_lon: geoLonField,
+    geo_source: geoSourceField,
   })
   .omit({
     updated_at: true,
@@ -120,14 +125,14 @@ export const snapshotUpdateSchema = createUpdateSchema(requestSnapshots)
     path: pathField.optional(),
     version: versionField.optional(),
     stage: stageField.optional(),
-    statusCode: statusCodeField.optional(),
+    status_code: statusCodeField.optional(),
     duration: durationField.optional(),
-    geoCountry: geoCountryField.optional(),
-    geoRegion: geoRegionField.optional(),
-    geoCity: geoCityField.optional(),
-    geoLat: geoLatField.optional(),
-    geoLon: geoLonField.optional(),
-    geoSource: geoSourceField.optional(),
+    geo_country: geoCountryField.optional(),
+    geo_region: geoRegionField.optional(),
+    geo_city: geoCityField.optional(),
+    geo_lat: geoLatField.optional(),
+    geo_lon: geoLonField.optional(),
+    geo_source: geoSourceField.optional(),
   })
   .omit({
     updated_at: true,

@@ -5,33 +5,40 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
-// Type declaration for CommonJS __dirname (available when compiled to CJS)
-declare const __dirname: string;
-
 // Get the directory where this file is located, then go up to the app directory
-// Use import.meta.dir if available (Bun), import.meta.url (Node.js ESM), or __dirname (CommonJS)
-let currentDir: string;
-if (typeof import.meta.dir !== "undefined") {
-  // Bun
-  currentDir = import.meta.dir;
-} else if (typeof import.meta.url !== "undefined") {
-  // Node.js ESM
-  currentDir = path.dirname(fileURLToPath(import.meta.url));
-} else {
-  // CommonJS fallback (for drizzle-kit and other Node.js tools)
-  currentDir = __dirname;
+// For Bun: use import.meta.dir
+// For Node.js/drizzle-kit: use process.cwd() since we're in the app root
+let appDir: string;
+try {
+  // Try Bun's import.meta.dir first
+  if (import.meta?.dir) {
+    appDir = path.resolve(import.meta.dir, "..");
+  } else if (import.meta?.url) {
+    // Node.js ESM fallback
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    appDir = path.resolve(currentDir, "..");
+  } else {
+    // Fallback to process.cwd() for tools like drizzle-kit
+    appDir = process.cwd();
+  }
+} catch {
+  // If all else fails, use process.cwd()
+  appDir = process.cwd();
 }
-const appDir = path.resolve(currentDir, "..");
 
-// For local development, use env.dev, fallback to .env for backwards compatibility
+// Load environment-specific file based on NODE_ENV
 let envPath: string;
 if (process.env.NODE_ENV === "test") {
   envPath = path.resolve(appDir, ".env.test");
+} else if (process.env.NODE_ENV === "production") {
+  envPath = path.resolve(appDir, ".env.production");
+} else if (process.env.NODE_ENV === "staging") {
+  envPath = path.resolve(appDir, ".env.staging");
 } else {
-  // Try env.dev first, then fallback to .env
+  // Default to .env.dev for development
   const envDevPath = path.resolve(appDir, ".env.dev");
   const envPathLegacy = path.resolve(appDir, ".env");
-  envPath = envDevPath; // Prefer env.dev
+  envPath = envDevPath;
   // Also try loading .env as fallback
   expand(
     config({

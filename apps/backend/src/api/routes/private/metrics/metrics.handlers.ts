@@ -27,10 +27,10 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     queryBuilderFilters.endpoint__eq = endpoint;
   }
   if (startDate) {
-    queryBuilderFilters.windowStart__gte = startDate;
+    queryBuilderFilters.window_start__gte = startDate;
   }
   if (endDate) {
-    queryBuilderFilters.windowEnd__lte = endDate;
+    queryBuilderFilters.window_end__lte = endDate;
   }
 
   const { data, total } = await metricsQuery.list({
@@ -42,9 +42,9 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     filters: queryBuilderFilters,
   });
 
-  // Convert errorRate from percentage (0-100) back to decimal (0-1) for API
+  // Convert error_rate from percentage (0-100) back to decimal (0-1) for API
   const convertedData = data.map((metric) => {
-    const errorRateValue = metric.errorRate ?? 0;
+    const errorRateValue = metric.error_rate ?? 0;
     const convertedErrorRate =
       typeof errorRateValue === "number" && !isNaN(errorRateValue)
         ? errorRateValue / 100
@@ -52,7 +52,7 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
 
     return {
       ...metric,
-      errorRate: convertedErrorRate,
+      error_rate: convertedErrorRate,
     };
   });
 
@@ -80,23 +80,23 @@ export const aggregate: AppRouteHandler<AggregateRoute> = async (c) => {
     queryBuilderFilters.endpoint__eq = endpoint;
   }
   if (startDate) {
-    queryBuilderFilters.windowStart__gte = startDate;
+    queryBuilderFilters.window_start__gte = startDate;
   }
   if (endDate) {
-    queryBuilderFilters.windowEnd__lte = endDate;
+    queryBuilderFilters.window_end__lte = endDate;
   }
 
   const { data: results } = await metricsQuery.list({
     filters: queryBuilderFilters,
     limit: 10000, // Large limit for aggregation
-    order_by: "windowStart",
+    order_by: "window_start",
     order: "asc",
   });
 
-  // Convert errorRate from percentage (0-100) back to decimal (0-1) for API
+  // Convert error_rate from percentage (0-100) back to decimal (0-1) for API
   const convertedResults = results.map((metric) => ({
     ...metric,
-    errorRate: (metric.errorRate ?? 0) / 100, // Convert from percentage to decimal
+    error_rate: (metric.error_rate ?? 0) / 100, // Convert from percentage to decimal
   }));
 
   // Group by time windows if needed (for now, return as-is since we already aggregate in middleware)

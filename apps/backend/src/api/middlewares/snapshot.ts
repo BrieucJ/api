@@ -120,22 +120,22 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
           query: queryParams || undefined,
           body: requestBody || undefined,
           headers: Object.keys(headers).length > 0 ? headers : undefined,
-          userId: userId || undefined,
+          user_id: userId || undefined,
           version: packageJSON.version || "1.0.0",
           stage: env.NODE_ENV || "development",
-          statusCode,
-          responseBody: responseBody || undefined,
-          responseHeaders:
+          status_code: statusCode,
+          response_body: responseBody || undefined,
+          response_headers:
             Object.keys(responseHeaders).length > 0
               ? responseHeaders
               : undefined,
           duration,
-          geoCountry: geoCountry ?? null,
-          geoRegion: geoRegion ?? null,
-          geoCity: geoCity ?? null,
-          geoLat: geoLat ?? null,
-          geoLon: geoLon ?? null,
-          geoSource: geoSource ?? null,
+          geo_country: geoCountry ?? null,
+          geo_region: geoRegion ?? null,
+          geo_city: geoCity ?? null,
+          geo_lat: geoLat ?? null,
+          geo_lon: geoLon ?? null,
+          geo_source: geoSource ?? null,
         });
 
         await snapshotsQuery.create(data);
@@ -159,21 +159,21 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
           query: queryParams || undefined,
           body: requestBody || undefined,
           headers: Object.keys(headers).length > 0 ? headers : undefined,
-          userId: userId || undefined,
+          user_id: userId || undefined,
           version: packageJSON.version || "1.0.0",
           stage: env.NODE_ENV || "development",
-          statusCode,
-          responseBody:
+          status_code: statusCode,
+          response_body:
             error instanceof Error
               ? { error: error.message, stack: error.stack }
               : undefined,
           duration,
-          geoCountry: geoCountry ?? null,
-          geoRegion: geoRegion ?? null,
-          geoCity: geoCity ?? null,
-          geoLat: geoLat ?? null,
-          geoLon: geoLon ?? null,
-          geoSource: geoSource ?? null,
+          geo_country: geoCountry ?? null,
+          geo_region: geoRegion ?? null,
+          geo_city: geoCity ?? null,
+          geo_lat: geoLat ?? null,
+          geo_lon: geoLon ?? null,
+          geo_source: geoSource ?? null,
         });
 
         await snapshotsQuery.create(data);

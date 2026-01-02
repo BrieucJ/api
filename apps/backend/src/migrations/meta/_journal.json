@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1766186402473,
-      "tag": "0000_boring_hairball",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1766248344202,
-      "tag": "0001_dry_infant_terrible",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1766263997043,
-      "tag": "0002_aromatic_revanche",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1766270790220,
-      "tag": "0003_fantastic_luminals",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1767314394260,
-      "tag": "0004_funny_logan",
+      "when": 1767316205589,
+      "tag": "0000_mean_jigsaw",
       "breakpoints": true
     }
   ]
