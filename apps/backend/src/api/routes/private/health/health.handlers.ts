@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import { workerStats } from "@/db/models/workerStats";
 import { desc } from "drizzle-orm";
 import { SERVER_START_TIME } from "@/api/index";
+import { logger } from "@/utils/logger";
 
 // Lambda container initialization time (persists across invocations in the same container)
 let CONTAINER_START_TIME: number | null = null;
@@ -24,10 +25,16 @@ function getUptime(): number {
 
 async function checkDatabaseHealth() {
   const start = Date.now();
+  logger.info("[Health] Starting database health check");
   try {
-    // Use a simple, fast query - just check if we can connect
+    const queryStart = Date.now();
     await db.execute(sql`SELECT 1`);
+    const queryTime = Date.now() - queryStart;
     const responseTime = Date.now() - start;
+    logger.info("[Health] Database check completed", {
+      queryTime,
+      totalTime: responseTime,
+    });
     return {
       status: "healthy" as const,
       responseTime,
@@ -41,6 +48,10 @@ async function checkDatabaseHealth() {
         : typeof error === "string"
         ? error
         : "Database connection failed";
+    logger.error("[Health] Database check failed", {
+      responseTime,
+      error: errorMessage,
+    });
     return {
       status: "unhealthy" as const,
       responseTime,
@@ -51,8 +62,10 @@ async function checkDatabaseHealth() {
 }
 
 async function checkWorkerHealth() {
+  const start = Date.now();
+  logger.info("[Health] Starting worker health check");
   try {
-    // Optimize query - only select needed columns and limit to 1
+    const queryStart = Date.now();
     const latestStats = await db
       .select({
         worker_mode: workerStats.worker_mode,
@@ -63,8 +76,15 @@ async function checkWorkerHealth() {
       .from(workerStats)
       .orderBy(desc(workerStats.last_heartbeat))
       .limit(1);
+    const queryTime = Date.now() - queryStart;
 
+    const processingStart = Date.now();
     if (!latestStats || latestStats.length === 0) {
+      const totalTime = Date.now() - start;
+      logger.info("[Health] Worker check completed - no stats", {
+        queryTime,
+        totalTime,
+      });
       return {
         status: "unknown" as const,
         workerMode: "unknown" as const,
@@ -74,6 +94,11 @@ async function checkWorkerHealth() {
 
     const stats = latestStats[0];
     if (!stats?.last_heartbeat) {
+      const totalTime = Date.now() - start;
+      logger.info("[Health] Worker check completed - missing heartbeat", {
+        queryTime,
+        totalTime,
+      });
       return {
         status: "unknown" as const,
         workerMode: "unknown" as const,
@@ -86,6 +111,15 @@ async function checkWorkerHealth() {
     );
 
     const isHealthy = heartbeatAge < 300; // 5 minutes
+    const processingTime = Date.now() - processingStart;
+    const totalTime = Date.now() - start;
+
+    logger.info("[Health] Worker check completed", {
+      queryTime,
+      processingTime,
+      totalTime,
+      heartbeatAge,
+    });
 
     return {
       status: isHealthy ? ("healthy" as const) : ("unhealthy" as const),
@@ -97,12 +131,17 @@ async function checkWorkerHealth() {
       ...(isHealthy ? {} : { error: `Heartbeat is ${heartbeatAge}s old` }),
     };
   } catch (error) {
+    const totalTime = Date.now() - start;
     const errorMessage =
       error instanceof Error
         ? error.message
         : typeof error === "string"
         ? error
         : "Worker check failed";
+    logger.error("[Health] Worker check failed", {
+      totalTime,
+      error: errorMessage,
+    });
     return {
       status: "unhealthy" as const,
       workerMode: "unknown" as const,
@@ -112,12 +151,18 @@ async function checkWorkerHealth() {
 }
 
 export const get: AppRouteHandler<GetRoute> = async (c) => {
+  const handlerStart = Date.now();
+  logger.info("[Health] Health check endpoint called");
+
   try {
+    const checksStart = Date.now();
     // Use Promise.allSettled to ensure we always get results even if one fails
     const [dbResult, workerResult] = await Promise.allSettled([
       checkDatabaseHealth(),
       checkWorkerHealth(),
     ]);
+    const checksTime = Date.now() - checksStart;
+    logger.info("[Health] All checks completed", { checksTime });
 
     // Extract results, with fallback to unhealthy if promise rejected
     const dbHealth =
@@ -145,6 +190,7 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
                 : "Worker health check failed",
           };
 
+    const processingStart = Date.now();
     let status: "healthy" | "unhealthy" | "degraded";
     if (dbHealth.status === "unhealthy") {
       status = "unhealthy";
@@ -154,7 +200,8 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
       status = "healthy";
     }
 
-    return c.json(
+    const responseStart = Date.now();
+    const response = c.json(
       {
         data: {
           status,
@@ -170,8 +217,24 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
         ? HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
         : HTTP_STATUS_CODES.OK
     );
+    const responseTime = Date.now() - responseStart;
+    const processingTime = Date.now() - processingStart;
+    const totalTime = Date.now() - handlerStart;
+
+    logger.info("[Health] Health check completed", {
+      totalTime,
+      checksTime,
+      processingTime,
+      responseTime,
+      dbResponseTime: dbHealth.responseTime,
+      status,
+    });
+
+    return response;
   } catch (error) {
-    // Catch any unexpected errors and return a proper response (never 500)
+    const totalTime = Date.now() - handlerStart;
+    logger.error("[Health] Health check error", { totalTime, error });
+    // Never return 500 - always return proper response
     return c.json(
       {
         data: {
