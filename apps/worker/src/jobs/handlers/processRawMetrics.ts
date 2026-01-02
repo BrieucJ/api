@@ -44,10 +44,6 @@ export async function processRawMetrics(
     })),
   });
 
-  logger.info("Processing raw metrics", {
-    metricCount: payload.metrics.length,
-  });
-
   try {
     // Group metrics by window
     const windows = new Map<string, MetricsWindow>();
