@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Sun,
@@ -14,8 +14,11 @@ import {
   XCircle,
   AlertTriangle,
   HelpCircle,
+  LogOut,
+  User,
 } from "lucide-react";
 import { useAppStore } from "@/store/appStore";
+import { useAuthStore } from "@/store/authStore";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -103,11 +106,14 @@ function formatHeartbeatAge(seconds: number | undefined): string {
 
 export default function DashboardLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const initLogsPolling = useAppStore((state) => state.initLogsPolling);
   const initInfoPolling = useAppStore((state) => state.initInfoPolling);
   const initHealthPolling = useAppStore((state) => state.initHealthPolling);
   const apiInfo = useAppStore((state) => state.apiInfo);
   const healthStatus = useAppStore((state) => state.healthStatus);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   // Initialize state directly from prefers-color-scheme
   const prefersDark =
@@ -142,6 +148,11 @@ export default function DashboardLayout() {
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
   };
 
   // Generate breadcrumbs from pathname
@@ -329,6 +340,24 @@ export default function DashboardLayout() {
               </Tooltip>
             </>
           )}
+          {user && (
+            <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/50">
+              <User className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+              <span className="text-xs md:text-sm font-medium hidden sm:inline">
+                {user.email}
+              </span>
+            </div>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleLogout}
+            className="h-8 px-2 md:h-9 md:px-3 text-xs md:text-sm"
+            title="Logout"
+          >
+            <LogOut className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+            <span className="hidden sm:inline">Logout</span>
+          </Button>
           <Button
             size="sm"
             variant="outline"

@@ -36,3 +36,5 @@ node_modules
 
 #terraform
 .terraform*
+
+postgres-data
