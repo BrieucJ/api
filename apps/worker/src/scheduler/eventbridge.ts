@@ -53,9 +53,11 @@ export class EventBridgeScheduler implements Scheduler {
             Id: "1",
             Arn: this.lambdaArn,
             Input: JSON.stringify({
-              source: "eventbridge",
-              jobType,
-              payload,
+              detail: {
+                source: "eventbridge",
+                jobType,
+                payload,
+              },
             }),
           },
         ],
