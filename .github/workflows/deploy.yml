@@ -127,11 +127,9 @@ jobs:
           aws lambda invoke \
             --function-name "worker-${{ env.TF_VAR_environment }}-lambda" \
             --region ${{ secrets.REGION }} \
-            --cli-binary-format raw-in-base64-out \
+            --invocation-type Event \
             --payload '{"detail":{"source":"eventbridge","jobType":"HEALTH_CHECK","payload":{"checkType":"database"}}}' \
+            --cli-binary-format raw-in-base64-out \
             response.json
-          echo "📋 Lambda response:"
-          cat response.json
-          echo ""
-          echo "✅ Worker Lambda initialized - cron jobs scheduled and health check completed!"
+          echo "✅ Worker Lambda invoked asynchronously - cron jobs will be scheduled!"
           rm -f response.json
