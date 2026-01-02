@@ -5,12 +5,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
+// Type declaration for CommonJS __dirname (available when compiled to CJS)
+declare const __dirname: string;
+
 // Get the directory where this file is located, then go up to the app directory
-// Use import.meta.dir if available (Bun), otherwise use import.meta.url (Node.js)
-const currentDir =
-  typeof import.meta.dir !== "undefined"
-    ? import.meta.dir
-    : path.dirname(fileURLToPath(import.meta.url));
+// Use import.meta.dir if available (Bun), import.meta.url (Node.js ESM), or __dirname (CommonJS)
+let currentDir: string;
+if (typeof import.meta.dir !== "undefined") {
+  // Bun
+  currentDir = import.meta.dir;
+} else if (typeof import.meta.url !== "undefined") {
+  // Node.js ESM
+  currentDir = path.dirname(fileURLToPath(import.meta.url));
+} else {
+  // CommonJS fallback (for drizzle-kit and other Node.js tools)
+  currentDir = __dirname;
+}
 const appDir = path.resolve(currentDir, "..");
 
 // For local development, use env.dev, fallback to .env for backwards compatibility
