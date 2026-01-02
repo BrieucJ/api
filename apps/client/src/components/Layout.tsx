@@ -10,10 +10,19 @@ import {
   Activity,
   RotateCcw,
   Cpu,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  HelpCircle,
 } from "lucide-react";
 import { useAppStore } from "@/store/appStore";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -43,6 +52,54 @@ const navigation = [
   { name: "Replay", href: "/dashboard/replay", icon: RotateCcw },
   { name: "Worker", href: "/dashboard/worker", icon: Cpu },
 ];
+
+type StatusType = "healthy" | "unhealthy" | "degraded" | "unknown";
+
+function getStatusColor(status: StatusType): string {
+  switch (status) {
+    case "healthy":
+      return "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20";
+    case "degraded":
+      return "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20";
+    case "unhealthy":
+      return "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20";
+    case "unknown":
+      return "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20";
+    default:
+      return "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20";
+  }
+}
+
+function getStatusIcon(status: StatusType, size: string = "h-3 w-3") {
+  const Icon = (() => {
+    switch (status) {
+      case "healthy":
+        return CheckCircle2;
+      case "degraded":
+        return AlertTriangle;
+      case "unhealthy":
+        return XCircle;
+      case "unknown":
+      default:
+        return HelpCircle;
+    }
+  })();
+  return <Icon className={size} />;
+}
+
+function formatUptime(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
+}
+
+function formatHeartbeatAge(seconds: number | undefined): string {
+  if (seconds === undefined) return "unknown";
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
+}
 
 export default function DashboardLayout() {
   const location = useLocation();
@@ -148,52 +205,128 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 md:gap-3">
-          {apiInfo && (
+        <div className="flex items-center gap-1 md:gap-2">
+          {healthStatus && (
             <>
-              {/* API Health Status - Icon only on mobile, full text on desktop */}
-              <Badge
-                variant={
-                  healthStatus?.status === "healthy" ? "success" : "error"
-                }
-                className="text-[10px] md:text-xs px-1.5 md:px-2 gap-0 md:gap-1"
-                title={
-                  healthStatus?.status === "healthy"
-                    ? "API Healthy"
-                    : "API Unhealthy"
-                }
-              >
-                <Activity className="h-3 w-3" />
-                <span className="hidden md:inline ml-1">
-                  {healthStatus?.status === "healthy"
-                    ? "API Healthy"
-                    : "API Unhealthy"}
-                </span>
-              </Badge>
-              {/* Database Status - Icon only on mobile, full text on desktop */}
-              <Badge
-                variant={apiInfo.database.connected ? "success" : "error"}
-                className="text-[10px] md:text-xs px-1.5 md:px-2 gap-0 md:gap-1"
-                title={
-                  apiInfo.database.connected
-                    ? "DB Connected"
-                    : "DB Disconnected"
-                }
-              >
-                <Database className="h-3 w-3" />
-                <span className="hidden md:inline ml-1">
-                  {apiInfo.database.connected
-                    ? "DB Connected"
-                    : "DB Disconnected"}
-                </span>
-              </Badge>
-              {/* Uptime info - hidden on mobile and tablet, shown on large screens */}
-              <div className="hidden lg:flex flex-col text-xs text-muted-foreground">
-                <span>Uptime: {apiInfo.uptime.formatted}</span>
-                <span>
-                  Updated: {new Date(apiInfo.timestamp).toLocaleTimeString()}
-                </span>
-              </div>
+              {/* Overall System Health */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    className={`${getStatusColor(
+                      healthStatus.status as StatusType
+                    )} text-[10px] md:text-xs px-1.5 md:px-2 gap-1 cursor-help`}
+                  >
+                    {getStatusIcon(healthStatus.status as StatusType)}
+                    <span className="hidden sm:inline capitalize">
+                      {healthStatus.status}
+                    </span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <div className="space-y-1">
+                    <div className="font-semibold">Overall System Health</div>
+                    <div className="text-xs">
+                      Status:{" "}
+                      <span className="capitalize">{healthStatus.status}</span>
+                    </div>
+                    <div className="text-xs">
+                      Uptime: {formatUptime(healthStatus.uptime || 0)}
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Database Health */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    className={`${getStatusColor(
+                      (healthStatus.database?.status || "unknown") as StatusType
+                    )} text-[10px] md:text-xs px-1.5 md:px-2 gap-1 cursor-help`}
+                  >
+                    <Database className="h-3 w-3" />
+                    <span className="hidden md:inline">DB</span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <div className="space-y-1">
+                    <div className="font-semibold">Database Health</div>
+                    <div className="text-xs">
+                      Status:{" "}
+                      <span className="capitalize">
+                        {healthStatus.database?.status || "unknown"}
+                      </span>
+                    </div>
+                    <div className="text-xs">
+                      Response Time:{" "}
+                      {healthStatus.database?.responseTime !== undefined
+                        ? `${healthStatus.database.responseTime}ms`
+                        : "N/A"}
+                    </div>
+                    <div className="text-xs">
+                      Connection:{" "}
+                      {healthStatus.database?.connected
+                        ? "Connected"
+                        : "Disconnected"}
+                    </div>
+                    {healthStatus.database?.error && (
+                      <div className="text-xs text-red-400 mt-1">
+                        {healthStatus.database.error}
+                      </div>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Worker Health */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    className={`${getStatusColor(
+                      (healthStatus.worker?.status || "unknown") as StatusType
+                    )} text-[10px] md:text-xs px-1.5 md:px-2 gap-1 cursor-help`}
+                  >
+                    <Cpu className="h-3 w-3" />
+                    <span className="hidden md:inline">Worker</span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <div className="space-y-1">
+                    <div className="font-semibold">Worker Health</div>
+                    <div className="text-xs">
+                      Status:{" "}
+                      <span className="capitalize">
+                        {healthStatus.worker?.status || "unknown"}
+                      </span>
+                    </div>
+                    {healthStatus.worker?.workerMode && (
+                      <>
+                        <div className="text-xs">
+                          Mode:{" "}
+                          <span className="capitalize">
+                            {healthStatus.worker.workerMode}
+                          </span>
+                        </div>
+                        <div className="text-xs">
+                          Last Heartbeat:{" "}
+                          {formatHeartbeatAge(healthStatus.worker.heartbeatAge)}
+                        </div>
+                        {healthStatus.worker.queueSize !== undefined && (
+                          <div className="text-xs">
+                            Queue: {healthStatus.worker.queueSize} | Processing:{" "}
+                            {healthStatus.worker.processingCount || 0}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {healthStatus.worker?.error && (
+                      <div className="text-xs text-yellow-400 mt-1">
+                        {healthStatus.worker.error}
+                      </div>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             </>
           )}
           <Button

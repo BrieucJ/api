@@ -1,4 +1,4 @@
-import { url, z, type ZodTypeAny } from "zod";
+import { z, type ZodTypeAny } from "zod";
 import type { Hook } from "@hono/zod-openapi";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import { LOOKUP_MAP } from "@/db/querybuilder";
@@ -9,18 +9,19 @@ import {
   metrics,
   snapshot,
   logging,
+  securityHeaders,
+  bodyLimit,
 } from "@/api/middlewares";
 import { requestId } from "hono/request-id";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
-import type { Context } from "hono";
 import { languageDetector } from "hono/language";
 import { timing } from "hono/timing";
+import { compress } from "hono/compress";
 import type { AppBindings } from "./types";
 import { onError, notFound } from "@/api/middlewares";
 import type { KeysOfZodObj, ZodSchema, ZodIssue } from "@/utils/types";
 import env from "@/env";
-import packageJSON from "../../package.json";
 
 export const jsonContent = <T extends ZodSchema>(
   schema: T,
@@ -220,6 +221,9 @@ export function createRouter() {
 export function createApp() {
   const app = createRouter();
   app.use(requestId());
+  app.use(securityHeaders);
+  app.use(compress()); // Response compression (gzip/brotli)
+  app.use(bodyLimit); // Request size limits for DoS protection
   app.use(serveEmojiFavicon("🚀"));
   app.notFound(notFound);
   app.onError(onError);

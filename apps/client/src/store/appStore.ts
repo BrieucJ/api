@@ -334,7 +334,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
           get().setHealthStatus({
             status: "unhealthy",
             timestamp: new Date().toISOString(),
-          });
+            uptime: 0,
+            database: {
+              status: "unhealthy",
+              responseTime: 0,
+              connected: false,
+              error: "Health check failed",
+            },
+            worker: {
+              status: "unknown",
+              error: "Health check failed",
+            },
+          } as any);
         }
       } catch (error) {
         console.error("Failed to fetch health status:", error);
@@ -342,7 +353,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
         get().setHealthStatus({
           status: "unhealthy",
           timestamp: new Date().toISOString(),
-        });
+          uptime: 0,
+          database: {
+            status: "unhealthy",
+            responseTime: 0,
+            connected: false,
+            error: "Failed to connect",
+          },
+          worker: {
+            status: "unknown",
+            error: "Failed to connect",
+          },
+        } as any);
       }
     };
 
