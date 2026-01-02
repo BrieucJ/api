@@ -18,12 +18,12 @@ export const getStats: AppRouteHandler<GetStatsRoute> = async (c) => {
     order: "desc",
   });
 
-  return c.json(
-    {
-      data,
-      error: null,
+    return c.json(
+      {
+        data,
+        error: null,
       metadata: { limit, offset, total },
-    },
-    HTTP_STATUS_CODES.OK
-  );
+      },
+      HTTP_STATUS_CODES.OK
+    );
 };

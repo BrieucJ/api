@@ -107,18 +107,18 @@ async function startWorker(): Promise<void> {
   logger.info("Stats pusher initialized", { mode: env.WORKER_MODE });
 
   // Schedule default CRON jobs
-  logger.info("Scheduling default CRON jobs", {
-    count: defaultCronJobs.length,
+    logger.info("Scheduling default CRON jobs", {
+      count: defaultCronJobs.length,
     mode: env.WORKER_MODE,
-  });
+    });
 
-  for (const jobDef of defaultCronJobs) {
-    if (jobDef.enabled) {
-      await scheduler.schedule(
-        jobDef.cronExpression,
-        jobDef.jobType,
-        jobDef.payload
-      );
+    for (const jobDef of defaultCronJobs) {
+      if (jobDef.enabled) {
+        await scheduler.schedule(
+          jobDef.cronExpression,
+          jobDef.jobType,
+          jobDef.payload
+        );
     }
   }
 

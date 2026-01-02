@@ -120,10 +120,9 @@ jobs:
       - name: Terraform Apply
         working-directory: infra
         run: terraform apply -auto-approve -input=false tfplan
-
       - name: Initialize Worker Lambda (Schedule Cron Jobs)
         run: |
-          echo "🔄 Invoking worker Lambda to initialize cron jobs and run health check..."
+          echo "🔄 Invoking worker Lambda to initialize cron jobs..."
           aws lambda invoke \
             --function-name "worker-${{ env.TF_VAR_environment }}-lambda" \
             --region ${{ secrets.REGION }} \
@@ -131,5 +130,21 @@ jobs:
             --payload '{"detail":{"source":"eventbridge","jobType":"HEALTH_CHECK","payload":{"checkType":"database"}}}' \
             --cli-binary-format raw-in-base64-out \
             response.json
-          echo "✅ Worker Lambda invoked asynchronously - cron jobs will be scheduled!"
+
+          echo "✅ Lambda invoked asynchronously"
+          echo "⏳ Waiting 10 seconds for execution..."
+          sleep 10
+
+          echo "🔍 Checking if EventBridge rules were created..."
+          RULE_COUNT=$(aws events list-rules --region ${{ secrets.REGION }} --name-prefix "worker-cron" --query 'length(Rules)' --output text)
+          echo "Found $RULE_COUNT EventBridge rules"
+
+          if [ "$RULE_COUNT" -eq "0" ]; then
+            echo "❌ No EventBridge rules created! Check CloudWatch logs:"
+            echo "https://console.aws.amazon.com/cloudwatch/home?region=${{ secrets.REGION }}#logsV2:log-groups/log-group/\$252Faws\$252Flambda\$252Fworker-${{ env.TF_VAR_environment }}-lambda"
+          else
+            echo "✅ EventBridge rules created successfully!"
+            aws events list-rules --region ${{ secrets.REGION }} --name-prefix "worker-cron" --query 'Rules[*].[Name,State,ScheduleExpression]' --output table
+          fi
+
           rm -f response.json

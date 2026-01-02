@@ -15,10 +15,8 @@ import env from "@/env";
 
 // Initialize stats pusher at module level for Lambda container reuse
 const statsPusher = new StatsPusher();
-statsPusher.pushStats().catch((error) => {
-  logger.error("Failed to push initial stats in Lambda", { error });
-});
-statsPusher.startInterval();
+// Note: Don't push stats or start interval at module level in Lambda
+// Lambda will freeze the container between invocations
 
 // Lazy initialization for cron jobs (runs once on first invocation)
 let cronJobsInitialized = false;
