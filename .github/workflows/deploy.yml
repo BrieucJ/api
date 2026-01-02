@@ -93,6 +93,12 @@ jobs:
           echo "✅ Worker Lambda image pushed successfully"
           echo "::endgroup::"
 
+      - name: Run Database Migrations
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: bun run db:migrate
+
       - name: Terraform Init
         working-directory: infra
         run: |
