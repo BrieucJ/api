@@ -127,7 +127,7 @@ jobs:
           echo '{"detail":{"source":"eventbridge","jobType":"heartbeat","payload":{}}}' > payload.json
           aws lambda invoke \
             --function-name "worker-${{ env.TF_VAR_environment }}-lambda" \
-            --region ${{ secrets.AWS_REGION }} \
+            --region ${{ secrets.REGION }} \
             --payload file://payload.json \
             response.json
           echo "📋 Lambda response:"
