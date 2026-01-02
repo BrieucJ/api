@@ -45,46 +45,46 @@ export default function MetricsCard() {
 
   return (
     <Card className="hover:shadow-lg transition w-full overflow-hidden">
-      <CardHeader>
-        <CardTitle>Metrics</CardTitle>
-        <CardDescription className="flex flex-row gap-2 p-0 m-0">
-          <div className="text-xs">{metrics.length} windows</div>
-          <div className="text-xs">
+      <CardHeader className="p-3 md:p-6">
+        <CardTitle className="text-base md:text-lg">Metrics</CardTitle>
+        <CardDescription className="flex flex-col sm:flex-row gap-1 sm:gap-2 p-0 m-0">
+          <div className="text-[10px] md:text-xs">{metrics.length} windows</div>
+          <div className="text-[10px] md:text-xs">
             {totalTraffic.toLocaleString()} requests
           </div>
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-3 md:gap-4 p-3 md:p-6 pt-0 md:pt-0">
         <div className="grid grid-cols-3 gap-2">
-          <div className="flex flex-col gap-1">
-            <div className="text-xs text-muted-foreground">Traffic</div>
-            <div className="text-lg font-semibold flex items-center gap-1">
-              <Activity className="h-4 w-4" />
-              {totalTraffic.toLocaleString()}
+          <div className="flex flex-col gap-0.5 md:gap-1">
+            <div className="text-[10px] md:text-xs text-muted-foreground">Traffic</div>
+            <div className="text-sm md:text-lg font-semibold flex items-center gap-0.5 md:gap-1">
+              <Activity className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="text-xs md:text-lg">{totalTraffic.toLocaleString()}</span>
             </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <div className="text-xs text-muted-foreground">Error Rate</div>
-            <div className="text-lg font-semibold flex items-center gap-1">
-              <AlertCircle className="h-4 w-4" />
-              {(avgErrorRate * 100).toFixed(2)}%
+          <div className="flex flex-col gap-0.5 md:gap-1">
+            <div className="text-[10px] md:text-xs text-muted-foreground">Error Rate</div>
+            <div className="text-sm md:text-lg font-semibold flex items-center gap-0.5 md:gap-1">
+              <AlertCircle className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="text-xs md:text-lg">{(avgErrorRate * 100).toFixed(2)}%</span>
             </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <div className="text-xs text-muted-foreground">Avg Latency</div>
-            <div className="text-lg font-semibold flex items-center gap-1">
-              <TrendingUp className="h-4 w-4" />
-              {Math.round(avgLatency)}ms
+          <div className="flex flex-col gap-0.5 md:gap-1">
+            <div className="text-[10px] md:text-xs text-muted-foreground">Avg Latency</div>
+            <div className="text-sm md:text-lg font-semibold flex items-center gap-0.5 md:gap-1">
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="text-xs md:text-lg">{Math.round(avgLatency)}ms</span>
             </div>
           </div>
         </div>
         <Button
           variant="outline"
-          className="w-full"
+          className="w-full text-xs md:text-sm h-8 md:h-9"
           onClick={() => navigate("/dashboard/metrics")}
         >
           View Details
-          <ArrowRight className="ml-2 h-4 w-4" />
+          <ArrowRight className="ml-2 h-3 w-3 md:h-4 md:w-4" />
         </Button>
       </CardContent>
     </Card>

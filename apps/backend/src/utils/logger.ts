@@ -1,8 +1,5 @@
 import env from "../env";
-import { logs, logInsertSchema } from "@/db/models/logs";
-import { createQueryBuilder } from "@/db/querybuilder";
-
-const logQuery = createQueryBuilder<typeof logs>(logs);
+import { logPersistence } from "./logPersistence";
 
 const COLORS = {
   debug: "\x1b[35m",
@@ -43,11 +40,9 @@ function shouldLog(level: BunLoggerLevel) {
 
 export class Logger {
   namespace: string;
-  skipDbLogging: boolean;
 
-  constructor(namespace: string, skipDbLogging = false) {
+  constructor(namespace: string) {
     this.namespace = namespace;
-    this.skipDbLogging = skipDbLogging;
   }
 
   private format(level: keyof typeof COLORS, args: [string, ...unknown[]]) {
@@ -85,28 +80,24 @@ export class Logger {
     return `${colored} ${paddedLines.join("\n")}`;
   }
 
-  private async write(level: BunLoggerLevel, args: [string, ...unknown[]]) {
+  private write(level: BunLoggerLevel, args: [string, ...unknown[]]) {
     if (!args.length) return;
 
     const [message, ...rest] = args;
 
-    // The rest of the arguments are optional metadata
+    // Build metadata from rest arguments
     let meta: Record<string, any> = {};
-    for (const [i, arg] of rest.entries()) {
+    for (const arg of rest) {
       if (arg && typeof arg === "object") {
         meta = { ...meta, ...(arg as Record<string, any>) };
-      } else {
-        meta[`arg${i + 1}`] = arg;
       }
     }
 
-    // Console logging
+    // Console logging (synchronous)
     if (shouldLog(level)) {
       const method = ["fatal", "error"].includes(level) ? "error" : level;
       (console as any)[method](this.format(level as keyof typeof COLORS, args));
     }
-
-    if (this.skipDbLogging) return;
 
     // Only save logs at or above info level to the database
     // This excludes debug and trace logs to reduce database noise
@@ -114,83 +105,44 @@ export class Logger {
       return;
     }
 
-    try {
-      const data = logInsertSchema.parse({
-        source: this.namespace,
-        level,
-        message,
-        meta,
-      });
-      await logQuery.create(data);
-    } catch (e) {
-      throw e;
-    }
+    // Fire-and-forget database persistence (non-blocking)
+    logPersistence.save({
+      source: this.namespace,
+      level,
+      message,
+      meta: Object.keys(meta).length > 0 ? meta : undefined,
+    });
   }
 
-  debug(message: string, ...args: unknown[]) {
-    return this.write("debug", [message, ...args] as [string, ...unknown[]]);
+  debug(message: string, ...args: unknown[]): void {
+    this.write("debug", [message, ...args] as [string, ...unknown[]]);
   }
-  info(message: string, ...args: unknown[]) {
-    return this.write("info", [message, ...args] as [string, ...unknown[]]);
+  info(message: string, ...args: unknown[]): void {
+    this.write("info", [message, ...args] as [string, ...unknown[]]);
   }
-  warn(message: string, ...args: unknown[]) {
-    return this.write("warn", [message, ...args] as [string, ...unknown[]]);
+  warn(message: string, ...args: unknown[]): void {
+    this.write("warn", [message, ...args] as [string, ...unknown[]]);
   }
-  error(message: string, ...args: unknown[]) {
-    return this.write("error", [message, ...args] as [string, ...unknown[]]);
+  error(message: string, ...args: unknown[]): void {
+    this.write("error", [message, ...args] as [string, ...unknown[]]);
   }
-  fatal(message: string, ...args: unknown[]) {
-    return this.write("fatal", [message, ...args] as [string, ...unknown[]]);
+  fatal(message: string, ...args: unknown[]): void {
+    this.write("fatal", [message, ...args] as [string, ...unknown[]]);
   }
-  trace(message: string, ...args: unknown[]) {
-    return this.write("trace", [message, ...args] as [string, ...unknown[]]);
+  trace(message: string, ...args: unknown[]): void {
+    this.write("trace", [message, ...args] as [string, ...unknown[]]);
   }
 
   withNamespace(ns: string) {
-    return new Logger(ns, this.skipDbLogging);
-  }
-
-  middleware() {
-    return async (c: any, next: any) => {
-      const start = Date.now();
-      let body: any = null;
-      try {
-        body = await c.req.json();
-      } catch {}
-      try {
-        await next();
-      } catch (err) {
-        await this.error(
-          err instanceof Error ? err.stack || err.message : String(err),
-          {
-            method: c.req.method,
-            path: c.req.path,
-            headers: c.req.header(),
-            body,
-          }
-        );
-        throw err;
-      } finally {
-        const durationMs = Date.now() - start;
-        await this.info(`${c.req.method} ${c.req.url}`, {
-          method: c.req.method,
-          path: c.req.path,
-          headers: c.req.header(),
-          body,
-          geo: c.geo || null,
-          durationMs,
-          status: c.res.status || 200,
-        });
-      }
-    };
+    return new Logger(ns);
   }
 }
 
 // API logger
 export const logger = new Logger("API");
 
-// DB logger (skip DB insert to avoid infinite recursion)
-export const dbLogger = new Logger("DB", true);
+// DB logger
+export const dbLogger = new Logger("DB");
 
 // Worker logger
 export const workerLogger = new Logger("WORKER");

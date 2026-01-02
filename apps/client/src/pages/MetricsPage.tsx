@@ -53,61 +53,61 @@ export default function MetricsPage() {
       : 0;
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="space-y-3 md:space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Total Traffic</CardTitle>
+          <CardHeader className="p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium">Total Traffic</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold">
               {totalTraffic.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">Last 20 windows</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Last 20 windows</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">
+          <CardHeader className="p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium">
               Avg Error Rate
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold">
               {(avgErrorRate * 100).toFixed(2)}%
             </div>
-            <p className="text-xs text-muted-foreground">Last 20 windows</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Last 20 windows</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">
+          <CardHeader className="p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium">
               Avg P95 Latency
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold">
               {Math.round(avgP95Latency)}ms
             </div>
-            <p className="text-xs text-muted-foreground">Last 20 windows</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Last 20 windows</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Latency Metrics</CardTitle>
-          <CardDescription>P50, P95, and P99 latency over time</CardDescription>
+        <CardHeader className="p-3 md:p-6">
+          <CardTitle className="text-base md:text-lg">Latency Metrics</CardTitle>
+          <CardDescription className="text-xs md:text-sm">P50, P95, and P99 latency over time</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="endpoint">Endpoint Filter</Label>
+        <CardContent className="space-y-3 md:space-y-4 p-3 md:p-6 pt-0 md:pt-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="space-y-1.5 md:space-y-2">
+              <Label htmlFor="endpoint" className="text-xs md:text-sm">Endpoint Filter</Label>
               <Select
                 value={selectedEndpoint}
                 onValueChange={setSelectedEndpoint}
               >
-                <SelectTrigger id="endpoint">
+                <SelectTrigger id="endpoint" className="h-8 md:h-9 text-xs md:text-sm">
                   <SelectValue placeholder="All endpoints" />
                 </SelectTrigger>
                 <SelectContent>
@@ -120,13 +120,13 @@ export default function MetricsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="timeRange">Time Range</Label>
+            <div className="space-y-1.5 md:space-y-2">
+              <Label htmlFor="timeRange" className="text-xs md:text-sm">Time Range</Label>
               <Select
                 value={timeRange}
                 onValueChange={(v) => setTimeRange(v as typeof timeRange)}
               >
-                <SelectTrigger id="timeRange">
+                <SelectTrigger id="timeRange" className="h-8 md:h-9 text-xs md:text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

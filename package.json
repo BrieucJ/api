@@ -5,6 +5,8 @@
     "dev:backend": "bun --cwd apps/backend dev",
     "dev:worker": "bun --cwd apps/worker dev",
     "dev:client": "bun --cwd apps/client dev",
+    "test": "bun --cwd apps/backend test",
+    "test:backend": "bun --cwd apps/backend test",
     "infra:deploy:production": "bash infra/deploy.sh deploy production",
     "infra:deploy:staging": "bash infra/deploy.sh deploy staging",
     "infra:destroy:production": "bash infra/deploy.sh destroy production",

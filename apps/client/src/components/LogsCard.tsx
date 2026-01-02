@@ -20,17 +20,17 @@ export default function LogsCard() {
 
   return (
     <Card className="hover:shadow-lg transition w-full overflow-hidden">
-      <CardHeader>
-        <CardTitle>Logs</CardTitle>
-        <CardDescription className="flex flex-row gap-2 p-0 m-0">
-          <div className="text-xs">{logs.length} entries</div>
-          <div className="text-xs">
+      <CardHeader className="p-3 md:p-6">
+        <CardTitle className="text-base md:text-lg">Logs</CardTitle>
+        <CardDescription className="flex flex-col sm:flex-row gap-1 sm:gap-2 p-0 m-0">
+          <div className="text-[10px] md:text-xs">{logs.length} entries</div>
+          <div className="text-[10px] md:text-xs">
             Last log: {lastLog && new Date(lastLog).toLocaleString()}
           </div>
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col min-h-0">
-        <div className="flex-1 min-h-0 max-h-96 sm:max-h-80 mx-0 px-0 flex flex-col w-full min-w-0">
+      <CardContent className="flex flex-col min-h-0 p-3 md:p-6 pt-0 md:pt-0">
+        <div className="flex-1 min-h-0 max-h-64 sm:max-h-80 md:max-h-96 mx-0 px-0 flex flex-col w-full min-w-0">
           <LogsCardContent />
         </div>
       </CardContent>

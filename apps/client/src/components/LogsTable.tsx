@@ -266,13 +266,15 @@ function MetaButton({ meta }: { meta: Json }) {
           Show
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Meta</DialogTitle>
         </DialogHeader>
-        <pre className="text-xs overflow-x-auto">
-          {JSON.stringify(meta, null, 2)}
-        </pre>
+        <div className="overflow-y-auto flex-1 min-h-0">
+          <pre className="text-xs overflow-x-auto">
+            {JSON.stringify(meta, null, 2)}
+          </pre>
+        </div>
       </DialogContent>
     </Dialog>
   );

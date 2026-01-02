@@ -3,8 +3,13 @@ import type { Hook } from "@hono/zod-openapi";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import { LOOKUP_MAP } from "@/db/querybuilder";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { serveEmojiFavicon, geo, metrics, snapshot } from "@/api/middlewares";
-import { logger } from "@/utils/logger";
+import {
+  serveEmojiFavicon,
+  geo,
+  metrics,
+  snapshot,
+  logging,
+} from "@/api/middlewares";
 import { requestId } from "hono/request-id";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
@@ -16,27 +21,6 @@ import { onError, notFound } from "@/api/middlewares";
 import type { KeysOfZodObj, ZodSchema, ZodIssue } from "@/utils/types";
 import env from "@/env";
 import packageJSON from "../../package.json";
-
-function serializeContext(c: Context, body?: any, durationMs?: number) {
-  return {
-    requestId: (c.req as any).id, // requestId from middleware
-    method: c.req.method,
-    url: c.req.url,
-    path: c.req.path,
-    headers: c.req.header(),
-    query: c.req.query(),
-    params: c.req.param ? c.req.param() : {},
-    body, // parsed request body
-    geo: c.geo || null,
-    status: c.res.status || 200,
-    stage: env.NODE_ENV,
-    version: packageJSON.version,
-    hostname: c.env?.hostname,
-    port: c.env?.port,
-    finalized: c.finalized,
-    durationMs,
-  };
-}
 
 export const jsonContent = <T extends ZodSchema>(
   schema: T,
@@ -178,7 +162,7 @@ Example usage:
 - ?created_at__between=2023-01-01,2023-12-31
   `),
     })
-    .passthrough();
+    .loose();
 }
 
 type NullableInfer<T extends ZodTypeAny | null> = T extends ZodTypeAny
@@ -311,47 +295,7 @@ export function createApp() {
   app.use(geo);
   app.use(metrics);
   app.use(snapshot);
-  app.use("/api/v1/*", async (c, next) => {
-    const start = Date.now();
-
-    // Log the incoming request (fire-and-forget, don't block)
-    logger.info(`→ ${c.req.method} ${c.req.url}`, {
-      method: c.req.method,
-      url: c.req.url,
-      path: c.req.path,
-      headers: c.req.header(),
-      query: c.req.query(),
-    });
-
-    try {
-      // Continue to next middleware / route
-      await next();
-
-      // After response, log completion (fire-and-forget)
-      const durationMs = Date.now() - start;
-      const meta = serializeContext(c, null, durationMs);
-      logger.info(
-        `← ${c.req.method} ${c.req.url} [${c.res.status}] ${durationMs}ms`,
-        meta
-      );
-    } catch (err) {
-      // Log errors with structured meta (fire-and-forget)
-      const durationMs = Date.now() - start;
-      const meta = serializeContext(c, null, durationMs);
-
-      logger.error(
-        `✗ ${c.req.method} ${c.req.url} ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-        {
-          ...meta,
-          stack: err instanceof Error ? err.stack : undefined,
-        }
-      );
-
-      throw err; // Let Hono handle the error
-    }
-  });
+  app.use("/api/v1/*", logging);
   return app;
 }
 

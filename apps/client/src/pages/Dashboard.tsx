@@ -281,7 +281,7 @@ export default function Dashboard() {
     const isPositive = value > 0;
     return (
       <span
-        className={`text-xs flex items-center gap-1 ${
+        className={`text-[10px] md:text-xs flex items-center gap-0.5 md:gap-1 ${
           isPositive ? "text-red-600" : "text-green-600"
         }`}
       >
@@ -291,22 +291,26 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 md:space-y-6">
       {/* Timeframe Selector */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl md:text-2xl font-bold tracking-tight">
+            Dashboard
+          </h2>
+          <p className="text-xs md:text-sm text-muted-foreground">
             Metrics for {formatTimeframe(timeframe).toLowerCase()}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Label htmlFor="timeframe-select">Timeframe:</Label>
           <Select
             value={timeframe}
             onValueChange={(value) => setTimeframe(value as Timeframe)}
           >
-            <SelectTrigger id="timeframe-select" className="w-[180px]">
+            <SelectTrigger
+              id="timeframe-select"
+              className="w-[140px] md:w-[180px] text-xs md:text-sm h-8 md:h-9"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -321,18 +325,22 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards Row - 4 cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
         {/* Error Rate Card */}
-        <Card className="hover:shadow-lg transition">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="space-y-1">
-              <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
-              <CardDescription>{formatTimeframe(timeframe)}</CardDescription>
+        <Card className="hover:shadow-lg transition py-0 md:py-6">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 py-2 px-3 md:p-6 pb-1 md:pb-2">
+            <div className="space-y-0.5 md:space-y-1">
+              <CardTitle className="text-xs md:text-sm font-medium">
+                Error Rate
+              </CardTitle>
+              <CardDescription className="text-[10px] md:text-xs hidden sm:block">
+                {formatTimeframe(timeframe)}
+              </CardDescription>
             </div>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <AlertCircle className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="py-1.5 px-3 md:p-6 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold">
               {kpis.errorRate.toFixed(2)}%
             </div>
             <TrendIndicator value={trends.errorRate} />
@@ -340,33 +348,41 @@ export default function Dashboard() {
         </Card>
 
         {/* P95 Latency Card */}
-        <Card className="hover:shadow-lg transition">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="space-y-1">
-              <CardTitle className="text-sm font-medium">P95 Latency</CardTitle>
-              <CardDescription>{formatTimeframe(timeframe)}</CardDescription>
+        <Card className="hover:shadow-lg transition py-0 md:py-6">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 py-2 px-3 md:p-6 pb-1 md:pb-2">
+            <div className="space-y-0.5 md:space-y-1">
+              <CardTitle className="text-xs md:text-sm font-medium">
+                P95 Latency
+              </CardTitle>
+              <CardDescription className="text-[10px] md:text-xs hidden sm:block">
+                {formatTimeframe(timeframe)}
+              </CardDescription>
             </div>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.p95Latency}ms</div>
+          <CardContent className="py-1.5 px-3 md:p-6 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold">
+              {kpis.p95Latency}ms
+            </div>
             <TrendIndicator value={trends.latency} />
           </CardContent>
         </Card>
 
         {/* Total Traffic Card */}
-        <Card className="hover:shadow-lg transition">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="space-y-1">
-              <CardTitle className="text-sm font-medium">
+        <Card className="hover:shadow-lg transition py-0 md:py-6">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 py-2 px-3 md:p-6 pb-1 md:pb-2">
+            <div className="space-y-0.5 md:space-y-1">
+              <CardTitle className="text-xs md:text-sm font-medium">
                 Total Traffic
               </CardTitle>
-              <CardDescription>{formatTimeframe(timeframe)}</CardDescription>
+              <CardDescription className="text-[10px] md:text-xs hidden sm:block">
+                {formatTimeframe(timeframe)}
+              </CardDescription>
             </div>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <Activity className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="py-1.5 px-3 md:p-6 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold">
               {kpis.totalTraffic.toLocaleString()}
             </div>
             <TrendIndicator value={trends.traffic} />
@@ -374,39 +390,43 @@ export default function Dashboard() {
         </Card>
 
         {/* Average Response Time Card */}
-        <Card className="hover:shadow-lg transition">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="space-y-1">
-              <CardTitle className="text-sm font-medium">
+        <Card className="hover:shadow-lg transition py-0 md:py-6">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 py-2 px-3 md:p-6 pb-1 md:pb-2">
+            <div className="space-y-0.5 md:space-y-1">
+              <CardTitle className="text-xs md:text-sm font-medium">
                 Avg Response
               </CardTitle>
-              <CardDescription>
-                {formatTimeframe(timeframe)} • P50 median
+              <CardDescription className="text-[10px] md:text-xs hidden sm:block">
+                {formatTimeframe(timeframe)} • P50
               </CardDescription>
             </div>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.avgResponseTime}ms</div>
+          <CardContent className="py-1.5 px-3 md:p-6 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold">
+              {kpis.avgResponseTime}ms
+            </div>
             <TrendIndicator value={trends.latency} />
           </CardContent>
         </Card>
       </div>
 
       {/* MCP Debug Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-4">
         <div className="lg:col-span-2">
           <Card className="border-dashed">
-            <CardHeader>
+            <CardHeader className="p-3 md:p-6">
               <div className="flex items-center gap-2">
-                <Code2 className="h-5 w-5" />
-                <CardTitle>MCP Endpoint Debug</CardTitle>
+                <Code2 className="h-4 w-4 md:h-5 md:w-5" />
+                <CardTitle className="text-base md:text-lg">
+                  MCP Endpoint Debug
+                </CardTitle>
               </div>
-              <CardDescription>
+              <CardDescription className="text-xs md:text-sm">
                 Test your MCP endpoint connection and debug API interactions
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-3 md:p-6 pt-0 md:pt-0">
               <div className="flex gap-2">
                 <div className="flex-1 space-y-2">
                   <Label htmlFor="mcp-endpoint">MCP Endpoint URL</Label>
@@ -456,17 +476,19 @@ export default function Dashboard() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-4">
         {/* Traffic Over Time Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>Traffic Over Time</CardTitle>
-            <CardDescription>
+          <CardHeader className="p-3 md:p-6">
+            <CardTitle className="text-base md:text-lg">
+              Traffic Over Time
+            </CardTitle>
+            <CardDescription className="text-xs md:text-sm">
               Request volume timeline (
               {formatTimeframe(timeframe).toLowerCase()})
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
             <MetricsChart
               metrics={recentMetrics}
               timeRange={timeframeToChartRange(timeframe)}
@@ -477,14 +499,16 @@ export default function Dashboard() {
 
         {/* Error Rate & Latency Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>Performance Metrics</CardTitle>
-            <CardDescription>
+          <CardHeader className="p-3 md:p-6">
+            <CardTitle className="text-base md:text-lg">
+              Performance Metrics
+            </CardTitle>
+            <CardDescription className="text-xs md:text-sm">
               Error rate and latency percentiles (
               {formatTimeframe(timeframe).toLowerCase()})
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
             <MetricsChart
               metrics={recentMetrics}
               timeRange={timeframeToChartRange(timeframe)}
@@ -498,98 +522,108 @@ export default function Dashboard() {
       <LogsCard />
 
       {/* Top Endpoints and Top Countries Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-4">
         {/* Top Endpoints */}
         <Card className="hover:shadow-lg transition">
-          <CardHeader>
-            <CardTitle>Top Endpoints</CardTitle>
-            <CardDescription>
+          <CardHeader className="p-3 md:p-6">
+            <CardTitle className="text-base md:text-lg">
+              Top Endpoints
+            </CardTitle>
+            <CardDescription className="text-xs md:text-sm">
               By traffic volume ({formatTimeframe(timeframe).toLowerCase()})
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
+            <div className="space-y-2 md:space-y-3">
               {topEndpoints.length > 0 ? (
                 topEndpoints.map((item, index) => (
                   <div
                     key={item.endpoint}
                     className="flex items-center justify-between p-2 bg-muted rounded"
                   >
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="w-8 justify-center">
+                    <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                      <Badge
+                        variant="outline"
+                        className="w-6 md:w-8 justify-center text-[10px] md:text-xs px-1"
+                      >
                         {index + 1}
                       </Badge>
-                      <code className="text-sm truncate max-w-[200px]">
+                      <code className="text-xs md:text-sm truncate">
                         {item.endpoint}
                       </code>
                     </div>
-                    <div className="text-sm font-semibold">
+                    <div className="text-xs md:text-sm font-semibold ml-2">
                       {item.traffic.toLocaleString()}
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs md:text-sm text-muted-foreground">
                   No endpoint data available
                 </p>
               )}
             </div>
             <Button
               variant="outline"
-              className="w-full mt-4"
+              className="w-full mt-3 md:mt-4 text-xs md:text-sm h-8 md:h-9"
               onClick={() => navigate("/dashboard/metrics")}
             >
               View All Metrics
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-2 h-3 w-3 md:h-4 md:w-4" />
             </Button>
           </CardContent>
         </Card>
 
         {/* Top Countries */}
         <Card className="hover:shadow-lg transition">
-          <CardHeader>
+          <CardHeader className="p-3 md:p-6">
             <div className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              <CardTitle>Top Countries</CardTitle>
+              <Globe className="h-4 w-4 md:h-5 md:w-5" />
+              <CardTitle className="text-base md:text-lg">
+                Top Countries
+              </CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs md:text-sm">
               By request count ({formatTimeframe(timeframe).toLowerCase()})
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
+            <div className="space-y-2 md:space-y-3">
               {topCountries.length > 0 ? (
                 topCountries.map((item, index) => (
                   <div
                     key={item.country}
                     className="flex items-center justify-between p-2 bg-muted rounded"
                   >
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="w-8 justify-center">
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <Badge
+                        variant="outline"
+                        className="w-6 md:w-8 justify-center text-[10px] md:text-xs px-1"
+                      >
                         {index + 1}
                       </Badge>
-                      <span className="text-sm font-medium">
+                      <span className="text-xs md:text-sm font-medium">
                         {item.country}
                       </span>
                     </div>
-                    <div className="text-sm font-semibold">
+                    <div className="text-xs md:text-sm font-semibold">
                       {item.count.toLocaleString()}
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs md:text-sm text-muted-foreground">
                   No country data available
                 </p>
               )}
             </div>
             <Button
               variant="outline"
-              className="w-full mt-4"
+              className="w-full mt-3 md:mt-4 text-xs md:text-sm h-8 md:h-9"
               onClick={() => navigate("/dashboard/replay")}
             >
               View All Requests
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-2 h-3 w-3 md:h-4 md:w-4" />
             </Button>
           </CardContent>
         </Card>

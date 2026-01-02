@@ -122,17 +122,25 @@ export default function DashboardLayout() {
   return (
     <SidebarProvider defaultOpen={true}>
       {/* Header - Full Width */}
-      <header className="fixed top-0 left-0 right-0 z-10 w-full flex items-center justify-between gap-4 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4 py-3 h-14">
-        <div className="flex items-center gap-4">
+      <header className="fixed top-0 left-0 right-0 z-10 w-full flex items-center justify-between gap-2 md:gap-4 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-2 md:px-4 py-2 md:py-3 h-12 md:h-14">
+        <div className="flex items-center gap-2 md:gap-4 min-w-0">
           <SidebarTrigger />
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{apiInfo?.name}</span>
+          <div className="flex items-center gap-1 md:gap-2 min-w-0">
+            <span className="font-semibold text-sm md:text-base truncate">
+              {apiInfo?.name}
+            </span>
             {apiInfo && (
               <>
-                <Badge variant="outline" className="text-xs">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] md:text-xs hidden sm:inline-flex px-1 md:px-2"
+                >
                   v{apiInfo.version}
                 </Badge>
-                <Badge variant="outline" className="text-xs">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] md:text-xs hidden md:inline-flex px-1 md:px-2"
+                >
                   {apiInfo.environment}
                 </Badge>
               </>
@@ -140,30 +148,47 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 md:gap-3">
           {apiInfo && (
             <>
+              {/* API Health Status - Icon only on mobile, full text on desktop */}
               <Badge
                 variant={
                   healthStatus?.status === "healthy" ? "success" : "error"
                 }
-                className="text-xs"
+                className="text-[10px] md:text-xs px-1.5 md:px-2 gap-0 md:gap-1"
+                title={
+                  healthStatus?.status === "healthy"
+                    ? "API Healthy"
+                    : "API Unhealthy"
+                }
               >
-                <Activity className="h-3 w-3 mr-1" />
-                {healthStatus?.status === "healthy"
-                  ? "API Healthy"
-                  : "API Unhealthy"}
+                <Activity className="h-3 w-3" />
+                <span className="hidden md:inline ml-1">
+                  {healthStatus?.status === "healthy"
+                    ? "API Healthy"
+                    : "API Unhealthy"}
+                </span>
               </Badge>
+              {/* Database Status - Icon only on mobile, full text on desktop */}
               <Badge
                 variant={apiInfo.database.connected ? "success" : "error"}
-                className="text-xs"
+                className="text-[10px] md:text-xs px-1.5 md:px-2 gap-0 md:gap-1"
+                title={
+                  apiInfo.database.connected
+                    ? "DB Connected"
+                    : "DB Disconnected"
+                }
               >
-                <Database className="h-3 w-3 mr-1" />
-                {apiInfo.database.connected
-                  ? "DB Connected"
-                  : "DB Disconnected"}
+                <Database className="h-3 w-3" />
+                <span className="hidden md:inline ml-1">
+                  {apiInfo.database.connected
+                    ? "DB Connected"
+                    : "DB Disconnected"}
+                </span>
               </Badge>
-              <div className="hidden sm:flex flex-col text-xs text-muted-foreground">
+              {/* Uptime info - hidden on mobile and tablet, shown on large screens */}
+              <div className="hidden lg:flex flex-col text-xs text-muted-foreground">
                 <span>Uptime: {apiInfo.uptime.formatted}</span>
                 <span>
                   Updated: {new Date(apiInfo.timestamp).toLocaleTimeString()}
@@ -171,17 +196,22 @@ export default function DashboardLayout() {
               </div>
             </>
           )}
-          <Button size="sm" variant="outline" onClick={toggleTheme}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={toggleTheme}
+            className="h-8 w-8 p-0 md:h-9 md:w-9"
+          >
             {theme === "dark" ? (
-              <Sun className="w-4 h-4" />
+              <Sun className="w-3 h-3 md:w-4 md:h-4" />
             ) : (
-              <Moon className="w-4 h-4" />
+              <Moon className="w-3 h-3 md:w-4 md:h-4" />
             )}
           </Button>
         </div>
       </header>
 
-      <Sidebar collapsible="icon" className="top-14">
+      <Sidebar collapsible="icon" className="top-12 md:top-14">
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupLabel>Navigation</SidebarGroupLabel>
@@ -207,19 +237,19 @@ export default function DashboardLayout() {
         </SidebarContent>
       </Sidebar>
 
-      <SidebarInset className="mt-14">
+      <SidebarInset className="mt-12 md:mt-14">
         <div
           className={cn(
             "flex-1 flex flex-col min-w-0 w-full h-full",
             location.pathname === "/dashboard/logs"
-              ? "overflow-hidden p-4"
-              : "overflow-auto p-4"
+              ? "overflow-hidden p-2 md:p-4"
+              : "overflow-auto p-2 md:p-4"
           )}
         >
           {/* Breadcrumbs at top of page content */}
-          <div className="mb-4 shrink-0">
+          <div className="mb-2 md:mb-4 shrink-0">
             <Breadcrumb>
-              <BreadcrumbList>
+              <BreadcrumbList className="text-xs md:text-sm">
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
                     <Link to="/dashboard">Dashboard</Link>

@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun --watch src/servers/http.ts",
-    "test": "LOG_LEVEL=silent bun test tests",
+    "test": "LOG_LEVEL=silent bun test ./src/**/*.test.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
