@@ -6,8 +6,6 @@ import { workerStats } from "@/db/models/workerStats";
 import { SERVER_START_TIME } from "@/api/index";
 import { logger } from "@/utils/logger";
 
-const statsQuery = createQueryBuilder(workerStats);
-
 // Lambda container initialization time (persists across invocations in the same container)
 let CONTAINER_START_TIME: number | null = null;
 
@@ -25,6 +23,7 @@ function getUptime(): number {
 
 async function checkDatabaseHealth() {
   const start = Date.now();
+  const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
   logger.info("[Health] Starting database health check");
   try {
     const queryStart = Date.now();
@@ -67,7 +66,7 @@ async function checkWorkerHealth() {
   try {
     const queryStart = Date.now();
     logger.info("[Health] Executing worker stats query");
-
+    const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
     const { data: latestStats } = await statsQuery.list({
       limit: 1,
       order_by: "id",
@@ -234,30 +233,63 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
     return response;
   } catch (error) {
     const totalTime = Date.now() - handlerStart;
-    logger.error("[Health] Health check error", { totalTime, error });
-    // Never return 500 - always return proper response
-    return c.json(
-      {
-        data: {
-          status: "unhealthy" as const,
-          timestamp: new Date().toISOString(),
-          uptime: getUptime(),
-          database: {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("[Health] Health check error", {
+      totalTime,
+      error: errorMessage,
+    });
+    try {
+      return c.json(
+        {
+          data: {
             status: "unhealthy" as const,
-            responseTime: 0,
-            connected: false,
-            error: "Health check error",
+            timestamp: new Date().toISOString(),
+            uptime: getUptime(),
+            database: {
+              status: "unhealthy" as const,
+              responseTime: 0,
+              connected: false,
+              error: errorMessage || "Health check error",
+            },
+            worker: {
+              status: "unknown" as const,
+              workerMode: "unknown" as const,
+              error: errorMessage || "Health check error",
+            },
           },
-          worker: {
-            status: "unknown" as const,
-            workerMode: "unknown" as const,
-            error: "Health check error",
-          },
+          error: null,
+          metadata: null,
         },
-        error: null,
-        metadata: null,
-      },
-      HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
-    );
+        HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
+      );
+    } catch (fallbackError) {
+      // Last resort - return minimal response
+      logger.error("[Health] Critical error in error handler", {
+        fallbackError,
+      });
+      return c.json(
+        {
+          data: {
+            status: "unhealthy" as const,
+            timestamp: new Date().toISOString(),
+            uptime: 0,
+            database: {
+              status: "unhealthy" as const,
+              responseTime: 0,
+              connected: false,
+              error: "Critical error",
+            },
+            worker: {
+              status: "unknown" as const,
+              workerMode: "unknown" as const,
+              error: "Critical error",
+            },
+          },
+          error: null,
+          metadata: null,
+        },
+        HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
+      );
+    }
   }
 };
