@@ -1,4 +1,11 @@
-import { pgTable, text, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  jsonb,
+  timestamp,
+  index,
+} from "drizzle-orm/pg-core";
 import {
   createSelectSchema,
   createInsertSchema,
@@ -10,19 +17,27 @@ import base from "./_base";
 
 extendZodWithOpenApi(z);
 
-export const workerStats = pgTable("worker_stats", {
-  worker_mode: text("worker_mode").notNull(), // 'local' or 'lambda'
-  queue_size: integer("queue_size").notNull().default(0),
-  processing_count: integer("processing_count").notNull().default(0),
-  scheduled_jobs_count: integer("scheduled_jobs_count").notNull().default(0),
-  available_jobs_count: integer("available_jobs_count").notNull().default(0),
-  scheduled_jobs: jsonb("scheduled_jobs").notNull().default([]), // Array of scheduled job objects
-  available_jobs: jsonb("available_jobs").notNull().default([]), // Array of available job definitions
-  last_heartbeat: timestamp("last_heartbeat", { mode: "date" })
-    .notNull()
-    .defaultNow(),
-  ...base,
-});
+export const workerStats = pgTable(
+  "worker_stats",
+  {
+    worker_mode: text("worker_mode").notNull(), // 'local' or 'lambda'
+    queue_size: integer("queue_size").notNull().default(0),
+    processing_count: integer("processing_count").notNull().default(0),
+    scheduled_jobs_count: integer("scheduled_jobs_count").notNull().default(0),
+    available_jobs_count: integer("available_jobs_count").notNull().default(0),
+    scheduled_jobs: jsonb("scheduled_jobs").notNull().default([]), // Array of scheduled job objects
+    available_jobs: jsonb("available_jobs").notNull().default([]), // Array of available job definitions
+    last_heartbeat: timestamp("last_heartbeat", { mode: "date" })
+      .notNull()
+      .defaultNow(),
+    ...base,
+  },
+  (table) => ({
+    lastHeartbeatIdx: index("worker_stats_last_heartbeat_idx").on(
+      table.last_heartbeat
+    ),
+  })
+);
 
 // Zod schemas
 const workerModeField = z
