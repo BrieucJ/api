@@ -22,13 +22,6 @@
       "when": 1767386805356,
       "tag": "0002_jittery_revanche",
       "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1767387186095,
-      "tag": "0003_amusing_corsair",
-      "breakpoints": true
     }
   ]
 }
