@@ -182,6 +182,13 @@ export const handler = async (
       return;
     }
 
+    // Handle empty events (manual invocation or test events)
+    // This allows manual invocation to trigger cron job scheduling
+    if (!("Records" in event) && !("detail" in event)) {
+      logger.info("Lambda invoked with empty event - stats already pushed");
+      return;
+    }
+
     throw new Error("Unknown event type");
   } catch (error) {
     logger.error("Lambda handler error", {

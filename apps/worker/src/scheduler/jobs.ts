@@ -7,7 +7,7 @@ import type { CronJob } from "./types";
  */
 export const defaultCronJobs: Omit<CronJob, "id">[] = [
   {
-    cronExpression: "0 * * * *", // Every hour
+    cronExpression: "*/5 * * * *", // Every 5 minutes - heartbeat to keep Lambda active
     jobType: JobType.HEALTH_CHECK,
     payload: { checkType: "database" },
     enabled: true,
@@ -28,4 +28,3 @@ export const defaultCronJobs: Omit<CronJob, "id">[] = [
     enabled: true,
   },
 ];
-
