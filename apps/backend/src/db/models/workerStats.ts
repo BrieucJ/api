@@ -53,15 +53,6 @@ export const availableJobSchema = z.object({
 });
 
 export const workerStatsSelectSchema = createSelectSchema(workerStats)
-  .extend({
-    worker_mode: workerModeField,
-    queue_size: queueSizeField,
-    processing_count: processingCountField,
-    scheduled_jobs_count: scheduledJobsCountField,
-    available_jobs_count: availableJobsCountField,
-    scheduled_jobs: z.array(scheduledJobSchema),
-    available_jobs: z.array(availableJobSchema),
-  })
   .omit({ deleted_at: true, embedding: true })
   .openapi("WorkerStatsSelect");
 

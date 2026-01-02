@@ -49,6 +49,9 @@ async function handleSQSRecord(record: SQSRecord): Promise<void> {
 
     await processJob(job.type, job.payload);
 
+    // Push stats after job processing
+    await statsPusher.pushStats();
+
     // Delete message from SQS if we have receipt handle
     if (job.receiptHandle || record.receiptHandle) {
       const queue = new SQSQueue();
@@ -70,6 +73,9 @@ async function handleEventBridgeEvent(
   try {
     const { jobType, payload } = event.detail;
     await processJob(jobType, payload);
+
+    // Push stats after job processing
+    await statsPusher.pushStats();
   } catch (error) {
     logger.error("Failed to process EventBridge event", {
       error: error instanceof Error ? error.message : String(error),
@@ -90,6 +96,9 @@ export const handler = async (
   });
 
   try {
+    // Push stats at the start of invocation (in case no jobs are processed)
+    await statsPusher.pushStats();
+
     // Handle SQS events
     if ("Records" in event && Array.isArray(event.Records)) {
       const sqsEvent = event as SQSEvent;
