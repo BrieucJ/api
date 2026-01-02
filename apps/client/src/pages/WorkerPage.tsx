@@ -27,7 +27,6 @@ import {
 
 export default function WorkerPage() {
   const workerStats = useAppStore((state) => state.workerStats);
-  const availableJobs = useAppStore((state) => state.availableJobs);
   const initWorkerPolling = useAppStore((state) => state.initWorkerPolling);
 
   useEffect(() => {
@@ -35,9 +34,22 @@ export default function WorkerPage() {
     return cleanup;
   }, [initWorkerPolling]);
 
-  const queueStats = workerStats?.queue;
-  const scheduledJobs = workerStats?.scheduler.jobs || [];
-  const workerMode = workerStats?.mode || "unknown";
+  const scheduledJobs =
+    (workerStats?.scheduled_jobs as Array<{
+      id: string;
+      cronExpression: string;
+      jobType: string;
+      payload: unknown;
+      enabled: boolean;
+    }>) || [];
+  const availableJobsList =
+    (workerStats?.available_jobs as Array<{
+      type: string;
+      name: string;
+      description: string;
+      category?: string;
+    }>) || [];
+  const workerMode = workerStats?.worker_mode || "unknown";
 
   return (
     <div className="space-y-6">
@@ -57,7 +69,7 @@ export default function WorkerPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {queueStats?.queue_size ?? 0}
+              {workerStats?.queue_size ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">
               Jobs waiting to be processed
@@ -72,7 +84,7 @@ export default function WorkerPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {queueStats?.processing_count ?? 0}
+              {workerStats?.processing_count ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">
               Jobs currently being processed
@@ -88,7 +100,7 @@ export default function WorkerPage() {
           <CardContent>
             <div className="text-2xl font-bold capitalize">{workerMode}</div>
             <p className="text-xs text-muted-foreground">
-              {queueStats?.mode === "local" ? "Local queue" : "SQS queue"}
+              {workerMode === "local" ? "Local queue" : "SQS queue"}
             </p>
           </CardContent>
         </Card>
@@ -163,9 +175,9 @@ export default function WorkerPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {availableJobs.length > 0 ? (
+          {availableJobsList.length > 0 ? (
             <div className="space-y-4">
-              {availableJobs.map((job) => (
+              {availableJobsList.map((job) => (
                 <div key={job.type} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

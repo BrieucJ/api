@@ -31,8 +31,9 @@ export class StatsPusher {
         scheduledJobsArray = scheduler.list();
       }
 
-      // Prepare stats data
+      // Prepare stats data - always use ID 1 for single worker stats entry
       const statsData = {
+        id: 1,
         worker_mode: env.WORKER_MODE,
         queue_size: queueSize,
         processing_count: processingCount,
@@ -48,14 +49,21 @@ export class StatsPusher {
         last_heartbeat: new Date(),
       };
 
-      // Upsert stats to database
+      // Upsert stats to database (always ID 1)
       await db
         .insert(workerStats)
         .values(statsData)
         .onConflictDoUpdate({
           target: workerStats.id,
           set: {
-            ...statsData,
+            worker_mode: statsData.worker_mode,
+            queue_size: statsData.queue_size,
+            processing_count: statsData.processing_count,
+            scheduled_jobs_count: statsData.scheduled_jobs_count,
+            available_jobs_count: statsData.available_jobs_count,
+            scheduled_jobs: statsData.scheduled_jobs,
+            available_jobs: statsData.available_jobs,
+            last_heartbeat: statsData.last_heartbeat,
             updated_at: new Date(),
           },
         });
@@ -76,6 +84,12 @@ export class StatsPusher {
   }
 
   startInterval(): void {
+    // Only start interval in local mode (Lambda containers are frozen between invocations)
+    if (env.WORKER_MODE !== "local") {
+      logger.debug("Skipping interval mode in non-local environment");
+      return;
+    }
+
     if (this.intervalId) {
       logger.warn("Stats pusher interval already running");
       return;

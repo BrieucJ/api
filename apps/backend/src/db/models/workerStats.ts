@@ -106,23 +106,3 @@ export const workerStatsUpdateSchema = createUpdateSchema(workerStats)
 export type WorkerStatsSelect = z.infer<typeof workerStatsSelectSchema>;
 export type WorkerStatsInsert = z.infer<typeof workerStatsInsertSchema>;
 export type WorkerStatsUpdate = z.infer<typeof workerStatsUpdateSchema>;
-
-// API response schema - matches database structure with snake_case
-export const workerStatsResponseSchema = z
-  .object({
-    queue: z.object({
-      queue_size: z.number().int().min(0),
-      processing_count: z.number().int().min(0),
-      mode: z.enum(["local", "lambda", "unknown"]),
-    }),
-    scheduler: z.object({
-      scheduled_jobs_count: z.number().int().min(0),
-      jobs: z.array(scheduledJobSchema),
-    }),
-    available_jobs: z.object({
-      count: z.number().int().min(0),
-      jobs: z.array(availableJobSchema),
-    }),
-    mode: z.enum(["local", "lambda", "unknown"]),
-  })
-  .openapi("WorkerStats");

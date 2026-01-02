@@ -44,11 +44,9 @@ interface AppStore {
   initHealthPolling: () => () => void;
   _healthPollingStarted: boolean;
   workerStats: WorkerStatsType | null;
-  setWorkerStats: (stats: WorkerStatsType) => void;
+  setWorkerStats: (stats: WorkerStatsType | null) => void;
   initWorkerPolling: () => () => void;
   _workerPollingStarted: boolean;
-  availableJobs: AvailableJobType[];
-  setAvailableJobs: (jobs: AvailableJobType[]) => void;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -63,7 +61,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   _healthPollingStarted: false,
   workerStats: null,
   _workerPollingStarted: false,
-  availableJobs: [],
   addLog: (log) =>
     set((state) => {
       if (state.logs.find((l) => l.id === log.id)) return state;
@@ -142,7 +139,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setApiInfo: (info) => set({ apiInfo: info }),
   setHealthStatus: (status) => set({ healthStatus: status }),
   setWorkerStats: (stats) => set({ workerStats: stats }),
-  setAvailableJobs: (jobs) => set({ availableJobs: jobs }),
   initLogsPolling: () => {
     if (get()._logsPollingStarted) {
       return () => {}; // Return no-op cleanup if already started
@@ -350,17 +346,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       try {
         const response = await (client as any).worker.stats.$get({});
         if (response.ok) {
-          const data = (await response.json()) as { data?: WorkerStatsType };
-          if (data.data) {
-            get().setWorkerStats(data.data);
-            // Extract available jobs from stats response
-            if (data.data.available_jobs?.jobs) {
-              get().setAvailableJobs(data.data.available_jobs.jobs);
-            }
-          }
+          const data = (await response.json()) as {
+            data?: WorkerStatsType | null;
+          };
+          get().setWorkerStats(data.data || null);
         }
       } catch (error) {
         console.error("Failed to fetch worker stats:", error);
+        get().setWorkerStats(null);
       }
     };
 
