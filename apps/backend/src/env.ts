@@ -81,8 +81,6 @@ const BaseEnvSchema = z.object({
 const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
   const isProduction = data.NODE_ENV === "production";
   const isStaging = data.NODE_ENV === "staging";
-  const isDevelopment =
-    data.NODE_ENV === "development" || (!isProduction && !isStaging);
 
   // In production/staging, SQS_QUEUE_URL is required
   if (isProduction || isStaging) {
@@ -102,15 +100,7 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
     }
   }
 
-  // In development, WORKER_URL is required (unless SQS_QUEUE_URL is provided)
-  if (isDevelopment && !data.WORKER_URL && !data.SQS_QUEUE_URL) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message:
-        "WORKER_URL is required in development environment when SQS_QUEUE_URL is not set",
-      path: ["WORKER_URL"],
-    });
-  }
+  // WORKER_URL is now optional - worker stats are retrieved from database
 });
 
 export type env = z.infer<typeof EnvSchema>;

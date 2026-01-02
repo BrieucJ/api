@@ -6,29 +6,40 @@ import type {
   GetStatsRoute,
 } from "./worker.routes";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
-import env from "@/env";
 import { logger } from "@/utils/logger";
+import { createQueryBuilder } from "@/db/querybuilder";
+import { workerStats } from "@/db/models";
 
-const WORKER_URL = env.WORKER_URL || "http://localhost:8081";
-
-async function fetchFromWorker(endpoint: string) {
+async function getWorkerStatsFromDB() {
   try {
-    const response = await fetch(`${WORKER_URL}${endpoint}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      signal: AbortSignal.timeout(5000), // 5 second timeout
+    const query = createQueryBuilder<typeof workerStats>(workerStats);
+
+    // Get the most recent stats entry
+    const { data } = await query.list({
+      limit: 1,
+      order_by: "last_heartbeat",
+      order: "desc",
     });
 
-    if (!response.ok) {
-      throw new Error(`Worker returned status ${response.status}`);
+    if (!data || data.length === 0) {
+      throw new Error("Worker stats not available");
     }
 
-    return await response.json();
+    const stats = data[0]!;
+
+    // Check if stats are stale (> 60 seconds old)
+    const secondsSinceLastHeartbeat =
+      (Date.now() - stats.last_heartbeat.getTime()) / 1000;
+    if (secondsSinceLastHeartbeat > 60) {
+      logger.warn("Worker stats are stale", {
+        secondsSinceLastHeartbeat: Math.round(secondsSinceLastHeartbeat),
+        lastHeartbeat: stats.last_heartbeat,
+      });
+    }
+
+    return stats;
   } catch (error) {
-    logger.error("Failed to fetch from worker", {
-      endpoint,
+    logger.error("Failed to fetch worker stats from database", {
       error: error instanceof Error ? error.message : String(error),
     });
     throw error;
@@ -37,11 +48,10 @@ async function fetchFromWorker(endpoint: string) {
 
 export const getJobs: AppRouteHandler<GetJobsRoute> = async (c) => {
   try {
-    const response = await fetchFromWorker("/worker/jobs");
+    const stats = await getWorkerStatsFromDB();
 
-    // Type assert to match the expected schema
-    const data = response as {
-      jobs: Array<{
+    const data = {
+      jobs: stats.available_jobs as Array<{
         type: string;
         name: string;
         description: string;
@@ -53,7 +63,7 @@ export const getJobs: AppRouteHandler<GetJobsRoute> = async (c) => {
         };
         category?: string;
         settings?: Record<string, unknown>;
-      }>;
+      }>,
     };
 
     return c.json(
@@ -83,13 +93,12 @@ export const getJobs: AppRouteHandler<GetJobsRoute> = async (c) => {
 
 export const getQueueStats: AppRouteHandler<GetQueueStatsRoute> = async (c) => {
   try {
-    const response = await fetchFromWorker("/worker/queue/stats");
+    const stats = await getWorkerStatsFromDB();
 
-    // Type assert to match queueStatsSchema
-    const data = response as {
-      queueSize: number;
-      processingCount: number;
-      mode: string;
+    const data = {
+      queueSize: stats.queue_size,
+      processingCount: stats.processing_count,
+      mode: stats.worker_mode,
     };
 
     return c.json(
@@ -121,17 +130,16 @@ export const getScheduledJobs: AppRouteHandler<GetScheduledJobsRoute> = async (
   c
 ) => {
   try {
-    const response = await fetchFromWorker("/worker/scheduler/jobs");
+    const stats = await getWorkerStatsFromDB();
 
-    // Type assert to match the expected schema
-    const data = response as {
-      jobs: Array<{
+    const data = {
+      jobs: stats.scheduled_jobs as Array<{
         id: string;
         cronExpression: string;
         jobType: string;
         payload: unknown;
         enabled: boolean;
-      }>;
+      }>,
     };
 
     return c.json(
@@ -161,35 +169,34 @@ export const getScheduledJobs: AppRouteHandler<GetScheduledJobsRoute> = async (
 
 export const getStats: AppRouteHandler<GetStatsRoute> = async (c) => {
   try {
-    const response = await fetchFromWorker("/worker/stats");
+    const stats = await getWorkerStatsFromDB();
 
-    // Type assert to match workerStatsSchema
-    const data = response as {
+    const data = {
       queue: {
-        queueSize: number;
-        processingCount: number;
-        mode: string;
-      };
+        queueSize: stats.queue_size,
+        processingCount: stats.processing_count,
+        mode: stats.worker_mode,
+      },
       scheduler: {
-        scheduledJobsCount: number;
-        jobs: Array<{
+        scheduledJobsCount: stats.scheduled_jobs_count,
+        jobs: stats.scheduled_jobs as Array<{
           id: string;
           cronExpression: string;
           jobType: string;
           payload: unknown;
           enabled: boolean;
-        }>;
-      };
+        }>,
+      },
       availableJobs: {
-        count: number;
-        jobs: Array<{
+        count: stats.available_jobs_count,
+        jobs: stats.available_jobs as Array<{
           type: string;
           name: string;
           description: string;
           category?: string;
-        }>;
-      };
-      mode: string;
+        }>,
+      },
+      mode: stats.worker_mode,
     };
 
     return c.json(
