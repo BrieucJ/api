@@ -325,6 +325,20 @@ export function createQueryBuilder<T extends Table>(table: T) {
       return (item as T["$inferSelect"]) || null;
     },
 
+    getFirst: async (options?: {
+      order_by?: string;
+      order?: "asc" | "desc";
+    }): Promise<T["$inferSelect"] | null> => {
+      const { order_by = "id", order = "desc" } = options || {};
+      const orderFn = order === "asc" ? asc : desc;
+      const [item] = await baseQuery(
+        db.select(visibleColumns).from(table as any)
+      )
+        .orderBy(orderFn((table as any)[order_by]))
+        .limit(1);
+      return (item as T["$inferSelect"]) || null;
+    },
+
     create: async (data: T["$inferInsert"]): Promise<T["$inferSelect"]> => {
       const [created] = await db
         .insert(table)

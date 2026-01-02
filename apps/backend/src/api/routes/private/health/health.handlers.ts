@@ -31,7 +31,8 @@ async function checkDatabaseHealth() {
 
     try {
       const queryStart = Date.now();
-      await statsQuery.list({ limit: 1 });
+      // Use getFirst - no COUNT query, just get one record to verify connection
+      await statsQuery.getFirst();
       const queryTime = Date.now() - queryStart;
       const responseTime = Date.now() - start;
       try {
@@ -86,39 +87,36 @@ async function checkDatabaseHealth() {
 
 async function checkWorkerHealth() {
   const start = Date.now();
-  try {
-    logger.info("[Health] Starting worker health check");
-  } catch {}
+
+  logger.info("[Health] Starting worker health check");
 
   try {
     const queryStart = Date.now();
-    try {
-      logger.info("[Health] Executing worker stats query");
-    } catch {}
+
+    logger.info("[Health] Executing worker stats query");
 
     const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
-    const { data: latestStats } = await statsQuery.list({
-      limit: 1,
+    // Use getFirst - no COUNT query, just get the latest record
+    const latestStat = await statsQuery.getFirst({
       order_by: "id",
       order: "desc",
     });
     const queryTime = Date.now() - queryStart;
-    try {
-      logger.info("[Health] Worker stats query completed", {
-        queryTime,
-        rowCount: latestStats?.length || 0,
-      });
-    } catch {}
+
+    logger.info("[Health] Worker stats query completed", {
+      queryTime,
+      hasData: !!latestStat,
+    });
 
     const processingStart = Date.now();
-    if (!latestStats || latestStats.length === 0) {
+    if (!latestStat) {
       const totalTime = Date.now() - start;
-      try {
-        logger.info("[Health] Worker check completed - no stats", {
-          queryTime,
-          totalTime,
-        });
-      } catch {}
+
+      logger.info("[Health] Worker check completed - no stats", {
+        queryTime,
+        totalTime,
+      });
+
       return {
         status: "unknown" as const,
         workerMode: "unknown" as const,
@@ -126,15 +124,14 @@ async function checkWorkerHealth() {
       };
     }
 
-    const stats = latestStats[0];
-    if (!stats?.last_heartbeat) {
+    if (!latestStat?.last_heartbeat) {
       const totalTime = Date.now() - start;
-      try {
-        logger.info("[Health] Worker check completed - missing heartbeat", {
-          queryTime,
-          totalTime,
-        });
-      } catch {}
+
+      logger.info("[Health] Worker check completed - missing heartbeat", {
+        queryTime,
+        totalTime,
+      });
+
       return {
         status: "unknown" as const,
         workerMode: "unknown" as const,
@@ -143,28 +140,26 @@ async function checkWorkerHealth() {
     }
 
     const heartbeatAge = Math.floor(
-      (Date.now() - new Date(stats.last_heartbeat).getTime()) / 1000
+      (Date.now() - new Date(latestStat.last_heartbeat).getTime()) / 1000
     );
     const isHealthy = heartbeatAge < 300; // 5 minutes
     const processingTime = Date.now() - processingStart;
     const totalTime = Date.now() - start;
 
-    try {
-      logger.info("[Health] Worker check completed", {
-        queryTime,
-        processingTime,
-        totalTime,
-        heartbeatAge,
-      });
-    } catch {}
+    logger.info("[Health] Worker check completed", {
+      queryTime,
+      processingTime,
+      totalTime,
+      heartbeatAge,
+    });
 
     return {
       status: isHealthy ? ("healthy" as const) : ("unhealthy" as const),
-      workerMode: stats.worker_mode as "local" | "lambda",
-      lastHeartbeat: new Date(stats.last_heartbeat).toISOString(),
+      workerMode: latestStat.worker_mode as "local" | "lambda",
+      lastHeartbeat: new Date(latestStat.last_heartbeat).toISOString(),
       heartbeatAge,
-      queueSize: stats.queue_size,
-      processingCount: stats.processing_count,
+      queueSize: latestStat.queue_size,
+      processingCount: latestStat.processing_count,
       ...(isHealthy ? {} : { error: `Heartbeat is ${heartbeatAge}s old` }),
     };
   } catch (error) {
@@ -175,12 +170,12 @@ async function checkWorkerHealth() {
         : typeof error === "string"
         ? error
         : "Worker check failed";
-    try {
-      logger.error("[Health] Worker check failed", {
-        totalTime,
-        error: errorMessage,
-      });
-    } catch {}
+
+    logger.error("[Health] Worker check failed", {
+      totalTime,
+      error: errorMessage,
+    });
+
     return {
       status: "unhealthy" as const,
       workerMode: "unknown" as const,
@@ -191,9 +186,8 @@ async function checkWorkerHealth() {
 
 export const get: AppRouteHandler<GetRoute> = async (c) => {
   const handlerStart = Date.now();
-  try {
-    logger.info("[Health] Health check endpoint called");
-  } catch {}
+
+  logger.info("[Health] Health check endpoint called");
 
   try {
     const checksStart = Date.now();
@@ -202,9 +196,7 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
       checkWorkerHealth(),
     ]);
     const checksTime = Date.now() - checksStart;
-    try {
-      logger.info("[Health] All checks completed", { checksTime });
-    } catch {}
+    logger.info("[Health] All checks completed", { checksTime });
 
     // Extract results, with fallback to unhealthy if promise rejected
     const dbHealth =
@@ -263,27 +255,23 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
     const processingTime = Date.now() - processingStart;
     const totalTime = Date.now() - handlerStart;
 
-    try {
-      logger.info("[Health] Health check completed", {
-        totalTime,
-        checksTime,
-        processingTime,
-        responseTime,
-        dbResponseTime: dbHealth.responseTime,
-        status,
-      });
-    } catch {}
+    logger.info("[Health] Health check completed", {
+      totalTime,
+      checksTime,
+      processingTime,
+      responseTime,
+      dbResponseTime: dbHealth.responseTime,
+      status,
+    });
 
     return response;
   } catch (error) {
     const totalTime = Date.now() - handlerStart;
     const errorMessage = error instanceof Error ? error.message : String(error);
-    try {
-      logger.error("[Health] Health check error", {
-        totalTime,
-        error: errorMessage,
-      });
-    } catch {}
+    logger.error("[Health] Health check error", {
+      totalTime,
+      error: errorMessage,
+    });
 
     try {
       return c.json(
@@ -310,11 +298,10 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
         HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
       );
     } catch (fallbackError) {
-      try {
-        logger.error("[Health] Critical error in error handler", {
-          fallbackError,
-        });
-      } catch {}
+      logger.error("[Health] Critical error in error handler", {
+        fallbackError,
+      });
+
       return c.json(
         {
           data: {
