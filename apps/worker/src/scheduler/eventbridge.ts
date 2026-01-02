@@ -5,20 +5,32 @@ import {
   DeleteRuleCommand,
   RemoveTargetsCommand,
 } from "@aws-sdk/client-eventbridge";
+import {
+  LambdaClient,
+  AddPermissionCommand,
+  RemovePermissionCommand,
+} from "@aws-sdk/client-lambda";
 import { logger } from "@/utils/logger";
 import env from "@/env";
 import type { Scheduler, CronJob } from "./types";
 import type { JobType } from "@/jobs/types";
 
 export class EventBridgeScheduler implements Scheduler {
-  private client: EventBridgeClient;
+  private eventBridgeClient: EventBridgeClient;
+  private lambdaClient: LambdaClient;
   private rulePrefix: string;
   private lambdaArn: string;
+  private lambdaFunctionName: string;
 
   constructor(lambdaArn: string, rulePrefix = "worker-cron") {
     this.lambdaArn = lambdaArn;
     this.rulePrefix = rulePrefix;
-    this.client = new EventBridgeClient({
+    // Extract function name from ARN
+    this.lambdaFunctionName = lambdaArn.split(":").pop() || "";
+    this.eventBridgeClient = new EventBridgeClient({
+      region: env.REGION,
+    });
+    this.lambdaClient = new LambdaClient({
       region: env.REGION,
     });
   }
@@ -43,7 +55,27 @@ export class EventBridgeScheduler implements Scheduler {
         Description: `Scheduled job: ${jobType}`,
       });
 
-      await this.client.send(putRuleCommand);
+      const putRuleResponse = await this.eventBridgeClient.send(putRuleCommand);
+      const ruleArn = putRuleResponse.RuleArn!;
+
+      // Add Lambda permission for this specific rule
+      try {
+        const addPermissionCommand = new AddPermissionCommand({
+          FunctionName: this.lambdaFunctionName,
+          StatementId: `${ruleName}-invoke`,
+          Action: "lambda:InvokeFunction",
+          Principal: "events.amazonaws.com",
+          SourceArn: ruleArn,
+        });
+        await this.lambdaClient.send(addPermissionCommand);
+        logger.info("Added Lambda permission for rule", { ruleName, ruleArn });
+      } catch (error: any) {
+        // Ignore if permission already exists
+        if (error.name !== "ResourceConflictException") {
+          throw error;
+        }
+        logger.debug("Lambda permission already exists", { ruleName });
+      }
 
       // Add Lambda as target
       const putTargetsCommand = new PutTargetsCommand({
@@ -63,12 +95,13 @@ export class EventBridgeScheduler implements Scheduler {
         ],
       });
 
-      await this.client.send(putTargetsCommand);
+      await this.eventBridgeClient.send(putTargetsCommand);
 
       logger.info(`Scheduled job in EventBridge`, {
         ruleName,
         jobType,
         scheduleExpression,
+        ruleArn,
       });
 
       return ruleName;
@@ -87,13 +120,30 @@ export class EventBridgeScheduler implements Scheduler {
         Rule: jobId,
         Ids: ["1"],
       });
-      await this.client.send(removeTargetsCommand);
+      await this.eventBridgeClient.send(removeTargetsCommand);
+
+      // Remove Lambda permission
+      try {
+        const removePermissionCommand = new RemovePermissionCommand({
+          FunctionName: this.lambdaFunctionName,
+          StatementId: `${jobId}-invoke`,
+        });
+        await this.lambdaClient.send(removePermissionCommand);
+      } catch (error: any) {
+        // Ignore if permission doesn't exist
+        if (error.name !== "ResourceNotFoundException") {
+          logger.warn("Failed to remove Lambda permission", {
+            jobId,
+            error: error.message,
+          });
+        }
+      }
 
       // Delete the rule
       const deleteRuleCommand = new DeleteRuleCommand({
         Name: jobId,
       });
-      await this.client.send(deleteRuleCommand);
+      await this.eventBridgeClient.send(deleteRuleCommand);
 
       logger.info(`Unscheduled job in EventBridge`, { jobId });
     } catch (error) {
