@@ -8,14 +8,21 @@ const statsQuery =
   createQueryBuilder<typeof workerStatsTable>(workerStatsTable);
 
 export const getStats: AppRouteHandler<GetStatsRoute> = async (c) => {
-  // Worker stats always uses ID 1
-  const stats = await statsQuery.get(1);
+  // Get the most recent worker stats
+  const limit = 1;
+  const offset = 0;
+  const { data, total } = await statsQuery.list({
+    limit,
+    offset,
+    order_by: "last_heartbeat",
+    order: "desc",
+  });
 
   return c.json(
     {
-      data: stats,
+      data,
       error: null,
-      metadata: null,
+      metadata: { limit, offset, total },
     },
     HTTP_STATUS_CODES.OK
   );

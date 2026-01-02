@@ -1,4 +1,5 @@
 // Re-export database models from backend
+export { createQueryBuilder } from "@backend/db/querybuilder";
 export {
   logs,
   logInsertSchema,

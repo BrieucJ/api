@@ -1,5 +1,5 @@
 import { workerStats } from "@shared/db";
-import { db } from "@/db/db";
+import { createQueryBuilder } from "@shared/db";
 import { logger } from "@/utils/logger";
 import { getQueue } from "@/queue";
 import { getScheduler } from "@/scheduler";
@@ -31,9 +31,8 @@ export class StatsPusher {
         scheduledJobsArray = scheduler.list();
       }
 
-      // Prepare stats data - always use ID 1 for single worker stats entry
+      // Prepare stats data
       const statsData = {
-        id: 1,
         worker_mode: env.WORKER_MODE,
         queue_size: queueSize,
         processing_count: processingCount,
@@ -49,24 +48,17 @@ export class StatsPusher {
         last_heartbeat: new Date(),
       };
 
-      // Upsert stats to database (always ID 1)
-      await db
-        .insert(workerStats)
-        .values(statsData)
-        .onConflictDoUpdate({
-          target: workerStats.id,
-          set: {
-            worker_mode: statsData.worker_mode,
-            queue_size: statsData.queue_size,
-            processing_count: statsData.processing_count,
-            scheduled_jobs_count: statsData.scheduled_jobs_count,
-            available_jobs_count: statsData.available_jobs_count,
-            scheduled_jobs: statsData.scheduled_jobs,
-            available_jobs: statsData.available_jobs,
-            last_heartbeat: statsData.last_heartbeat,
-            updated_at: new Date(),
-          },
-        });
+      // Use querybuilder for database operations
+      const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
+      const { data } = await statsQuery.list({ limit: 1 });
+
+      if (data.length > 0 && data[0]) {
+        // Update existing stats
+        await statsQuery.update(data[0].id, statsData);
+      } else {
+        // Create new stats
+        await statsQuery.create(statsData);
+      }
 
       logger.debug("Worker stats pushed to database", {
         mode: env.WORKER_MODE,

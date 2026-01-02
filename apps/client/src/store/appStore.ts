@@ -346,10 +346,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       try {
         const response = await (client as any).worker.stats.$get({});
         if (response.ok) {
-          const data = (await response.json()) as {
-            data?: WorkerStatsType | null;
+          const result = (await response.json()) as {
+            data?: WorkerStatsType[];
           };
-          get().setWorkerStats(data.data || null);
+          // Extract first item from array (or null if empty)
+          get().setWorkerStats(result.data?.[0] || null);
         }
       } catch (error) {
         console.error("Failed to fetch worker stats:", error);
