@@ -69,6 +69,10 @@ export const get = createRoute({
       "One or more systems unhealthy",
       healthSchema
     ),
+    [HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR]: responseSchema(
+      "Internal server error",
+      healthSchema
+    ),
   },
 });
 

@@ -25,6 +25,7 @@ function getUptime(): number {
 async function checkDatabaseHealth() {
   const start = Date.now();
   try {
+    // Use a simple, fast query - just check if we can connect
     await db.execute(sql`SELECT 1`);
     const responseTime = Date.now() - start;
     return {
@@ -34,19 +35,31 @@ async function checkDatabaseHealth() {
     };
   } catch (error) {
     const responseTime = Date.now() - start;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+        ? error
+        : "Database connection failed";
     return {
       status: "unhealthy" as const,
       responseTime,
       connected: false,
-      error: error instanceof Error ? error.message : "Database error",
+      error: errorMessage,
     };
   }
 }
 
 async function checkWorkerHealth() {
   try {
+    // Optimize query - only select needed columns and limit to 1
     const latestStats = await db
-      .select()
+      .select({
+        worker_mode: workerStats.worker_mode,
+        last_heartbeat: workerStats.last_heartbeat,
+        queue_size: workerStats.queue_size,
+        processing_count: workerStats.processing_count,
+      })
       .from(workerStats)
       .orderBy(desc(workerStats.last_heartbeat))
       .limit(1);
@@ -84,43 +97,103 @@ async function checkWorkerHealth() {
       ...(isHealthy ? {} : { error: `Heartbeat is ${heartbeatAge}s old` }),
     };
   } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+        ? error
+        : "Worker check failed";
     return {
       status: "unhealthy" as const,
       workerMode: "unknown" as const,
-      error: error instanceof Error ? error.message : "Worker check failed",
+      error: errorMessage,
     };
   }
 }
 
 export const get: AppRouteHandler<GetRoute> = async (c) => {
-  const [dbHealth, workerHealth] = await Promise.all([
-    checkDatabaseHealth(),
-    checkWorkerHealth(),
-  ]);
+  try {
+    // Use Promise.allSettled to ensure we always get results even if one fails
+    const [dbResult, workerResult] = await Promise.allSettled([
+      checkDatabaseHealth(),
+      checkWorkerHealth(),
+    ]);
 
-  let status: "healthy" | "unhealthy" | "degraded";
-  if (dbHealth.status === "unhealthy") {
-    status = "unhealthy";
-  } else if (workerHealth.status !== "healthy") {
-    status = "degraded";
-  } else {
-    status = "healthy";
-  }
+    // Extract results, with fallback to unhealthy if promise rejected
+    const dbHealth =
+      dbResult.status === "fulfilled"
+        ? dbResult.value
+        : {
+            status: "unhealthy" as const,
+            responseTime: 0,
+            connected: false,
+            error:
+              dbResult.reason instanceof Error
+                ? dbResult.reason.message
+                : "Database health check failed",
+          };
 
-  return c.json(
-    {
-      data: {
-        status,
-        timestamp: new Date().toISOString(),
-        uptime: getUptime(),
-        database: dbHealth,
-        worker: workerHealth,
+    const workerHealth =
+      workerResult.status === "fulfilled"
+        ? workerResult.value
+        : {
+            status: "unhealthy" as const,
+            workerMode: "unknown" as const,
+            error:
+              workerResult.reason instanceof Error
+                ? workerResult.reason.message
+                : "Worker health check failed",
+          };
+
+    let status: "healthy" | "unhealthy" | "degraded";
+    if (dbHealth.status === "unhealthy") {
+      status = "unhealthy";
+    } else if (workerHealth.status !== "healthy") {
+      status = "degraded";
+    } else {
+      status = "healthy";
+    }
+
+    return c.json(
+      {
+        data: {
+          status,
+          timestamp: new Date().toISOString(),
+          uptime: getUptime(),
+          database: dbHealth,
+          worker: workerHealth,
+        },
+        error: null,
+        metadata: null,
       },
-      error: null,
-      metadata: null,
-    },
-    status === "unhealthy"
-      ? HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
-      : HTTP_STATUS_CODES.OK
-  );
+      status === "unhealthy"
+        ? HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
+        : HTTP_STATUS_CODES.OK
+    );
+  } catch (error) {
+    // Catch any unexpected errors and return a proper response (never 500)
+    return c.json(
+      {
+        data: {
+          status: "unhealthy" as const,
+          timestamp: new Date().toISOString(),
+          uptime: getUptime(),
+          database: {
+            status: "unhealthy" as const,
+            responseTime: 0,
+            connected: false,
+            error: "Health check error",
+          },
+          worker: {
+            status: "unknown" as const,
+            workerMode: "unknown" as const,
+            error: "Health check error",
+          },
+        },
+        error: null,
+        metadata: null,
+      },
+      HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
+    );
+  }
 };
