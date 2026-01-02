@@ -1,1 +1,1 @@
-CREATE INDEX "worker_stats_last_heartbeat_idx" ON "worker_stats" USING btree ("last_heartbeat");
+CREATE INDEX IF NOT EXISTS "worker_stats_last_heartbeat_idx" ON "worker_stats" USING btree ("last_heartbeat");
