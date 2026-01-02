@@ -128,7 +128,7 @@ export default function MetricsChart({
       }[timeRange];
 
       filtered = filtered.filter((m) => {
-        const windowStart = new Date(m.windowStart).getTime();
+        const windowStart = new Date(m.window_start).getTime();
         return now - windowStart <= rangeMs;
       });
     }
@@ -136,25 +136,25 @@ export default function MetricsChart({
     // Sort by time
     filtered.sort(
       (a, b) =>
-        new Date(a.windowStart).getTime() - new Date(b.windowStart).getTime()
+        new Date(a.window_start).getTime() - new Date(b.window_start).getTime()
     );
 
     // Use stable time format (ISO string) instead of toLocaleTimeString
     // to prevent unnecessary re-renders
     return filtered.map((m) => {
-      const date = new Date(m.windowStart);
-      const errorRateValue = m.errorRate ?? 0;
+      const date = new Date(m.window_start);
+      const errorRateValue = m.error_rate ?? 0;
       const errorRatePercent = Number((errorRateValue * 100).toFixed(2));
 
       return {
         time: date.toISOString(),
         timeLabel: date.toLocaleTimeString(),
-        p50: m.p50Latency ?? 0,
-        p95: m.p95Latency ?? 0,
-        p99: m.p99Latency ?? 0,
-        // errorRate comes from API as decimal (0-1), convert to percentage for chart
+        p50: m.p50_latency ?? 0,
+        p95: m.p95_latency ?? 0,
+        p99: m.p99_latency ?? 0,
+        // error_rate comes from API as decimal (0-1), convert to percentage for chart
         errorRate: errorRatePercent,
-        traffic: m.trafficCount ?? 0,
+        traffic: m.traffic_count ?? 0,
       };
     });
   }, [metrics, endpoint, timeRange]);

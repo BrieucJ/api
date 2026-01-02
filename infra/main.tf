@@ -51,4 +51,5 @@ module "client" {
   environment   = var.environment
   region        = var.region
   api_url       = module.lambda.api_url
+  image_tag     = var.image_tag
 }

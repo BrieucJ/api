@@ -40,6 +40,7 @@ resource "null_resource" "build_client" {
   triggers = {
     api_url    = var.api_url
     environment = var.environment
+    image_tag  = var.image_tag
   }
 
   provisioner "local-exec" {

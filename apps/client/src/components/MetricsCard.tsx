@@ -24,17 +24,17 @@ export default function MetricsCard() {
   // Calculate summary from recent metrics
   const recentMetrics = metrics.slice(-10);
   const totalTraffic = recentMetrics.reduce(
-    (sum, m) => sum + (m.trafficCount || 0),
+    (sum, m) => sum + (m.traffic_count || 0),
     0
   );
   const avgErrorRate =
     recentMetrics.length > 0
-      ? recentMetrics.reduce((sum, m) => sum + (m.errorRate || 0), 0) /
+      ? recentMetrics.reduce((sum, m) => sum + (m.error_rate || 0), 0) /
         recentMetrics.length
       : 0;
   const avgLatency =
     recentMetrics.length > 0
-      ? recentMetrics.reduce((sum, m) => sum + (m.p95Latency || 0), 0) /
+      ? recentMetrics.reduce((sum, m) => sum + (m.p95_latency || 0), 0) /
         recentMetrics.length
       : 0;
 

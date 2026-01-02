@@ -82,7 +82,7 @@ export default function ReplayTable() {
         ),
       },
       {
-        accessorKey: "statusCode",
+        accessorKey: "status_code",
         header: ({ column, table }) => (
           <ColumnHeader
             column={column}
@@ -93,7 +93,7 @@ export default function ReplayTable() {
           />
         ),
         cell: ({ row }) => {
-          const status = row.getValue("statusCode") as number | null;
+          const status = row.getValue("status_code") as number | null;
           if (!status) return <span className="text-muted-foreground">-</span>;
           const variant =
             status >= 400
@@ -207,9 +207,9 @@ export default function ReplayTable() {
                   <pre className="bg-muted p-4 rounded-md overflow-auto text-sm">
                     {JSON.stringify(
                       {
-                        statusCode: selectedSnapshot.statusCode,
-                        headers: selectedSnapshot.responseHeaders,
-                        body: selectedSnapshot.responseBody,
+                        status_code: selectedSnapshot.status_code,
+                        headers: selectedSnapshot.response_headers,
+                        body: selectedSnapshot.response_body,
                         duration: selectedSnapshot.duration,
                       },
                       null,

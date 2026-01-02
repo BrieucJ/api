@@ -119,7 +119,7 @@ export default function Dashboard() {
     const startTime = now - timeframeMs;
 
     return metrics.filter(
-      (m) => new Date(m.windowStart).getTime() >= startTime
+      (m) => new Date(m.window_start).getTime() >= startTime
     );
   }, [metrics, timeframe]);
 
@@ -135,14 +135,14 @@ export default function Dashboard() {
     }
 
     const totalTraffic = recentMetrics.reduce(
-      (sum, m) => sum + (m.trafficCount || 0),
+      (sum, m) => sum + (m.traffic_count || 0),
       0
     );
 
     // Weighted error rate calculation
-    // errorRate comes from API as decimal (0-1)
+    // error_rate comes from API as decimal (0-1)
     const totalErrors = recentMetrics.reduce(
-      (sum, m) => sum + (m.errorRate || 0) * (m.trafficCount || 0),
+      (sum, m) => sum + (m.error_rate || 0) * (m.traffic_count || 0),
       0
     );
 
@@ -151,13 +151,13 @@ export default function Dashboard() {
     // Traffic-weighted average latencies (better than simple average)
     const weightedP95 =
       recentMetrics.reduce(
-        (sum, m) => sum + (m.p95Latency || 0) * (m.trafficCount || 0),
+        (sum, m) => sum + (m.p95_latency || 0) * (m.traffic_count || 0),
         0
       ) / totalTraffic;
 
     const weightedP50 =
       recentMetrics.reduce(
-        (sum, m) => sum + (m.p50Latency || 0) * (m.trafficCount || 0),
+        (sum, m) => sum + (m.p50_latency || 0) * (m.traffic_count || 0),
         0
       ) / totalTraffic;
 
@@ -175,7 +175,7 @@ export default function Dashboard() {
 
     recentMetrics.forEach((m) => {
       const current = endpointMap.get(m.endpoint) || 0;
-      endpointMap.set(m.endpoint, current + (m.trafficCount || 0));
+      endpointMap.set(m.endpoint, current + (m.traffic_count || 0));
     });
 
     return Array.from(endpointMap.entries())
@@ -189,9 +189,9 @@ export default function Dashboard() {
     const countryMap = new Map<string, number>();
 
     snapshots.forEach((snapshot) => {
-      if (snapshot.geoCountry) {
-        const current = countryMap.get(snapshot.geoCountry) || 0;
-        countryMap.set(snapshot.geoCountry, current + 1);
+      if (snapshot.geo_country) {
+        const current = countryMap.get(snapshot.geo_country) || 0;
+        countryMap.set(snapshot.geo_country, current + 1);
       }
     });
 
@@ -213,30 +213,31 @@ export default function Dashboard() {
 
     const prevErrorRate =
       previous.reduce(
-        (sum, m) => sum + (m.errorRate || 0) * (m.trafficCount || 0),
+        (sum, m) => sum + (m.error_rate || 0) * (m.traffic_count || 0),
         0
-      ) / previous.reduce((sum, m) => sum + (m.trafficCount || 0), 1);
+      ) / previous.reduce((sum, m) => sum + (m.traffic_count || 0), 1);
 
     const currErrorRate =
       current.reduce(
-        (sum, m) => sum + (m.errorRate || 0) * (m.trafficCount || 0),
+        (sum, m) => sum + (m.error_rate || 0) * (m.traffic_count || 0),
         0
-      ) / current.reduce((sum, m) => sum + (m.trafficCount || 0), 1);
+      ) / current.reduce((sum, m) => sum + (m.traffic_count || 0), 1);
 
     const prevTraffic = previous.reduce(
-      (sum, m) => sum + (m.trafficCount || 0),
+      (sum, m) => sum + (m.traffic_count || 0),
       0
     );
     const currTraffic = current.reduce(
-      (sum, m) => sum + (m.trafficCount || 0),
+      (sum, m) => sum + (m.traffic_count || 0),
       0
     );
 
     const prevLatency =
-      previous.reduce((sum, m) => sum + (m.p95Latency || 0), 0) /
+      previous.reduce((sum, m) => sum + (m.p95_latency || 0), 0) /
       previous.length;
     const currLatency =
-      current.reduce((sum, m) => sum + (m.p95Latency || 0), 0) / current.length;
+      current.reduce((sum, m) => sum + (m.p95_latency || 0), 0) /
+      current.length;
 
     return {
       errorRate: ((currErrorRate - prevErrorRate) / (prevErrorRate || 1)) * 100,

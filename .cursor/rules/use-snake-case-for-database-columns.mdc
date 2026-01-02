@@ -1,0 +1,73 @@
+---
+description: Always use snake_case for database column names
+globs: apps/backend/src/db/models/**/*.ts
+alwaysApply: true
+---
+
+Always use `snake_case` for all database column names in Drizzle ORM table definitions. This ensures consistency with SQL naming conventions and improves readability.
+
+## Naming Convention Rules
+
+1. **Column Names**: All column property names in table definitions must use `snake_case`
+2. **Consistency**: Both the TypeScript property name and the database column name should use `snake_case`
+3. **Enums**: Enum names should also use `snake_case`
+
+## Examples
+
+### ✅ Correct Usage
+
+```typescript
+export const users = pgTable("users", {
+  first_name: text("first_name").notNull(),
+  last_name: text("last_name").notNull(),
+  email_address: text("email_address").notNull(),
+  created_at: timestamp("created_at", { mode: "date" }).defaultNow(),
+  is_active: boolean("is_active").default(true),
+});
+
+const statusEnum = pgEnum("user_status", ["active", "inactive", "suspended"]);
+
+export const profiles = pgTable("profiles", {
+  user_id: integer("user_id").references(() => users.id),
+  profile_picture: text("profile_picture"),
+  bio_text: text("bio_text"),
+  user_status: statusEnum("user_status"),
+});
+```
+
+### ❌ Incorrect Usage
+
+```typescript
+// DON'T use camelCase for property names
+export const users = pgTable("users", {
+  firstName: text("first_name").notNull(),  // ❌ Property name should be first_name
+  lastName: text("last_name").notNull(),    // ❌ Property name should be last_name
+  emailAddress: text("email_address").notNull(), // ❌ Property name should be email_address
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(), // ❌
+});
+
+// DON'T use camelCase for enum names
+const statusEnum = pgEnum("userStatus", ["active", "inactive"]); // ❌ Should be user_status
+```
+
+## Schema Definitions
+
+When defining Zod schemas for these tables, use the `snake_case` column names:
+
+```typescript
+export const userSelectSchema = createSelectSchema(users)
+  .extend({
+    first_name: z.string().min(1),
+    last_name: z.string().min(1),
+    email_address: z.string().email(),
+  })
+  .omit({ deleted_at: true, embedding: true })
+  .openapi("UserSelect");
+```
+
+## Benefits
+
+- **Consistency**: Matches SQL naming conventions
+- **Clarity**: No confusion between TypeScript property names and database column names
+- **Maintainability**: Easier to read database queries and migrations
+- **Standards**: Follows PostgreSQL best practices

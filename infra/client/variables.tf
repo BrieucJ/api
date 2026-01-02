@@ -20,3 +20,8 @@ variable "state_backend" {
   type        = string
   default     = ""
 }
+
+variable "image_tag" {
+  description = "Git commit SHA used to trigger client rebuilds"
+  type        = string
+}

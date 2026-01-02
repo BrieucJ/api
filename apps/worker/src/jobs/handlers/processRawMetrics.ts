@@ -28,8 +28,8 @@ interface MetricsWindow {
   latencies: number[];
   errors: number;
   total: number;
-  requestSizes: number[];
-  responseSizes: number[];
+  request_sizes: number[];
+  response_sizes: number[];
 }
 
 export async function processRawMetrics(
@@ -67,8 +67,8 @@ export async function processRawMetrics(
           latencies: [],
           errors: 0,
           total: 0,
-          requestSizes: [],
-          responseSizes: [],
+          request_sizes: [],
+          response_sizes: [],
         });
       }
 
@@ -95,10 +95,10 @@ export async function processRawMetrics(
         });
       }
       if (metric.requestSize) {
-        window.requestSizes.push(metric.requestSize);
+        window.request_sizes.push(metric.requestSize);
       }
       if (metric.responseSize) {
-        window.responseSizes.push(metric.responseSize);
+        window.response_sizes.push(metric.responseSize);
       }
     }
 
@@ -110,17 +110,17 @@ export async function processRawMetrics(
       const p99 = percentile(sortedLatencies, 99);
       const errorRate = window.total > 0 ? window.errors / window.total : 0;
       const avgRequestSize =
-        window.requestSizes.length > 0
+        window.request_sizes.length > 0
           ? Math.round(
-              window.requestSizes.reduce((a, b) => a + b, 0) /
-                window.requestSizes.length
+              window.request_sizes.reduce((a, b) => a + b, 0) /
+                window.request_sizes.length
             )
           : null;
       const avgResponseSize =
-        window.responseSizes.length > 0
+        window.response_sizes.length > 0
           ? Math.round(
-              window.responseSizes.reduce((a, b) => a + b, 0) /
-                window.responseSizes.length
+              window.response_sizes.reduce((a, b) => a + b, 0) /
+                window.response_sizes.length
             )
           : null;
 
@@ -150,19 +150,19 @@ export async function processRawMetrics(
       }
 
       // Build insert data directly - COMPLETELY bypass Zod validation
-      // We need to store errorRate as percentage (0-100) in integer column
-      // Explicitly ensure errorRate is an integer
+      // We need to store error_rate as percentage (0-100) in integer column
+      // Explicitly ensure error_rate is an integer
       const insertData = {
-        windowStart: new Date(window.start),
-        windowEnd: new Date(window.end),
+        window_start: new Date(window.start),
+        window_end: new Date(window.end),
         endpoint: window.endpoint,
-        p50Latency: Math.round(p50),
-        p95Latency: Math.round(p95),
-        p99Latency: Math.round(p99),
-        errorRate: Math.round(errorRatePercent) as number, // Store as percentage (0-100) for integer column - EXPLICIT INTEGER
-        trafficCount: window.total,
-        requestSize: avgRequestSize,
-        responseSize: avgResponseSize,
+        p50_latency: Math.round(p50),
+        p95_latency: Math.round(p95),
+        p99_latency: Math.round(p99),
+        error_rate: Math.round(errorRatePercent) as number, // Store as percentage (0-100) for integer column - EXPLICIT INTEGER
+        traffic_count: window.total,
+        request_size: avgRequestSize,
+        response_size: avgResponseSize,
       } as any; // Use 'as any' to bypass TypeScript type checking
 
       // Log BEFORE insert to verify the value
@@ -172,7 +172,7 @@ export async function processRawMetrics(
         total: window.total,
         errorRateDecimal: errorRate,
         errorRatePercent,
-        insertDataErrorRate: insertData.errorRate,
+        insertDataErrorRate: insertData.error_rate,
         windowStart: new Date(window.start).toISOString(),
       });
 
@@ -183,7 +183,7 @@ export async function processRawMetrics(
           total: window.total,
           errorRateDecimal: errorRate,
           errorRatePercent,
-          insertDataErrorRate: insertData.errorRate,
+          insertDataErrorRate: insertData.error_rate,
           windowStart: new Date(window.start).toISOString(),
         });
       }
@@ -195,18 +195,18 @@ export async function processRawMetrics(
     for (const data of inserts) {
       // Log before insert
       logger.debug("ABOUT TO INSERT", {
-        errorRate: data.errorRate,
+        error_rate: data.error_rate,
         endpoint: data.endpoint,
-        trafficCount: data.trafficCount,
+        traffic_count: data.traffic_count,
         fullData: JSON.stringify(data, null, 2),
       });
 
       // Log the actual data being inserted
-      if ((data.errorRate as number) > 0) {
+      if ((data.error_rate as number) > 0) {
         logger.info("ABOUT TO INSERT INTO DB", {
-          errorRate: data.errorRate,
+          error_rate: data.error_rate,
           endpoint: data.endpoint,
-          trafficCount: data.trafficCount,
+          traffic_count: data.traffic_count,
         });
       }
 
@@ -216,28 +216,28 @@ export async function processRawMetrics(
           embedding: generateRowEmbedding(data),
         };
 
-        logger.debug("Insert values errorRate", {
-          errorRate: insertValues.errorRate,
+        logger.debug("Insert values error_rate", {
+          error_rate: insertValues.error_rate,
         });
 
         const result = await db.insert(metrics).values(insertValues);
 
         // Log after successful insert
         logger.debug("SUCCESSFULLY INSERTED", {
-          errorRate: data.errorRate,
+          error_rate: data.error_rate,
           endpoint: data.endpoint,
         });
 
-        if ((data.errorRate as number) > 0) {
+        if ((data.error_rate as number) > 0) {
           logger.info("SUCCESSFULLY INSERTED INTO DB", {
-            errorRate: data.errorRate,
+            error_rate: data.error_rate,
             endpoint: data.endpoint,
           });
         }
       } catch (error) {
         logger.error("FAILED TO INSERT", {
           error: error instanceof Error ? error.message : String(error),
-          errorRate: data.errorRate,
+          error_rate: data.error_rate,
           endpoint: data.endpoint,
           stack: error instanceof Error ? error.stack : undefined,
         });
@@ -245,7 +245,7 @@ export async function processRawMetrics(
           error: error instanceof Error ? error.message : String(error),
           data: {
             ...data,
-            errorRate: data.errorRate,
+            error_rate: data.error_rate,
           },
         });
         throw error;
