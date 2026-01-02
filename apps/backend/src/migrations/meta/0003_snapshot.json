@@ -1,6 +1,6 @@
 {
-  "id": "b36a6d11-cefd-4800-90ad-ff288ec472d5",
-  "prevId": "aa38d4de-a3b4-4d54-b044-62c6ca8aba4f",
+  "id": "bbafcb66-04eb-40fd-a79e-3c4ac016d825",
+  "prevId": "b36a6d11-cefd-4800-90ad-ff288ec472d5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -561,7 +561,23 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "worker_stats_last_heartbeat_idx": {
+          "name": "worker_stats_last_heartbeat_idx",
+          "columns": [
+            {
+              "expression": "last_heartbeat",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},

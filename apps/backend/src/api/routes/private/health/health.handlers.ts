@@ -66,6 +66,9 @@ async function checkWorkerHealth() {
   logger.info("[Health] Starting worker health check");
   try {
     const queryStart = Date.now();
+    logger.info("[Health] Executing worker stats query");
+    // Use id DESC instead of last_heartbeat DESC - id is primary key (indexed) and should be faster
+    // Since records are inserted sequentially, highest id = most recent
     const latestStats = await db
       .select({
         worker_mode: workerStats.worker_mode,
@@ -74,9 +77,13 @@ async function checkWorkerHealth() {
         processing_count: workerStats.processing_count,
       })
       .from(workerStats)
-      .orderBy(desc(workerStats.last_heartbeat))
+      .orderBy(desc(workerStats.id))
       .limit(1);
     const queryTime = Date.now() - queryStart;
+    logger.info("[Health] Worker stats query completed", {
+      queryTime,
+      rowCount: latestStats?.length || 0,
+    });
 
     const processingStart = Date.now();
     if (!latestStats || latestStats.length === 0) {
