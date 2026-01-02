@@ -123,15 +123,15 @@ jobs:
 
       - name: Initialize Worker Lambda (Schedule Cron Jobs)
         run: |
-          echo "🔄 Invoking worker Lambda to initialize cron jobs..."
-          echo '{"detail":{"source":"eventbridge","jobType":"heartbeat","payload":{}}}' > payload.json
+          echo "🔄 Invoking worker Lambda to initialize cron jobs and run health check..."
           aws lambda invoke \
             --function-name "worker-${{ env.TF_VAR_environment }}-lambda" \
             --region ${{ secrets.REGION }} \
-            --payload file://payload.json \
+            --cli-binary-format raw-in-base64-out \
+            --payload '{"detail":{"source":"eventbridge","jobType":"HEALTH_CHECK","payload":{"checkType":"database"}}}' \
             response.json
           echo "📋 Lambda response:"
           cat response.json
           echo ""
-          echo "✅ Worker Lambda initialized - cron jobs scheduled!"
-          rm payload.json response.json
+          echo "✅ Worker Lambda initialized - cron jobs scheduled and health check completed!"
+          rm -f response.json
