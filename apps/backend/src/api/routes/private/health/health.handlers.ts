@@ -12,20 +12,58 @@ import { sql } from "drizzle-orm";
 import { workerStats } from "@/db/models/workerStats";
 import { desc } from "drizzle-orm";
 import { SERVER_START_TIME } from "@/api/index";
+import { createQueryBuilder } from "@/db/querybuilder";
+
+// Lambda container initialization time (persists across invocations in the same container)
+// In Lambda, the module is loaded once per container, so this variable persists for the container lifetime
+// For non-Lambda environments, this will be null and we'll use SERVER_START_TIME instead
+let CONTAINER_START_TIME: number | null = null;
+
+// Initialize container start time on first module load (for Lambda container reuse)
+if (
+  typeof process.env.AWS_LAMBDA_FUNCTION_NAME !== "undefined" &&
+  CONTAINER_START_TIME === null
+) {
+  CONTAINER_START_TIME = Date.now();
+}
 
 // Helper to get server uptime in seconds
+// In Lambda, use container start time if available (persists across invocations in the same container)
+// Otherwise, use server start time (for HTTP server or first Lambda invocation)
 function getUptime(): number {
-  return Math.floor((Date.now() - SERVER_START_TIME) / 1000);
+  const startTime = CONTAINER_START_TIME ?? SERVER_START_TIME;
+  return Math.floor((Date.now() - startTime) / 1000);
+}
+
+// Helper to add timeout to a promise
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    ),
+  ]);
 }
 
 /**
  * Check database health by running a simple query
+ * Uses a 5-second timeout to prevent hanging requests
  */
 async function checkDatabaseHealth() {
   const start = Date.now();
+  const DB_TIMEOUT_MS = 5000; // 5 seconds timeout
+
   try {
-    // Simple query to check connection
-    await db.execute(sql`SELECT 1 as health_check`);
+    // Simple query to check connection with timeout
+    await withTimeout(
+      db.execute(sql`SELECT 1 as health_check`),
+      DB_TIMEOUT_MS,
+      "Database query timed out after 5 seconds"
+    );
     const responseTime = Date.now() - start;
 
     return {
@@ -46,17 +84,27 @@ async function checkDatabaseHealth() {
 
 /**
  * Check worker health by examining last heartbeat
+ * Uses querybuilder and includes timeout handling
  */
 async function checkWorkerHealth() {
-  try {
-    // Get the most recent worker stats entry
-    const latestStats = await db
-      .select()
-      .from(workerStats)
-      .orderBy(desc(workerStats.last_heartbeat))
-      .limit(1);
+  const WORKER_CHECK_TIMEOUT_MS = 5000; // 5 seconds timeout
 
-    if (latestStats.length === 0) {
+  try {
+    // Use querybuilder for consistent behavior
+    const query = createQueryBuilder(workerStats);
+
+    // Get the most recent worker stats entry with timeout
+    const { data: latestStats } = await withTimeout(
+      query.list({
+        limit: 1,
+        order_by: "last_heartbeat",
+        order: "desc",
+      }),
+      WORKER_CHECK_TIMEOUT_MS,
+      "Worker health check query timed out after 5 seconds"
+    );
+
+    if (!latestStats || latestStats.length === 0) {
       return {
         status: "unknown" as const,
         workerMode: "unknown" as const,
@@ -184,81 +232,200 @@ export const getWorkerHealth: AppRouteHandler<GetWorkerHealthRoute> = async (
 
 /**
  * Readiness probe - checks all dependencies
+ * Includes error handling to prevent 500 errors
  */
 export const getReadiness: AppRouteHandler<GetReadinessRoute> = async (c) => {
-  const [dbHealth, workerHealth] = await Promise.all([
-    checkDatabaseHealth(),
-    checkWorkerHealth(),
-  ]);
+  try {
+    // Run health checks in parallel with individual error handling
+    const results = await Promise.allSettled([
+      checkDatabaseHealth(),
+      checkWorkerHealth(),
+    ]);
 
-  // Consider ready if database is healthy, worker health is optional (degraded mode)
-  const isReady = dbHealth.status === "healthy";
-  const status = isReady
-    ? workerHealth.status === "healthy"
-      ? ("healthy" as const)
-      : ("degraded" as const)
-    : ("unhealthy" as const);
+    const dbResult = results[0]!;
+    const workerResult = results[1]!;
 
-  const health = {
-    status,
-    timestamp: new Date().toISOString(),
-    uptime: getUptime(),
-    database: dbHealth,
-    worker: workerHealth,
-  };
+    // Handle database health result
+    const dbHealthResult: Awaited<ReturnType<typeof checkDatabaseHealth>> =
+      dbResult.status === "fulfilled"
+        ? dbResult.value
+        : {
+            status: "unhealthy" as const,
+            connected: false,
+            responseTime: 0,
+            error:
+              dbResult.reason instanceof Error
+                ? dbResult.reason.message
+                : "Database health check failed",
+          };
 
-  const statusCode = isReady
-    ? HTTP_STATUS_CODES.OK
-    : HTTP_STATUS_CODES.SERVICE_UNAVAILABLE;
+    // Handle worker health result
+    const workerHealthResult: Awaited<ReturnType<typeof checkWorkerHealth>> =
+      workerResult.status === "fulfilled"
+        ? workerResult.value
+        : {
+            status: "unhealthy" as const,
+            workerMode: "unknown" as const,
+            error:
+              workerResult.reason instanceof Error
+                ? workerResult.reason.message
+                : "Worker health check failed",
+          };
 
-  return c.json(
-    {
-      data: health,
-      error: null,
-      metadata: null,
-    },
-    statusCode
-  );
+    // Consider ready if database is healthy, worker health is optional (degraded mode)
+    const isReady = dbHealthResult.status === "healthy";
+    const status = isReady
+      ? workerHealthResult.status === "healthy"
+        ? ("healthy" as const)
+        : ("degraded" as const)
+      : ("unhealthy" as const);
+
+    const health = {
+      status,
+      timestamp: new Date().toISOString(),
+      uptime: getUptime(),
+      database: dbHealthResult,
+      worker: workerHealthResult,
+    };
+
+    const statusCode = isReady
+      ? HTTP_STATUS_CODES.OK
+      : HTTP_STATUS_CODES.SERVICE_UNAVAILABLE;
+
+    return c.json(
+      {
+        data: health,
+        error: null,
+        metadata: null,
+      },
+      statusCode
+    );
+  } catch (error) {
+    // Catch any unexpected errors and return a proper error response
+    // Still return health data structure, but with unhealthy status
+    return c.json(
+      {
+        data: {
+          status: "unhealthy" as const,
+          timestamp: new Date().toISOString(),
+          uptime: getUptime(),
+          database: {
+            status: "unhealthy" as const,
+            connected: false,
+            responseTime: 0,
+            error: "Health check failed unexpectedly",
+          },
+          worker: {
+            status: "unknown" as const,
+            workerMode: "unknown" as const,
+            error: "Health check failed unexpectedly",
+          },
+        },
+        error: null,
+        metadata: null,
+      },
+      HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
+    );
+  }
 };
 
 /**
  * Overall health check - comprehensive status
+ * Includes error handling to prevent 500 errors
  */
 export const get: AppRouteHandler<GetRoute> = async (c) => {
-  const [dbHealth, workerHealth] = await Promise.all([
-    checkDatabaseHealth(),
-    checkWorkerHealth(),
-  ]);
+  try {
+    // Run health checks in parallel with individual error handling
+    const results = await Promise.allSettled([
+      checkDatabaseHealth(),
+      checkWorkerHealth(),
+    ]);
 
-  // Overall status: healthy if all healthy, degraded if some unhealthy, unhealthy if critical services down
-  let status: "healthy" | "unhealthy" | "degraded";
-  if (dbHealth.status === "unhealthy") {
-    status = "unhealthy"; // Database is critical
-  } else if (workerHealth.status !== "healthy") {
-    status = "degraded"; // Worker issues are not critical
-  } else {
-    status = "healthy";
+    const dbResult = results[0]!;
+    const workerResult = results[1]!;
+
+    // Handle database health result
+    const dbHealthResult: Awaited<ReturnType<typeof checkDatabaseHealth>> =
+      dbResult.status === "fulfilled"
+        ? dbResult.value
+        : {
+            status: "unhealthy" as const,
+            connected: false,
+            responseTime: 0,
+            error:
+              dbResult.reason instanceof Error
+                ? dbResult.reason.message
+                : "Database health check failed",
+          };
+
+    // Handle worker health result
+    const workerHealthResult: Awaited<ReturnType<typeof checkWorkerHealth>> =
+      workerResult.status === "fulfilled"
+        ? workerResult.value
+        : {
+            status: "unhealthy" as const,
+            workerMode: "unknown" as const,
+            error:
+              workerResult.reason instanceof Error
+                ? workerResult.reason.message
+                : "Worker health check failed",
+          };
+
+    // Overall status: healthy if all healthy, degraded if some unhealthy, unhealthy if critical services down
+    let status: "healthy" | "unhealthy" | "degraded";
+    if (dbHealthResult.status === "unhealthy") {
+      status = "unhealthy"; // Database is critical
+    } else if (workerHealthResult.status !== "healthy") {
+      status = "degraded"; // Worker issues are not critical
+    } else {
+      status = "healthy";
+    }
+
+    const health = {
+      status,
+      timestamp: new Date().toISOString(),
+      uptime: getUptime(),
+      database: dbHealthResult,
+      worker: workerHealthResult,
+    };
+
+    const statusCode =
+      status === "unhealthy"
+        ? HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
+        : HTTP_STATUS_CODES.OK;
+
+    return c.json(
+      {
+        data: health,
+        error: null,
+        metadata: null,
+      },
+      statusCode
+    );
+  } catch (error) {
+    // Catch any unexpected errors and return a proper error response
+    return c.json(
+      {
+        data: {
+          status: "unhealthy" as const,
+          timestamp: new Date().toISOString(),
+          uptime: getUptime(),
+          database: {
+            status: "unhealthy" as const,
+            connected: false,
+            responseTime: 0,
+            error: "Health check failed unexpectedly",
+          },
+          worker: {
+            status: "unknown" as const,
+            workerMode: "unknown" as const,
+            error: "Health check failed unexpectedly",
+          },
+        },
+        error: null,
+        metadata: null,
+      },
+      HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
+    );
   }
-
-  const health = {
-    status,
-    timestamp: new Date().toISOString(),
-    uptime: getUptime(),
-    database: dbHealth,
-    worker: workerHealth,
-  };
-
-  const statusCode =
-    status === "unhealthy"
-      ? HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
-      : HTTP_STATUS_CODES.OK;
-
-  return c.json(
-    {
-      data: health,
-      error: null,
-      metadata: null,
-    },
-    statusCode
-  );
 };
