@@ -158,8 +158,8 @@ resource "aws_lambda_function" "api_lambda" {
     }
   }
 
-  # Only depend on verification if we're building locally (no image_tag provided)
-  depends_on = var.image_tag == "" ? [null_resource.verify_lambda_image[0]] : []
+  # Depend on verification (only used when building locally, ignored otherwise)
+  depends_on = [null_resource.verify_lambda_image]
 }
 
 # 6️⃣ API Gateway Integration
