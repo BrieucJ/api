@@ -56,6 +56,7 @@ const BaseEnvSchema = z.object({
   // Optional fields that may be required based on NODE_ENV and WORKER_MODE
   REGION: z.string().optional(),
   SQS_QUEUE_URL: z.url().optional(),
+  LAMBDA_ARN: z.string().optional(), // Required for Lambda mode to schedule EventBridge cron jobs
 });
 
 // Conditional validation based on NODE_ENV and WORKER_MODE
@@ -80,6 +81,14 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
         message:
           "REGION is required in production/staging environments or when WORKER_MODE is lambda",
         path: ["REGION"],
+      });
+    }
+    if (!data.LAMBDA_ARN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "LAMBDA_ARN is required in production/staging environments or when WORKER_MODE is lambda",
+        path: ["LAMBDA_ARN"],
       });
     }
   }

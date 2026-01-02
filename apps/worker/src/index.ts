@@ -98,7 +98,7 @@ async function startWorker(): Promise<void> {
   }
 
   const queue = getQueue();
-  const scheduler = getScheduler();
+  const scheduler = getScheduler(env.LAMBDA_ARN);
 
   // Initialize and start stats pusher (30s interval for both local and lambda)
   const statsPusher = new StatsPusher();
@@ -107,19 +107,18 @@ async function startWorker(): Promise<void> {
   logger.info("Stats pusher initialized", { mode: env.WORKER_MODE });
 
   // Schedule default CRON jobs
-  if (env.WORKER_MODE === "local") {
-    logger.info("Scheduling default CRON jobs", {
-      count: defaultCronJobs.length,
-    });
+  logger.info("Scheduling default CRON jobs", {
+    count: defaultCronJobs.length,
+    mode: env.WORKER_MODE,
+  });
 
-    for (const jobDef of defaultCronJobs) {
-      if (jobDef.enabled) {
-        await scheduler.schedule(
-          jobDef.cronExpression,
-          jobDef.jobType,
-          jobDef.payload
-        );
-      }
+  for (const jobDef of defaultCronJobs) {
+    if (jobDef.enabled) {
+      await scheduler.schedule(
+        jobDef.cronExpression,
+        jobDef.jobType,
+        jobDef.payload
+      );
     }
   }
 

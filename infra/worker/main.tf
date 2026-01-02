@@ -200,6 +200,7 @@ resource "aws_lambda_function" "worker_lambda" {
       REGION        = var.region
       WORKER_MODE   = var.worker_mode
       SQS_QUEUE_URL = aws_sqs_queue.queue.url
+      LAMBDA_ARN    = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${local.name}-lambda"
     }
   }
 
