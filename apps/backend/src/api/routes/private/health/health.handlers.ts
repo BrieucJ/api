@@ -1,12 +1,12 @@
 import type { AppRouteHandler } from "@/utils/types";
 import type { GetRoute } from "./health.routes";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
-import { db } from "@/db/db";
-import { sql } from "drizzle-orm";
+import { createQueryBuilder } from "@/db/querybuilder";
 import { workerStats } from "@/db/models/workerStats";
-import { desc } from "drizzle-orm";
 import { SERVER_START_TIME } from "@/api/index";
 import { logger } from "@/utils/logger";
+
+const statsQuery = createQueryBuilder(workerStats);
 
 // Lambda container initialization time (persists across invocations in the same container)
 let CONTAINER_START_TIME: number | null = null;
@@ -28,7 +28,7 @@ async function checkDatabaseHealth() {
   logger.info("[Health] Starting database health check");
   try {
     const queryStart = Date.now();
-    await db.execute(sql`SELECT 1`);
+    await statsQuery.list({ limit: 1 });
     const queryTime = Date.now() - queryStart;
     const responseTime = Date.now() - start;
     logger.info("[Health] Database check completed", {
@@ -67,18 +67,12 @@ async function checkWorkerHealth() {
   try {
     const queryStart = Date.now();
     logger.info("[Health] Executing worker stats query");
-    // Use id DESC instead of last_heartbeat DESC - id is primary key (indexed) and should be faster
-    // Since records are inserted sequentially, highest id = most recent
-    const latestStats = await db
-      .select({
-        worker_mode: workerStats.worker_mode,
-        last_heartbeat: workerStats.last_heartbeat,
-        queue_size: workerStats.queue_size,
-        processing_count: workerStats.processing_count,
-      })
-      .from(workerStats)
-      .orderBy(desc(workerStats.id))
-      .limit(1);
+
+    const { data: latestStats } = await statsQuery.list({
+      limit: 1,
+      order_by: "id",
+      order: "desc",
+    });
     const queryTime = Date.now() - queryStart;
     logger.info("[Health] Worker stats query completed", {
       queryTime,

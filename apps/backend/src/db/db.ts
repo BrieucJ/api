@@ -4,10 +4,9 @@ import env from "@/env";
 import { dbLogger } from "@/utils/logger";
 
 const client = postgres(env.DATABASE_URL!, {
-  max: 1, // Single connection for serverless/container environments
+  max: 3, // Allow 3 connections for parallel queries (Lambda can handle this)
   idle_timeout: 60000, // 60 seconds
   connect_timeout: 10, // 10 second connection timeout
-  onnotice: () => {}, // Suppress notices
   transform: {
     undefined: null, // Transform undefined to null for JSONB compatibility
   },
