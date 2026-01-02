@@ -106,12 +106,21 @@ export class Logger {
     }
 
     // Fire-and-forget database persistence (non-blocking)
-    logPersistence.save({
-      source: this.namespace,
-      level,
-      message,
-      meta: Object.keys(meta).length > 0 ? meta : undefined,
-    });
+    // Wrap in try-catch to ensure logger never throws
+    try {
+      logPersistence
+        .save({
+          source: this.namespace,
+          level,
+          message,
+          meta: Object.keys(meta).length > 0 ? meta : undefined,
+        })
+        .catch((error) => {
+          console.error("[LogPersistence] Failed to save log:", error);
+        });
+    } catch (error) {
+      console.error("[Logger] Failed to save log:", error);
+    }
   }
 
   debug(message: string, ...args: unknown[]): void {

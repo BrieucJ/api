@@ -23,34 +23,58 @@ function getUptime(): number {
 
 async function checkDatabaseHealth() {
   const start = Date.now();
-  const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
-  logger.info("[Health] Starting database health check");
   try {
-    const queryStart = Date.now();
-    await statsQuery.list({ limit: 1 });
-    const queryTime = Date.now() - queryStart;
-    const responseTime = Date.now() - start;
-    logger.info("[Health] Database check completed", {
-      queryTime,
-      totalTime: responseTime,
-    });
-    return {
-      status: "healthy" as const,
-      responseTime,
-      connected: true,
-    };
+    const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
+    try {
+      logger.info("[Health] Starting database health check");
+    } catch {}
+
+    try {
+      const queryStart = Date.now();
+      await statsQuery.list({ limit: 1 });
+      const queryTime = Date.now() - queryStart;
+      const responseTime = Date.now() - start;
+      try {
+        logger.info("[Health] Database check completed", {
+          queryTime,
+          totalTime: responseTime,
+        });
+      } catch {}
+      return {
+        status: "healthy" as const,
+        responseTime,
+        connected: true,
+      };
+    } catch (error) {
+      const responseTime = Date.now() - start;
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+          ? error
+          : "Database connection failed";
+      try {
+        logger.error("[Health] Database check failed", {
+          responseTime,
+          error: errorMessage,
+        });
+      } catch {}
+      return {
+        status: "unhealthy" as const,
+        responseTime,
+        connected: false,
+        error: errorMessage,
+      };
+    }
   } catch (error) {
     const responseTime = Date.now() - start;
     const errorMessage =
-      error instanceof Error
-        ? error.message
-        : typeof error === "string"
-        ? error
-        : "Database connection failed";
-    logger.error("[Health] Database check failed", {
-      responseTime,
-      error: errorMessage,
-    });
+      error instanceof Error ? error.message : "Database connection failed";
+    try {
+      logger.error("[Health] Database check initialization failed", {
+        error: errorMessage,
+      });
+    } catch {}
     return {
       status: "unhealthy" as const,
       responseTime,
@@ -62,10 +86,16 @@ async function checkDatabaseHealth() {
 
 async function checkWorkerHealth() {
   const start = Date.now();
-  logger.info("[Health] Starting worker health check");
+  try {
+    logger.info("[Health] Starting worker health check");
+  } catch {}
+
   try {
     const queryStart = Date.now();
-    logger.info("[Health] Executing worker stats query");
+    try {
+      logger.info("[Health] Executing worker stats query");
+    } catch {}
+
     const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
     const { data: latestStats } = await statsQuery.list({
       limit: 1,
@@ -73,18 +103,22 @@ async function checkWorkerHealth() {
       order: "desc",
     });
     const queryTime = Date.now() - queryStart;
-    logger.info("[Health] Worker stats query completed", {
-      queryTime,
-      rowCount: latestStats?.length || 0,
-    });
+    try {
+      logger.info("[Health] Worker stats query completed", {
+        queryTime,
+        rowCount: latestStats?.length || 0,
+      });
+    } catch {}
 
     const processingStart = Date.now();
     if (!latestStats || latestStats.length === 0) {
       const totalTime = Date.now() - start;
-      logger.info("[Health] Worker check completed - no stats", {
-        queryTime,
-        totalTime,
-      });
+      try {
+        logger.info("[Health] Worker check completed - no stats", {
+          queryTime,
+          totalTime,
+        });
+      } catch {}
       return {
         status: "unknown" as const,
         workerMode: "unknown" as const,
@@ -95,10 +129,12 @@ async function checkWorkerHealth() {
     const stats = latestStats[0];
     if (!stats?.last_heartbeat) {
       const totalTime = Date.now() - start;
-      logger.info("[Health] Worker check completed - missing heartbeat", {
-        queryTime,
-        totalTime,
-      });
+      try {
+        logger.info("[Health] Worker check completed - missing heartbeat", {
+          queryTime,
+          totalTime,
+        });
+      } catch {}
       return {
         status: "unknown" as const,
         workerMode: "unknown" as const,
@@ -109,17 +145,18 @@ async function checkWorkerHealth() {
     const heartbeatAge = Math.floor(
       (Date.now() - new Date(stats.last_heartbeat).getTime()) / 1000
     );
-
     const isHealthy = heartbeatAge < 300; // 5 minutes
     const processingTime = Date.now() - processingStart;
     const totalTime = Date.now() - start;
 
-    logger.info("[Health] Worker check completed", {
-      queryTime,
-      processingTime,
-      totalTime,
-      heartbeatAge,
-    });
+    try {
+      logger.info("[Health] Worker check completed", {
+        queryTime,
+        processingTime,
+        totalTime,
+        heartbeatAge,
+      });
+    } catch {}
 
     return {
       status: isHealthy ? ("healthy" as const) : ("unhealthy" as const),
@@ -138,10 +175,12 @@ async function checkWorkerHealth() {
         : typeof error === "string"
         ? error
         : "Worker check failed";
-    logger.error("[Health] Worker check failed", {
-      totalTime,
-      error: errorMessage,
-    });
+    try {
+      logger.error("[Health] Worker check failed", {
+        totalTime,
+        error: errorMessage,
+      });
+    } catch {}
     return {
       status: "unhealthy" as const,
       workerMode: "unknown" as const,
@@ -152,17 +191,20 @@ async function checkWorkerHealth() {
 
 export const get: AppRouteHandler<GetRoute> = async (c) => {
   const handlerStart = Date.now();
-  logger.info("[Health] Health check endpoint called");
+  try {
+    logger.info("[Health] Health check endpoint called");
+  } catch {}
 
   try {
     const checksStart = Date.now();
-    // Use Promise.allSettled to ensure we always get results even if one fails
     const [dbResult, workerResult] = await Promise.allSettled([
       checkDatabaseHealth(),
       checkWorkerHealth(),
     ]);
     const checksTime = Date.now() - checksStart;
-    logger.info("[Health] All checks completed", { checksTime });
+    try {
+      logger.info("[Health] All checks completed", { checksTime });
+    } catch {}
 
     // Extract results, with fallback to unhealthy if promise rejected
     const dbHealth =
@@ -221,23 +263,28 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
     const processingTime = Date.now() - processingStart;
     const totalTime = Date.now() - handlerStart;
 
-    logger.info("[Health] Health check completed", {
-      totalTime,
-      checksTime,
-      processingTime,
-      responseTime,
-      dbResponseTime: dbHealth.responseTime,
-      status,
-    });
+    try {
+      logger.info("[Health] Health check completed", {
+        totalTime,
+        checksTime,
+        processingTime,
+        responseTime,
+        dbResponseTime: dbHealth.responseTime,
+        status,
+      });
+    } catch {}
 
     return response;
   } catch (error) {
     const totalTime = Date.now() - handlerStart;
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error("[Health] Health check error", {
-      totalTime,
-      error: errorMessage,
-    });
+    try {
+      logger.error("[Health] Health check error", {
+        totalTime,
+        error: errorMessage,
+      });
+    } catch {}
+
     try {
       return c.json(
         {
@@ -263,10 +310,11 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
         HTTP_STATUS_CODES.SERVICE_UNAVAILABLE
       );
     } catch (fallbackError) {
-      // Last resort - return minimal response
-      logger.error("[Health] Critical error in error handler", {
-        fallbackError,
-      });
+      try {
+        logger.error("[Health] Critical error in error handler", {
+          fallbackError,
+        });
+      } catch {}
       return c.json(
         {
           data: {
