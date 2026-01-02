@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAppStore } from "@/store/appStore";
 import {
   Card,
@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/table";
 import {
   Activity,
-  Clock,
   Database,
   Settings,
   CheckCircle2,
@@ -30,7 +29,6 @@ export default function WorkerPage() {
   const workerStats = useAppStore((state) => state.workerStats);
   const availableJobs = useAppStore((state) => state.availableJobs);
   const initWorkerPolling = useAppStore((state) => state.initWorkerPolling);
-  const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
   useEffect(() => {
     const cleanup = initWorkerPolling();
@@ -186,41 +184,7 @@ export default function WorkerPage() {
                         {job.description}
                       </p>
                     </div>
-                    <button
-                      onClick={() =>
-                        setExpandedJob(
-                          expandedJob === job.type ? null : job.type
-                        )
-                      }
-                      className="text-sm text-muted-foreground hover:text-foreground"
-                    >
-                      {expandedJob === job.type ? "Hide" : "Show"} Details
-                    </button>
                   </div>
-                  {expandedJob === job.type && (
-                    <div className="mt-4 pt-4 border-t space-y-3">
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">
-                          Default Options
-                        </h4>
-                        <div className="bg-muted rounded p-3 text-sm">
-                          <pre className="whitespace-pre-wrap">
-                            {JSON.stringify(job.defaultOptions, null, 2)}
-                          </pre>
-                        </div>
-                      </div>
-                      {job.settings && Object.keys(job.settings).length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Settings</h4>
-                          <div className="bg-muted rounded p-3 text-sm">
-                            <pre className="whitespace-pre-wrap">
-                              {JSON.stringify(job.settings, null, 2)}
-                            </pre>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>

@@ -5,10 +5,10 @@ import type {
   SnapshotSelectType,
   ApiInfo,
   HealthStatus,
+  WorkerStatsType,
+  AvailableJobType,
 } from "@shared/types";
-import type { WorkerStats, JobMetadata } from "@/lib/types";
 import { client } from "@/lib/client";
-import config from "@/lib/config";
 
 // Limits for in-memory storage
 const MAX_LOGS = 1000; // Keep last 1000 logs in memory
@@ -43,12 +43,12 @@ interface AppStore {
   setHealthStatus: (status: HealthStatus) => void;
   initHealthPolling: () => () => void;
   _healthPollingStarted: boolean;
-  workerStats: WorkerStats | null;
-  setWorkerStats: (stats: WorkerStats) => void;
+  workerStats: WorkerStatsType | null;
+  setWorkerStats: (stats: WorkerStatsType) => void;
   initWorkerPolling: () => () => void;
   _workerPollingStarted: boolean;
-  availableJobs: JobMetadata[];
-  setAvailableJobs: (jobs: JobMetadata[]) => void;
+  availableJobs: AvailableJobType[];
+  setAvailableJobs: (jobs: AvailableJobType[]) => void;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -350,7 +350,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       try {
         const response = await (client as any).worker.stats.$get({});
         if (response.ok) {
-          const data = (await response.json()) as { data?: WorkerStats };
+          const data = (await response.json()) as { data?: WorkerStatsType };
           if (data.data) {
             get().setWorkerStats(data.data);
             // Extract available jobs from stats response
