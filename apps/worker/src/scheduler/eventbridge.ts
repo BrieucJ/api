@@ -116,10 +116,14 @@ export class EventBridgeScheduler implements Scheduler {
   private cronToEventBridge(cronExpression: string): string {
     // EventBridge cron format: cron(minute hour day-of-month month day-of-week year)
     // Standard cron: minute hour day-of-month month day-of-week
-    // We need to add year as * for EventBridge
+    // EventBridge requires ? for day-of-month when day-of-week is *
     const parts = cronExpression.split(" ");
     if (parts.length === 5) {
-      return `cron(${cronExpression} *)`;
+      const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+      // If both day fields are *, replace day-of-month with ?
+      const ebDayOfMonth =
+        dayOfMonth === "*" && dayOfWeek === "*" ? "?" : dayOfMonth;
+      return `cron(${minute} ${hour} ${ebDayOfMonth} ${month} ${dayOfWeek} *)`;
     }
     // If already in EventBridge format, return as is
     return cronExpression;
