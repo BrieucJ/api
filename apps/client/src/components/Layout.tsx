@@ -9,7 +9,7 @@ import {
   Database,
   Activity,
   RotateCcw,
-  Settings,
+  Cpu,
 } from "lucide-react";
 import { useAppStore } from "@/store/appStore";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,7 @@ const navigation = [
   { name: "Logs", href: "/dashboard/logs", icon: FileText },
   { name: "Metrics", href: "/dashboard/metrics", icon: Activity },
   { name: "Replay", href: "/dashboard/replay", icon: RotateCcw },
-  { name: "Worker", href: "/dashboard/worker", icon: Settings },
+  { name: "Worker", href: "/dashboard/worker", icon: Cpu },
 ];
 
 export default function DashboardLayout() {
