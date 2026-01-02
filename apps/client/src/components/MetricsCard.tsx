@@ -10,16 +10,16 @@ import {
 import { useAppStore } from "@/store/appStore";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, TrendingUp, AlertCircle, Activity } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 export default function MetricsCard() {
   const navigate = useNavigate();
   const metrics = useAppStore((state) => state.metrics);
-  const initMetricsSSE = useAppStore((state) => state.initMetricsSSE);
+  const initMetricsPolling = useAppStore((state) => state.initMetricsPolling);
 
   useEffect(() => {
-    initMetricsSSE();
-  }, [initMetricsSSE]);
+    const cleanup = initMetricsPolling();
+    return cleanup;
+  }, [initMetricsPolling]);
 
   // Calculate summary from recent metrics
   const recentMetrics = metrics.slice(-10);

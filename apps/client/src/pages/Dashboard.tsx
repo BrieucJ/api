@@ -79,7 +79,7 @@ const timeframeToChartRange = (
 export default function Dashboard() {
   const navigate = useNavigate();
   const metrics = useAppStore((state) => state.metrics);
-  const initMetricsSSE = useAppStore((state) => state.initMetricsSSE);
+  const initMetricsPolling = useAppStore((state) => state.initMetricsPolling);
   const snapshots = useAppStore((state) => state.snapshots);
   const fetchSnapshots = useAppStore((state) => state.fetchSnapshots);
 
@@ -92,7 +92,8 @@ export default function Dashboard() {
   const [mcpLoading, setMcpLoading] = useState(false);
 
   useEffect(() => {
-    initMetricsSSE();
+    const cleanup = initMetricsPolling();
+    return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

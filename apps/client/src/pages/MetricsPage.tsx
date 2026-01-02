@@ -19,12 +19,13 @@ import {
 
 export default function MetricsPage() {
   const metrics = useAppStore((state) => state.metrics);
-  const initMetricsSSE = useAppStore((state) => state.initMetricsSSE);
+  const initMetricsPolling = useAppStore((state) => state.initMetricsPolling);
   const [selectedEndpoint, setSelectedEndpoint] = useState<string>("all");
   const [timeRange, setTimeRange] = useState<"1h" | "6h" | "24h" | "7d">("24h");
 
   useEffect(() => {
-    initMetricsSSE();
+    const cleanup = initMetricsPolling();
+    return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -17,27 +17,38 @@ export const list = createRoute({
   hide: true,
   request: {
     query: paginationWithOrderingSchema(metricsSelectSchema).extend({
-      endpoint: z.string().optional().openapi({
-        param: {
-          name: "endpoint",
-          in: "query",
-        },
-        example: "/api/v1/users",
-      }),
-      startDate: z.string().datetime().optional().openapi({
-        param: {
-          name: "startDate",
-          in: "query",
-        },
-        example: "2024-01-01T00:00:00Z",
-      }),
-      endDate: z.string().datetime().optional().openapi({
-        param: {
-          name: "endDate",
-          in: "query",
-        },
-        example: "2024-01-31T23:59:59Z",
-      }),
+      endpoint: z
+        .string()
+        .optional()
+        .openapi({
+          param: {
+            name: "endpoint",
+            in: "query",
+          },
+          example: "/api/v1/users",
+        }),
+      startDate: z
+        .string()
+        .datetime()
+        .optional()
+        .openapi({
+          param: {
+            name: "startDate",
+            in: "query",
+          },
+          example: "2024-01-01T00:00:00Z",
+        }),
+      endDate: z
+        .string()
+        .datetime()
+        .optional()
+        .openapi({
+          param: {
+            name: "endDate",
+            in: "query",
+          },
+          example: "2024-01-31T23:59:59Z",
+        }),
     }),
   },
   responses: {
@@ -50,22 +61,6 @@ export const list = createRoute({
   },
 });
 
-export const stream = createRoute({
-  tags,
-  method: "get",
-  path: `${basePath}/stream`,
-  hide: true,
-  request: {},
-  responses: {
-    [HTTP_STATUS_CODES.OK]: {
-      description: "Stream metrics",
-      content: {
-        "text/event-stream": { schema: metricsSelectSchema },
-      },
-    },
-  },
-});
-
 export const aggregate = createRoute({
   tags,
   method: "get",
@@ -73,35 +68,50 @@ export const aggregate = createRoute({
   hide: true,
   request: {
     query: z.object({
-      endpoint: z.string().optional().openapi({
-        param: {
-          name: "endpoint",
-          in: "query",
-        },
-        example: "/api/v1/users",
-      }),
-      startDate: z.string().datetime().openapi({
-        param: {
-          name: "startDate",
-          in: "query",
-        },
-        example: "2024-01-01T00:00:00Z",
-      }),
-      endDate: z.string().datetime().openapi({
-        param: {
-          name: "endDate",
-          in: "query",
-        },
-        example: "2024-01-31T23:59:59Z",
-      }),
-      windowSize: z.coerce.number().int().min(60).max(3600).default(60).openapi({
-        param: {
-          name: "windowSize",
-          in: "query",
-        },
-        example: 60,
-        description: "Window size in seconds (60-3600)",
-      }),
+      endpoint: z
+        .string()
+        .optional()
+        .openapi({
+          param: {
+            name: "endpoint",
+            in: "query",
+          },
+          example: "/api/v1/users",
+        }),
+      startDate: z
+        .string()
+        .datetime()
+        .openapi({
+          param: {
+            name: "startDate",
+            in: "query",
+          },
+          example: "2024-01-01T00:00:00Z",
+        }),
+      endDate: z
+        .string()
+        .datetime()
+        .openapi({
+          param: {
+            name: "endDate",
+            in: "query",
+          },
+          example: "2024-01-31T23:59:59Z",
+        }),
+      windowSize: z.coerce
+        .number()
+        .int()
+        .min(60)
+        .max(3600)
+        .default(60)
+        .openapi({
+          param: {
+            name: "windowSize",
+            in: "query",
+          },
+          example: 60,
+          description: "Window size in seconds (60-3600)",
+        }),
     }),
   },
   responses: {
@@ -115,6 +125,4 @@ export const aggregate = createRoute({
 });
 
 export type ListRoute = typeof list;
-export type StreamRoute = typeof stream;
 export type AggregateRoute = typeof aggregate;
-

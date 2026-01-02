@@ -10,27 +10,19 @@ import type { WorkerStats, JobMetadata } from "@/lib/types";
 import { client } from "@/lib/client";
 import config from "@/lib/config";
 
-// Throttle constants
-const LOGS_THROTTLE_MS = 300; // Update logs at most ~3 times per second
-const METRICS_THROTTLE_MS = 500; // Update metrics at most 2 times per second
+// Limits for in-memory storage
 const MAX_LOGS = 1000; // Keep last 1000 logs in memory
 const MAX_METRICS = 500; // Keep last 500 metrics in memory
 
 interface AppStore {
   logs: LogSelectType[];
   addLog: (log: LogSelectType) => void;
-  initLogsSSE: () => void;
-  _sseStarted: boolean;
-  _logsLastUpdate: number;
-  _logsPendingUpdate: LogSelectType | null;
-  _logsThrottleTimer: ReturnType<typeof setTimeout> | null;
+  initLogsPolling: () => () => void;
+  _logsPollingStarted: boolean;
   metrics: MetricsSelectType[];
   addMetric: (metric: MetricsSelectType) => void;
-  initMetricsSSE: () => void;
-  _metricsSseStarted: boolean;
-  _metricsLastUpdate: number;
-  _metricsPendingUpdate: MetricsSelectType | null;
-  _metricsThrottleTimer: ReturnType<typeof setTimeout> | null;
+  initMetricsPolling: () => () => void;
+  _metricsPollingStarted: boolean;
   snapshots: SnapshotSelectType[];
   setSnapshots: (snapshots: SnapshotSelectType[]) => void;
   fetchSnapshots: (params?: {
@@ -61,15 +53,9 @@ interface AppStore {
 
 export const useAppStore = create<AppStore>((set, get) => ({
   logs: [],
-  _sseStarted: false,
-  _logsLastUpdate: 0,
-  _logsPendingUpdate: null,
-  _logsThrottleTimer: null,
+  _logsPollingStarted: false,
   metrics: [],
-  _metricsSseStarted: false,
-  _metricsLastUpdate: 0,
-  _metricsPendingUpdate: null,
-  _metricsThrottleTimer: null,
+  _metricsPollingStarted: false,
   snapshots: [],
   apiInfo: null,
   _infoPollingStarted: false,
@@ -157,207 +143,127 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setHealthStatus: (status) => set({ healthStatus: status }),
   setWorkerStats: (stats) => set({ workerStats: stats }),
   setAvailableJobs: (jobs) => set({ availableJobs: jobs }),
-  initLogsSSE: () => {
-    if (get()._sseStarted) return;
-    set({ _sseStarted: true });
+  initLogsPolling: () => {
+    if (get()._logsPollingStarted) {
+      return () => {}; // Return no-op cleanup if already started
+    }
+    set({ _logsPollingStarted: true });
 
-    const eventSource = new EventSource(`${config.BACKEND_URL}/logs/stream`);
-    let initialBatchReceived = false;
-    let initialBatchCount = 0;
-    const INITIAL_BATCH_SIZE = 50; // Expected initial batch size
+    let lastId = 0;
+    let isInitialLoad = true;
 
-    // Mark initial batch as received after a timeout if we don't get enough logs
-    // This handles cases where there are fewer logs in the database
-    const initialBatchTimeout = setTimeout(() => {
-      if (!initialBatchReceived) {
-        initialBatchReceived = true;
-      }
-    }, 2000); // 2 second timeout
+    const fetchLogs = async () => {
+      try {
+        const query: Record<string, string> = {
+          order_by: "id",
+          order: isInitialLoad ? "desc" : "asc",
+        };
 
-    const processLogUpdate = (
-      newLog: LogSelectType,
-      isInitialBatch = false
-    ) => {
-      // For initial batch, process immediately without throttling
-      if (isInitialBatch) {
-        get().addLog(newLog);
-        initialBatchCount++;
-        if (initialBatchCount >= INITIAL_BATCH_SIZE) {
-          clearTimeout(initialBatchTimeout);
-          initialBatchReceived = true;
+        if (isInitialLoad) {
+          // Initial load: fetch last 50 logs
+          query.limit = "50";
+          query.offset = "0";
+        } else {
+          // Subsequent polls: fetch only new logs
+          query.limit = "1000";
+          query.offset = "0";
+          if (lastId > 0) {
+            query.id__gt = lastId.toString();
+          }
         }
-        return;
-      }
 
-      // For subsequent updates, use throttling
-      const now = Date.now();
-      const state = get();
-
-      // If enough time has passed, update immediately
-      if (now - state._logsLastUpdate >= LOGS_THROTTLE_MS) {
-        // Clear any pending timer
-        if (state._logsThrottleTimer) {
-          clearTimeout(state._logsThrottleTimer);
-        }
-        set({
-          _logsLastUpdate: now,
-          _logsPendingUpdate: null,
-          _logsThrottleTimer: null,
-        });
-        get().addLog(newLog);
-      } else {
-        // Queue the update
-        set({ _logsPendingUpdate: newLog });
-
-        // Schedule update if not already scheduled
-        if (!state._logsThrottleTimer) {
-          const delay = LOGS_THROTTLE_MS - (now - state._logsLastUpdate);
-          const timer = setTimeout(() => {
-            const pending = get()._logsPendingUpdate;
-            if (pending) {
-              set({
-                _logsLastUpdate: Date.now(),
-                _logsPendingUpdate: null,
-                _logsThrottleTimer: null,
-              });
-              get().addLog(pending);
+        const response = await (client as any).logs.$get({ query });
+        if (response.ok) {
+          const data = (await response.json()) as { data?: LogSelectType[] };
+          if (data.data && data.data.length > 0) {
+            for (const log of data.data) {
+              lastId = Math.max(lastId, log.id);
+              get().addLog(log);
             }
-          }, delay);
-          set({ _logsThrottleTimer: timer });
+
+            if (isInitialLoad) {
+              isInitialLoad = false;
+            }
+          }
         }
+      } catch (error) {
+        console.error("Failed to fetch logs:", error);
       }
     };
 
-    eventSource.addEventListener("log-update", (event: MessageEvent) => {
-      try {
-        const newLog: LogSelectType = JSON.parse(event.data);
-        processLogUpdate(newLog, !initialBatchReceived);
-      } catch (error) {
-        console.error("Error parsing log update:", error, event.data);
-      }
-    });
+    // Fetch immediately
+    fetchLogs();
 
-    // Fallback message listener (in case events come without event type)
-    eventSource.addEventListener("message", (event: MessageEvent) => {
-      try {
-        const newLog: LogSelectType = JSON.parse(event.data);
-        processLogUpdate(newLog, !initialBatchReceived);
-      } catch (error) {
-        console.error("Error parsing log message:", error, event.data);
-      }
-    });
+    // Then poll every 2 seconds
+    const intervalId = setInterval(fetchLogs, 2000);
 
-    eventSource.addEventListener("error", (error) => {
-      console.error("Logs SSE connection error:", error);
-      // EventSource.CONNECTING = 0, EventSource.OPEN = 1, EventSource.CLOSED = 2
-      if (eventSource.readyState === EventSource.CLOSED) {
-        console.error("Logs SSE connection closed");
-      }
-    });
-
-    // Store eventSource reference for cleanup if needed
-    (eventSource as any)._storeRef = eventSource;
+    // Return cleanup function
+    return () => {
+      clearInterval(intervalId);
+      set({ _logsPollingStarted: false });
+    };
   },
-  initMetricsSSE: () => {
-    if (get()._metricsSseStarted) return;
-    set({ _metricsSseStarted: true });
+  initMetricsPolling: () => {
+    if (get()._metricsPollingStarted) {
+      return () => {}; // Return no-op cleanup if already started
+    }
+    set({ _metricsPollingStarted: true });
 
-    const eventSource = new EventSource(`${config.BACKEND_URL}/metrics/stream`);
-    let initialBatchReceived = false;
-    let initialBatchCount = 0;
-    const INITIAL_BATCH_SIZE = 50; // Expected initial batch size
+    let lastId = 0;
+    let isInitialLoad = true;
 
-    // Mark initial batch as received after a timeout if we don't get enough metrics
-    // This handles cases where there are fewer metrics in the database
-    const initialBatchTimeout = setTimeout(() => {
-      if (!initialBatchReceived) {
-        initialBatchReceived = true;
-      }
-    }, 2000); // 2 second timeout
+    const fetchMetrics = async () => {
+      try {
+        const query: Record<string, string> = {
+          order_by: "id",
+          order: isInitialLoad ? "desc" : "asc",
+        };
 
-    const processMetricUpdate = (
-      newMetric: MetricsSelectType,
-      isInitialBatch = false
-    ) => {
-      // For initial batch, process immediately without throttling
-      if (isInitialBatch) {
-        get().addMetric(newMetric);
-        initialBatchCount++;
-        if (initialBatchCount >= INITIAL_BATCH_SIZE) {
-          clearTimeout(initialBatchTimeout);
-          initialBatchReceived = true;
+        if (isInitialLoad) {
+          // Initial load: fetch last 50 metrics
+          query.limit = "50";
+          query.offset = "0";
+        } else {
+          // Subsequent polls: fetch only new metrics
+          query.limit = "1000";
+          query.offset = "0";
+          if (lastId > 0) {
+            query.id__gt = lastId.toString();
+          }
         }
-        return;
-      }
 
-      // For subsequent updates, use throttling
-      const now = Date.now();
-      const state = get();
-
-      // If enough time has passed, update immediately
-      if (now - state._metricsLastUpdate >= METRICS_THROTTLE_MS) {
-        // Clear any pending timer
-        if (state._metricsThrottleTimer) {
-          clearTimeout(state._metricsThrottleTimer);
-        }
-        set({
-          _metricsLastUpdate: now,
-          _metricsPendingUpdate: null,
-          _metricsThrottleTimer: null,
-        });
-        get().addMetric(newMetric);
-      } else {
-        // Queue the update
-        set({ _metricsPendingUpdate: newMetric });
-
-        // Schedule update if not already scheduled
-        if (!state._metricsThrottleTimer) {
-          const delay = METRICS_THROTTLE_MS - (now - state._metricsLastUpdate);
-          const timer = setTimeout(() => {
-            const pending = get()._metricsPendingUpdate;
-            if (pending) {
-              set({
-                _metricsLastUpdate: Date.now(),
-                _metricsPendingUpdate: null,
-                _metricsThrottleTimer: null,
-              });
-              get().addMetric(pending);
+        const response = await (client as any).metrics.$get({ query });
+        if (response.ok) {
+          const data = (await response.json()) as {
+            data?: MetricsSelectType[];
+          };
+          if (data.data && data.data.length > 0) {
+            for (const metric of data.data) {
+              lastId = Math.max(lastId, metric.id);
+              get().addMetric(metric);
             }
-          }, delay);
-          set({ _metricsThrottleTimer: timer });
+
+            if (isInitialLoad) {
+              isInitialLoad = false;
+            }
+          }
         }
+      } catch (error) {
+        console.error("Failed to fetch metrics:", error);
       }
     };
 
-    eventSource.addEventListener("metric-update", (event: MessageEvent) => {
-      try {
-        const newMetric: MetricsSelectType = JSON.parse(event.data);
-        processMetricUpdate(newMetric, !initialBatchReceived);
-      } catch (error) {
-        console.error("Error parsing metric update:", error, event.data);
-      }
-    });
+    // Fetch immediately
+    fetchMetrics();
 
-    // Fallback message listener (in case events come without event type)
-    eventSource.addEventListener("message", (event: MessageEvent) => {
-      try {
-        const newMetric: MetricsSelectType = JSON.parse(event.data);
-        processMetricUpdate(newMetric, !initialBatchReceived);
-      } catch (error) {
-        console.error("Error parsing metric message:", error, event.data);
-      }
-    });
+    // Then poll every 2 seconds
+    const intervalId = setInterval(fetchMetrics, 2000);
 
-    eventSource.addEventListener("error", (error) => {
-      console.error("Metrics SSE connection error:", error);
-      // EventSource.CONNECTING = 0, EventSource.OPEN = 1, EventSource.CLOSED = 2
-      if (eventSource.readyState === EventSource.CLOSED) {
-        console.error("Metrics SSE connection closed");
-      }
-    });
-
-    // Store eventSource reference for cleanup if needed
-    (eventSource as any)._storeRef = eventSource;
+    // Return cleanup function
+    return () => {
+      clearInterval(intervalId);
+      set({ _metricsPollingStarted: false });
+    };
   },
   initInfoPolling: () => {
     if (get()._infoPollingStarted) {

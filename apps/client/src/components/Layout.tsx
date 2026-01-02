@@ -46,7 +46,7 @@ const navigation = [
 
 export default function DashboardLayout() {
   const location = useLocation();
-  const initLogsSSE = useAppStore((state) => state.initLogsSSE);
+  const initLogsPolling = useAppStore((state) => state.initLogsPolling);
   const initInfoPolling = useAppStore((state) => state.initInfoPolling);
   const initHealthPolling = useAppStore((state) => state.initHealthPolling);
   const apiInfo = useAppStore((state) => state.apiInfo);
@@ -61,10 +61,11 @@ export default function DashboardLayout() {
     prefersDark ? "dark" : "light"
   );
 
-  // Initialize SSE on mount - this ensures logs are available on all pages
+  // Initialize logs polling on mount - this ensures logs are available on all pages
   useEffect(() => {
-    initLogsSSE();
-  }, [initLogsSSE]);
+    const cleanup = initLogsPolling();
+    return cleanup;
+  }, [initLogsPolling]);
 
   // Initialize info polling on mount - polls every 5 seconds
   useEffect(() => {

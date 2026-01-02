@@ -6,12 +6,6 @@ import {
   responseSchema,
 } from "@/utils/helpers";
 import { logSelectSchema } from "@/db/models/logs";
-import { users as usersTable } from "@/db/models/users";
-import { createQueryBuilder } from "@/db/querybuilder";
-import { streamSSE } from "hono/streaming";
-import { db } from "@/db/db";
-import { logs } from "@/db/models/logs";
-import { gt, desc } from "drizzle-orm";
 
 const tags = ["Logs"];
 const basePath = "logs";
@@ -34,21 +28,4 @@ export const list = createRoute({
   },
 });
 
-export const stream = createRoute({
-  tags,
-  method: "get",
-  path: `${basePath}/stream`,
-  hide: true,
-  request: {},
-  responses: {
-    [HTTP_STATUS_CODES.OK]: {
-      description: "Stream logs",
-      content: {
-        "text/event-stream": { schema: logSelectSchema },
-      },
-    },
-  },
-});
-
 export type ListRoute = typeof list;
-export type StreamRoute = typeof stream;
