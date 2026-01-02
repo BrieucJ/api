@@ -27,7 +27,7 @@ export const requestSnapshots = pgTable("request_snapshots", {
   body: jsonb(),
   headers: jsonb(),
   userId: text(),
-  timestamp: timestamp().defaultNow(),
+  timestamp: timestamp({ mode: "date" }).defaultNow(),
   version: text().notNull(),
   stage: text().notNull(),
   statusCode: integer("status_code"),

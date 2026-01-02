@@ -1,0 +1,1 @@
+ALTER TABLE "request_snapshots" RENAME COLUMN "geo_source" TO "geoSource";

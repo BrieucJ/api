@@ -144,7 +144,7 @@ export function paginationWithOrderingSchema<T extends z.ZodObject<any>>(
       .number()
       .int()
       .min(1)
-      .max(100)
+      .max(1000)
       .openapi({
         param: {
           name: "limit",
@@ -177,7 +177,6 @@ Example usage:
 - ?created_at__between=2023-01-01,2023-12-31
   `),
   });
-  // .catchall(z.string().optional());
 }
 
 type NullableInfer<T extends ZodTypeAny | null> = T extends ZodTypeAny

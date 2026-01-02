@@ -11,8 +11,8 @@ import base from "./_base";
 extendZodWithOpenApi(z);
 
 export const metrics = pgTable("metrics", {
-  windowStart: timestamp("window_start").notNull(),
-  windowEnd: timestamp("window_end").notNull(),
+  windowStart: timestamp("window_start", { mode: "date" }).notNull(),
+  windowEnd: timestamp("window_end", { mode: "date" }).notNull(),
   endpoint: text().notNull(),
   p50Latency: integer("p50_latency").notNull(),
   p95Latency: integer("p95_latency").notNull(),
@@ -30,8 +30,18 @@ const p95LatencyField = z.number().int().min(0).openapi({ example: 120 });
 const p99LatencyField = z.number().int().min(0).openapi({ example: 200 });
 const errorRateField = z.number().min(0).max(1).openapi({ example: 0.02 });
 const trafficCountField = z.number().int().min(0).openapi({ example: 456 });
-const requestSizeField = z.number().int().min(0).nullable().openapi({ example: 1024 });
-const responseSizeField = z.number().int().min(0).nullable().openapi({ example: 2048 });
+const requestSizeField = z
+  .number()
+  .int()
+  .min(0)
+  .nullable()
+  .openapi({ example: 1024 });
+const responseSizeField = z
+  .number()
+  .int()
+  .min(0)
+  .nullable()
+  .openapi({ example: 2048 });
 
 export const metricsSelectSchema = createSelectSchema(metrics)
   .extend({
