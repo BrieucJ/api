@@ -15,6 +15,5 @@ export interface Scheduler {
     payload: unknown
   ): Promise<string>;
   unschedule(jobId: string): Promise<void>;
-  list(): CronJob[];
+  list(): CronJob[] | Promise<CronJob[]>;
 }
-

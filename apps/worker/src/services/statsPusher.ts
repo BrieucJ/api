@@ -2,11 +2,10 @@ import { workerStats } from "@shared/db";
 import { createQueryBuilder } from "@shared/db";
 import { logger } from "@/utils/logger";
 import { getQueue } from "@/queue";
-import { getScheduler } from "@/scheduler";
 import { getAllJobs } from "@/jobs/registry";
+import { defaultCronJobs } from "@/scheduler/jobs";
 import env from "@/env";
 import { LocalQueue } from "@/queue/local";
-import { LocalScheduler } from "@/scheduler/local";
 
 export class StatsPusher {
   private intervalId?: Timer;
@@ -14,7 +13,6 @@ export class StatsPusher {
   async pushStats(): Promise<void> {
     try {
       const queue = getQueue();
-      const scheduler = getScheduler();
       const availableJobsArray = getAllJobs();
 
       // Collect queue stats
@@ -25,11 +23,14 @@ export class StatsPusher {
         processingCount = queue.getProcessingCount();
       }
 
-      // Collect scheduler stats
-      let scheduledJobsArray: any[] = [];
-      if (scheduler instanceof LocalScheduler) {
-        scheduledJobsArray = scheduler.list();
-      }
+      // Use scheduled jobs from code (not querying EventBridge)
+      const scheduledJobsArray = defaultCronJobs.map((job) => ({
+        id: `worker-cron-${job.jobType}`,
+        cronExpression: job.cronExpression,
+        jobType: job.jobType,
+        payload: job.payload,
+        enabled: job.enabled,
+      }));
 
       // Prepare stats data
       const statsData = {
