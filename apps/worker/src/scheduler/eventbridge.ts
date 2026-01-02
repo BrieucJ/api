@@ -40,7 +40,8 @@ export class EventBridgeScheduler implements Scheduler {
     jobType: JobType,
     payload: unknown
   ): Promise<string> {
-    const ruleName = `${this.rulePrefix}-${crypto.randomUUID()}`;
+    // Use deterministic rule name based on job type (prevents duplicates)
+    const ruleName = `${this.rulePrefix}-${jobType}`;
 
     // Convert cron expression to EventBridge schedule expression
     // EventBridge uses rate() or cron() expressions
@@ -58,11 +59,11 @@ export class EventBridgeScheduler implements Scheduler {
       const putRuleResponse = await this.eventBridgeClient.send(putRuleCommand);
       const ruleArn = putRuleResponse.RuleArn!;
 
-      // Add Lambda permission for this specific rule
+      // Add Lambda permission for this specific rule (idempotent)
       try {
         const addPermissionCommand = new AddPermissionCommand({
           FunctionName: this.lambdaFunctionName,
-          StatementId: `${ruleName}-invoke`,
+          StatementId: `${ruleName}`,
           Action: "lambda:InvokeFunction",
           Principal: "events.amazonaws.com",
           SourceArn: ruleArn,
@@ -70,11 +71,12 @@ export class EventBridgeScheduler implements Scheduler {
         await this.lambdaClient.send(addPermissionCommand);
         logger.info("Added Lambda permission for rule", { ruleName, ruleArn });
       } catch (error: any) {
-        // Ignore if permission already exists
-        if (error.name !== "ResourceConflictException") {
+        // Permission already exists - this is fine, it means the rule was recreated
+        if (error.name === "ResourceConflictException") {
+          logger.debug("Lambda permission already exists", { ruleName });
+        } else {
           throw error;
         }
-        logger.debug("Lambda permission already exists", { ruleName });
       }
 
       // Add Lambda as target
@@ -126,7 +128,7 @@ export class EventBridgeScheduler implements Scheduler {
       try {
         const removePermissionCommand = new RemovePermissionCommand({
           FunctionName: this.lambdaFunctionName,
-          StatementId: `${jobId}-invoke`,
+          StatementId: `${jobId}`,
         });
         await this.lambdaClient.send(removePermissionCommand);
       } catch (error: any) {
