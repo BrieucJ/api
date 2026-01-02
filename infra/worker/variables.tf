@@ -38,3 +38,9 @@ variable "state_backend" {
   type        = string
   default     = ""
 }
+
+variable "image_tag" {
+  description = "Docker image tag (typically git SHA)"
+  type        = string
+  default     = ""
+}

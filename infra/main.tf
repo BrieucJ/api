@@ -29,6 +29,7 @@ module "worker" {
   worker_mode   = var.worker_mode
   log_level     = var.log_level
   port          = var.port
+  image_tag     = var.image_tag
 }
 
 # --- Lambda Module ---
@@ -41,6 +42,7 @@ module "lambda" {
   port                    = var.port
   worker_queue_arn        = module.worker.queue_arn
   worker_queue_url        = module.worker.queue_url
+  image_tag               = var.image_tag
 }
 
 # --- Client Module ---

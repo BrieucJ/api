@@ -30,6 +30,7 @@ jobs:
       TF_VAR_log_level: ${{ secrets.LOG_LEVEL || 'info' }}
       TF_VAR_port: ${{ secrets.PORT || '8080' }}
       TF_VAR_worker_mode: lambda
+      TF_VAR_image_tag: ${{ github.sha }}
 
     steps:
       - name: Checkout code
@@ -59,6 +60,38 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+      # Build and push Backend Lambda image
+      - name: Build and Push Backend Lambda Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          ENVIRONMENT: ${{ env.TF_VAR_environment }}
+        run: |
+          echo "::group::Building Backend Lambda Image"
+          echo "Building image with tag: $IMAGE_TAG"
+          docker build -t $ECR_REGISTRY/api-lambda-$ENVIRONMENT:$IMAGE_TAG \
+            -f .docker/Dockerfile.lambda .
+          echo "Pushing image to ECR..."
+          docker push $ECR_REGISTRY/api-lambda-$ENVIRONMENT:$IMAGE_TAG
+          echo "✅ Backend Lambda image pushed successfully"
+          echo "::endgroup::"
+
+      # Build and push Worker Lambda image
+      - name: Build and Push Worker Lambda Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          ENVIRONMENT: ${{ env.TF_VAR_environment }}
+        run: |
+          echo "::group::Building Worker Lambda Image"
+          echo "Building image with tag: $IMAGE_TAG"
+          docker build -t $ECR_REGISTRY/worker-$ENVIRONMENT:$IMAGE_TAG \
+            -f .docker/Dockerfile.worker .
+          echo "Pushing image to ECR..."
+          docker push $ECR_REGISTRY/worker-$ENVIRONMENT:$IMAGE_TAG
+          echo "✅ Worker Lambda image pushed successfully"
+          echo "::endgroup::"
 
       - name: Terraform Init
         working-directory: infra

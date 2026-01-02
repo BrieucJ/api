@@ -73,8 +73,10 @@ resource "aws_iam_role_policy" "sqs_policy" {
   })
 }
 
-# 3️⃣ Docker build & push
+# 3️⃣ Docker build & push (only runs if image_tag not provided, i.e., local deployment)
 resource "null_resource" "build_lambda_image" {
+  count = var.image_tag == "" ? 1 : 0
+
   triggers = {
     dockerfile_hash = filemd5("${path.module}/../../.docker/Dockerfile.lambda")
     environment     = var.environment
@@ -100,8 +102,10 @@ resource "null_resource" "build_lambda_image" {
 
 # 3.5️⃣ Verify image exists in ECR before creating Lambda
 resource "null_resource" "verify_lambda_image" {
+  count = var.image_tag == "" ? 1 : 0
+
   triggers = {
-    build_id = null_resource.build_lambda_image.id
+    build_id = null_resource.build_lambda_image[0].id
   }
 
   provisioner "local-exec" {
@@ -137,7 +141,7 @@ resource "aws_apigatewayv2_api" "api_gateway" {
 resource "aws_lambda_function" "api_lambda" {
   function_name = "${local.name}-apiLambda"
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.repo.repository_url}:${var.environment}"
+  image_uri     = "${aws_ecr_repository.repo.repository_url}:${var.image_tag != "" ? var.image_tag : var.environment}"
   role          = aws_iam_role.lambda_role.arn
   timeout       = 10
   memory_size   = 512
@@ -154,7 +158,8 @@ resource "aws_lambda_function" "api_lambda" {
     }
   }
 
-  depends_on = [null_resource.verify_lambda_image]
+  # Only depend on verification if we're building locally (no image_tag provided)
+  depends_on = var.image_tag == "" ? [null_resource.verify_lambda_image[0]] : []
 }
 
 # 6️⃣ API Gateway Integration

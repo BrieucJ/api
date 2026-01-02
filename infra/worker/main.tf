@@ -124,8 +124,10 @@ resource "aws_iam_role_policy" "eventbridge_policy" {
   })
 }
 
-# 4️⃣ Docker build & push
+# 4️⃣ Docker build & push (only runs if image_tag not provided, i.e., local deployment)
 resource "null_resource" "build_worker_image" {
+  count = var.image_tag == "" ? 1 : 0
+
   triggers = {
     dockerfile_hash = filemd5("${path.module}/../../.docker/Dockerfile.worker")
     environment     = var.environment
@@ -151,8 +153,10 @@ resource "null_resource" "build_worker_image" {
 
 # 4.5️⃣ Verify image exists in ECR before creating Lambda
 resource "null_resource" "verify_worker_image" {
+  count = var.image_tag == "" ? 1 : 0
+
   triggers = {
-    build_id = null_resource.build_worker_image.id
+    build_id = null_resource.build_worker_image[0].id
   }
 
   provisioner "local-exec" {
@@ -182,7 +186,7 @@ resource "null_resource" "verify_worker_image" {
 resource "aws_lambda_function" "worker_lambda" {
   function_name = "${local.name}-lambda"
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.repo.repository_url}:${var.environment}"
+  image_uri     = "${aws_ecr_repository.repo.repository_url}:${var.image_tag != "" ? var.image_tag : var.environment}"
   role          = aws_iam_role.lambda_role.arn
   timeout       = 900 # 15 minutes
   memory_size   = 512
@@ -199,7 +203,8 @@ resource "aws_lambda_function" "worker_lambda" {
     }
   }
 
-  depends_on = [null_resource.verify_worker_image]
+  # Only depend on verification if we're building locally (no image_tag provided)
+  depends_on = var.image_tag == "" ? [null_resource.verify_worker_image[0]] : []
 }
 
 # 6️⃣ SQS Event Source Mapping
