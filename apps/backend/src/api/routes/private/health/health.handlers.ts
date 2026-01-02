@@ -96,9 +96,8 @@ async function checkWorkerHealth() {
     logger.info("[Health] Executing worker stats query");
 
     const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
-    // Use getFirst - no COUNT query, just get the latest record
     const latestStat = await statsQuery.getFirst({
-      order_by: "id",
+      order_by: "last_heartbeat",
       order: "desc",
     });
     const queryTime = Date.now() - queryStart;

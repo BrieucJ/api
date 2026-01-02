@@ -51,7 +51,13 @@ export class StatsPusher {
 
       // Use querybuilder for database operations
       const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
-      const { data } = await statsQuery.list({ limit: 1 });
+
+      const { data } = await statsQuery.list({
+        filters: { worker_mode__eq: env.WORKER_MODE },
+        limit: 1,
+        order_by: "last_heartbeat",
+        order: "desc",
+      });
 
       if (data.length > 0 && data[0]) {
         // Update existing stats
