@@ -32,7 +32,7 @@ export class LocalScheduler implements Scheduler {
       cronExpression,
       async () => {
         try {
-          logger.info(`Executing scheduled job ${jobId}`, {
+          logger.info(`Executing scheduled job ${jobType}`, {
             jobId,
             jobType,
             cronExpression,
@@ -41,7 +41,7 @@ export class LocalScheduler implements Scheduler {
           const queue = getQueue();
           await queue.enqueue(jobType, payload);
         } catch (error) {
-          logger.error(`Failed to execute scheduled job ${jobId}`, {
+          logger.error(`Failed to execute scheduled job ${jobType}`, {
             jobId,
             jobType,
             error: error instanceof Error ? error.message : String(error),
@@ -58,7 +58,7 @@ export class LocalScheduler implements Scheduler {
     this.jobs.set(jobId, task);
     this.jobDefinitions.set(jobId, jobDefinition);
 
-    logger.info(`Scheduled job ${jobId}`, {
+    logger.info(`Scheduled job ${jobType}`, {
       jobId,
       jobType,
       cronExpression,
@@ -93,4 +93,3 @@ export class LocalScheduler implements Scheduler {
     logger.info("Stopped all scheduled jobs");
   }
 }
-

@@ -99,13 +99,6 @@ export class EventBridgeScheduler implements Scheduler {
 
       await this.eventBridgeClient.send(putTargetsCommand);
 
-      logger.info(`Scheduled job in EventBridge`, {
-        ruleName,
-        jobType,
-        scheduleExpression,
-        ruleArn,
-      });
-
       return ruleName;
     } catch (error) {
       logger.error("Failed to schedule job in EventBridge", {
@@ -146,8 +139,6 @@ export class EventBridgeScheduler implements Scheduler {
         Name: jobId,
       });
       await this.eventBridgeClient.send(deleteRuleCommand);
-
-      logger.info(`Unscheduled job in EventBridge`, { jobId });
     } catch (error) {
       logger.error("Failed to unschedule job in EventBridge", {
         jobId,

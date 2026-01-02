@@ -168,19 +168,41 @@ export const useAppStore = create<AppStore>((set, get) => ({
           }
         }
 
+        console.log(
+          "[LogsPolling] Fetching with query:",
+          query,
+          "lastId:",
+          lastId,
+          "isInitialLoad:",
+          isInitialLoad
+        );
         const response = await (client as any).logs.$get({ query });
         if (response.ok) {
           const data = (await response.json()) as { data?: LogSelectType[] };
+          console.log(
+            "[LogsPolling] Received",
+            data.data?.length || 0,
+            "logs",
+            data.data
+          );
           if (data.data && data.data.length > 0) {
             for (const log of data.data) {
               lastId = Math.max(lastId, log.id);
               get().addLog(log);
             }
+            console.log(
+              "[LogsPolling] After adding, total logs in store:",
+              get().logs.length,
+              "lastId:",
+              lastId
+            );
 
             if (isInitialLoad) {
               isInitialLoad = false;
             }
           }
+        } else {
+          console.error("[LogsPolling] Response not OK:", response.status);
         }
       } catch (error) {
         console.error("Failed to fetch logs:", error);
