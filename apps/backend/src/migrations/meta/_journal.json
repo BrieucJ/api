@@ -8,6 +8,13 @@
       "when": 1767397003509,
       "tag": "0000_white_sharon_carter",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767482104480,
+      "tag": "0001_soft_veda",
+      "breakpoints": true
     }
   ]
 }

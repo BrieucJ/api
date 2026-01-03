@@ -14,7 +14,7 @@ export const client = hc<AppType>(`${config.BACKEND_URL}/`, {
   init: {
     credentials: "include",
   },
-  fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+  fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
     // Add Authorization header if token exists
     const token = getAuthToken();
     const headers = new Headers(init?.headers);
@@ -23,9 +23,30 @@ export const client = hc<AppType>(`${config.BACKEND_URL}/`, {
       headers.set("Authorization", `Bearer ${token}`);
     }
 
-    return fetch(input, {
+    // Make the initial request
+    let response = await fetch(input, {
       ...init,
       headers,
     });
+
+    // If we get a 401 and have a refresh token, try to refresh
+    if (response.status === 401 && token) {
+      const state = useAuthStore.getState();
+      const refreshed = await state.refreshAccessToken();
+
+      if (refreshed) {
+        // Retry the original request with new token
+        const newToken = getAuthToken();
+        if (newToken) {
+          headers.set("Authorization", `Bearer ${newToken}`);
+          response = await fetch(input, {
+            ...init,
+            headers,
+          });
+        }
+      }
+    }
+
+    return response;
   },
 });

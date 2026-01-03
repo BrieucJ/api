@@ -13,9 +13,12 @@ const loginRequestSchema = z.object({
 
 // Login response schema
 const loginResponseSchema = z.object({
-  token: z
+  accessToken: z
     .string()
     .openapi({ example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }),
+  refreshToken: z
+    .string()
+    .openapi({ example: "a1b2c3d4e5f6..." }),
   user: userAuthSchema,
 });
 
@@ -103,6 +106,11 @@ export const me = createRoute({
   },
 });
 
+// Logout request schema
+const logoutRequestSchema = z.object({
+  refreshToken: z.string().optional().openapi({ example: "a1b2c3d4e5f6..." }),
+});
+
 // POST /auth/logout - Private (requires admin auth)
 export const logout = createRoute({
   tags,
@@ -110,8 +118,16 @@ export const logout = createRoute({
   path: "auth/logout",
   hide: true, // Not in OpenAPI
   summary: "Logout",
-  description: "Logout current user (client-side token removal)",
-  request: {},
+  description: "Logout current user and revoke refresh token",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: logoutRequestSchema,
+        },
+      },
+    },
+  },
   responses: {
     [HTTP_STATUS_CODES.OK]: responseSchema(
       "Logout successful",
@@ -129,6 +145,60 @@ export const logout = createRoute({
   },
 });
 
+// Refresh request schema
+const refreshRequestSchema = z.object({
+  refreshToken: z.string().min(1).openapi({ example: "a1b2c3d4e5f6..." }),
+});
+
+// Refresh response schema
+const refreshResponseSchema = z.object({
+  accessToken: z
+    .string()
+    .openapi({ example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }),
+  user: userAuthSchema,
+});
+
+// POST /auth/refresh - Public (no auth required, but needs refresh token)
+export const refresh = createRoute({
+  tags,
+  method: "post",
+  path: "auth/refresh",
+  hide: true, // Not in OpenAPI
+  summary: "Refresh access token",
+  description: "Exchange refresh token for new access token",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: refreshRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    [HTTP_STATUS_CODES.OK]: responseSchema(
+      "Token refreshed successfully",
+      refreshResponseSchema
+    ),
+    [HTTP_STATUS_CODES.UNAUTHORIZED]: responseSchema(
+      "Invalid or expired refresh token",
+      null,
+      z.object({
+        name: z.string(),
+        message: z.string(),
+      }),
+      null
+    ),
+    [HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY]: responseSchema(
+      "Validation error",
+      null,
+      createErrorSchema(refreshRequestSchema),
+      null
+    ),
+  },
+});
+
 export type LoginRoute = typeof login;
 export type MeRoute = typeof me;
 export type LogoutRoute = typeof logout;
+export type RefreshRoute = typeof refresh;

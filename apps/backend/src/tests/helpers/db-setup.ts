@@ -130,6 +130,9 @@ export async function setupTestDatabase(): Promise<void> {
  * Reset test database by truncating all tables
  */
 export async function resetTestDatabase(): Promise<void> {
+  // Suppress NOTICE messages during test cleanup
+  await db.execute(sql`SET client_min_messages TO 'warning'`);
+
   // Get all table names
   const tables = await db.execute(sql`
     SELECT tablename 

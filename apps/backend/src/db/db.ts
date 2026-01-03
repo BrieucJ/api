@@ -64,7 +64,26 @@ const client = postgres(process.env.DATABASE_URL!, {
   transform: {
     undefined: null, // Transform undefined to null for JSONB compatibility
   },
+  onnotice: () => {
+    // Suppress PostgreSQL NOTICE messages (like "truncate cascades to table")
+    // They're informational and clutter test output
+  },
+  connection: {
+    // Suppress NOTICE-level messages in test environment
+    ...(process.env.NODE_ENV === "test"
+      ? {
+          application_name: "api_test",
+        }
+      : {}),
+  },
 });
+
+// Suppress NOTICE messages in test environment
+if (process.env.NODE_ENV === "test") {
+  client.unsafe("SET client_min_messages TO 'warning'").catch(() => {
+    // Ignore errors if connection not ready yet
+  });
+}
 
 export const db = drizzle(client, {
   logger: {

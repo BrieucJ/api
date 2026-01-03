@@ -4,9 +4,19 @@ import { expand } from "dotenv-expand";
 import path from "node:path";
 import { z } from "zod";
 
-const appDir = import.meta?.dir
-  ? path.resolve(import.meta.dir, "..")
-  : process.cwd();
+// Safely get app directory, handling both ESM (Bun/runtime) and CJS (drizzle-kit) contexts
+let appDir: string;
+try {
+  // Try ESM import.meta (available in Bun and Node ESM)
+  if (typeof import.meta !== "undefined" && import.meta.dir) {
+    appDir = path.resolve(import.meta.dir, "..");
+  } else {
+    appDir = process.cwd();
+  }
+} catch {
+  // Fallback to process.cwd() if import.meta is not available (CJS context)
+  appDir = process.cwd();
+}
 
 const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 const isProductionOrStaging =
@@ -57,6 +67,8 @@ const BaseEnvSchema = z.object({
     .min(32, "JWT_SECRET must be at least 32 characters")
     .optional(),
   JWT_EXPIRES_IN: z.string().default("24h"),
+  JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
+  JWT_REFRESH_EXPIRES_IN_DAYS: z.coerce.number().default(7),
   REGION: z.string().optional(),
   SQS_QUEUE_URL: z.url().optional(),
   WORKER_URL: z.url().optional(),
@@ -67,7 +79,6 @@ const BaseEnvSchema = z.object({
 const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
   const isProduction = data.NODE_ENV === "production";
   const isStaging = data.NODE_ENV === "staging";
-  const isTest = data.NODE_ENV === "test";
 
   // In production/staging, SQS_QUEUE_URL is required
   if (isProduction || isStaging) {

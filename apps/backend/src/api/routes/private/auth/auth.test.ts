@@ -27,7 +27,10 @@ describe("Auth API", () => {
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body.data.token).toBeDefined();
+        // Check for both accessToken and refreshToken (new format)
+        // Also support old format (token) for backward compatibility
+        expect(body.data.accessToken || body.data.token).toBeDefined();
+        expect(body.data.refreshToken).toBeDefined();
         expect(body.data.user.email).toBe("login@test.com");
         expect(body.data.user.role).toBe("admin");
       })
@@ -139,6 +142,104 @@ describe("Auth API", () => {
     );
   });
 
+  describe("POST /auth/refresh", () => {
+    it(
+      "should refresh access token with valid refresh token",
+      withTransaction(async () => {
+        // First login to get refresh token
+        await createTestUser("refresh@test.com", "password123", "admin");
+
+        const loginRes = await client["/auth/login"].$post({
+          json: {
+            email: "refresh@test.com",
+            password: "password123",
+          },
+        });
+
+        const loginBody = await loginRes.json();
+        expect(loginRes.status).toBe(200);
+        const refreshToken = loginBody.data.refreshToken;
+        expect(refreshToken).toBeDefined();
+
+        // Now refresh the access token
+        const refreshRes = await client["/auth/refresh"].$post({
+          json: {
+            refreshToken,
+          },
+        });
+
+        const refreshBody = await refreshRes.json();
+
+        expect(refreshRes.status).toBe(200);
+        expect(refreshBody.data.accessToken).toBeDefined();
+        expect(refreshBody.data.user.email).toBe("refresh@test.com");
+      })
+    );
+
+    it(
+      "should reject invalid refresh token",
+      withTransaction(async () => {
+        const res = await client["/auth/refresh"].$post({
+          json: {
+            refreshToken: "invalid-token",
+          },
+        });
+
+        const body = await res.json();
+
+        expect(res.status).toBe(401);
+        expect(body.error).toBeDefined();
+        expect(body.error.message).toContain("Invalid");
+      })
+    );
+
+    it(
+      "should reject revoked refresh token",
+      withTransaction(async () => {
+        // Login to get tokens
+        await createTestUser("revoked@test.com", "password123", "admin");
+
+        const loginRes = await client["/auth/login"].$post({
+          json: {
+            email: "revoked@test.com",
+            password: "password123",
+          },
+        });
+
+        const loginBody = await loginRes.json();
+        const refreshToken = loginBody.data.refreshToken;
+        const accessToken = loginBody.data.accessToken || loginBody.data.token;
+
+        // Logout to revoke refresh token
+        await client["/auth/logout"].$post(
+          {
+            json: {
+              refreshToken,
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        // Try to refresh with revoked token
+        const refreshRes = await client["/auth/refresh"].$post({
+          json: {
+            refreshToken,
+          },
+        });
+
+        const refreshBody = await refreshRes.json();
+
+        expect(refreshRes.status).toBe(401);
+        expect(refreshBody.error).toBeDefined();
+        expect(refreshBody.error.message).toContain("Invalid");
+      })
+    );
+  });
+
   describe("POST /auth/logout", () => {
     it(
       "should return success on logout",
@@ -162,6 +263,53 @@ describe("Auth API", () => {
 
         expect(res.status).toBe(200);
         expect(body.data.success).toBe(true);
+      })
+    );
+
+    it(
+      "should revoke refresh token on logout",
+      withTransaction(async () => {
+        // Login to get tokens
+        await createTestUser("logout2@test.com", "password123", "admin");
+
+        const loginRes = await client["/auth/login"].$post({
+          json: {
+            email: "logout2@test.com",
+            password: "password123",
+          },
+        });
+
+        const loginBody = await loginRes.json();
+        const refreshToken = loginBody.data.refreshToken;
+        const accessToken = loginBody.data.accessToken || loginBody.data.token;
+
+        // Logout with refresh token
+        const logoutRes = await client["/auth/logout"].$post(
+          {
+            json: {
+              refreshToken,
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        const logoutBody = await logoutRes.json();
+
+        expect(logoutRes.status).toBe(200);
+        expect(logoutBody.data.success).toBe(true);
+
+        // Verify refresh token is revoked
+        const refreshRes = await client["/auth/refresh"].$post({
+          json: {
+            refreshToken,
+          },
+        });
+
+        expect(refreshRes.status).toBe(401);
       })
     );
   });

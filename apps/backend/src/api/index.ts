@@ -68,8 +68,8 @@ app.use("/*", async (c, next) => {
     await next();
     return;
   }
-  // Skip auth for /auth/login (public endpoint)
-  if (c.req.path === "/auth/login") {
+  // Skip auth for /auth/login and /auth/refresh (public endpoints)
+  if (c.req.path === "/auth/login" || c.req.path === "/auth/refresh") {
     await next();
     return;
   }
