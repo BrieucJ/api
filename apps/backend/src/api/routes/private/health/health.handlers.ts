@@ -107,10 +107,13 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
                 : "Worker health check failed",
           };
 
+    // API status is independent from worker status
+    // Status is based only on database health and response time
     let status: "healthy" | "unhealthy" | "degraded";
     if (dbHealth.status === "unhealthy") {
       status = "unhealthy";
-    } else if (workerHealth.status !== "healthy") {
+    } else if (dbHealth.responseTime > 1000) {
+      // Degraded if database response time exceeds 1 second
       status = "degraded";
     } else {
       status = "healthy";

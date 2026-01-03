@@ -14,13 +14,7 @@ coverage
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # dotenv environment variable files
-.env
-.env.*
-
-# Environment-specific config files (contain secrets)
-.env.dev
-.env.staging
-.env.production
+.env*
 
 # caches
 .eslintcache
