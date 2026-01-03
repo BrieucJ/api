@@ -97,6 +97,15 @@ jobs:
             apps/client/coverage/
           retention-days: 7
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./apps/backend/coverage/lcov.info,./apps/client/coverage/lcov.info
+          flags: backend,client
+          name: codecov-umbrella
+        continue-on-error: true
+
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
