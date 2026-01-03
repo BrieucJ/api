@@ -9,6 +9,7 @@ import type {
 } from "./users.routes";
 import { users as usersTable } from "@/db/models/users";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
+import { hashPassword } from "@/utils/password";
 
 const userQuery = createQueryBuilder<typeof usersTable>(usersTable);
 
@@ -56,7 +57,7 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
   const { password, ...rest } = input;
 
   // Hash the password before storing
-  const password_hash = await Bun.password.hash(password);
+  const password_hash = await hashPassword(password);
 
   // Create user with hashed password
   const created = await userQuery.create({
@@ -81,7 +82,7 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
 
   // If password is provided, hash it before updating
   const updateData = password
-    ? { ...rest, password_hash: await Bun.password.hash(password) }
+    ? { ...rest, password_hash: await hashPassword(password) }
     : rest;
 
   const updated = await userQuery.update(id, updateData);

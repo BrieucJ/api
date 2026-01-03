@@ -4,6 +4,7 @@ import { createQueryBuilder } from "@/db/querybuilder";
 import { users as usersTable } from "@/db/models/users";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import { signToken } from "@/utils/jwt";
+import { verifyPassword } from "@/utils/password";
 import { db } from "@/db/db";
 import { eq, isNull, and } from "drizzle-orm";
 
@@ -46,11 +47,8 @@ export const login: AppRouteHandler<LoginRoute> = async (c) => {
     );
   }
 
-  // Verify password using Bun's built-in password verification
-  const isValidPassword = await Bun.password.verify(
-    password,
-    user.password_hash
-  );
+  // Verify password using cross-platform password verification
+  const isValidPassword = await verifyPassword(password, user.password_hash);
 
   if (!isValidPassword) {
     return c.json(
