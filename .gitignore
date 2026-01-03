@@ -18,9 +18,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .env.*
 
 # Environment-specific config files (contain secrets)
-env.dev
-env.staging
-env.production
+.env.dev
+.env.staging
+.env.production
 
 # caches
 .eslintcache
