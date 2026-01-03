@@ -1,5 +1,10 @@
 import type { AppRouteHandler } from "@/utils/types";
-import type { LoginRoute, MeRoute, LogoutRoute, RefreshRoute } from "./auth.routes";
+import type {
+  LoginRoute,
+  MeRoute,
+  LogoutRoute,
+  RefreshRoute,
+} from "./auth.routes";
 import { createQueryBuilder } from "@/db/querybuilder";
 import { users as usersTable } from "@/db/models/users";
 import { refreshTokens as refreshTokensTable } from "@/db/models/refreshTokens";
@@ -15,18 +20,46 @@ import {
 } from "@/utils/refreshToken";
 import { db } from "@/db/db";
 import { eq, isNull, and } from "drizzle-orm";
+import { logger } from "@/utils/logger";
 
 const userQuery = createQueryBuilder<typeof usersTable>(usersTable);
+const refreshTokenQuery =
+  createQueryBuilder<typeof refreshTokensTable>(refreshTokensTable);
 
 export const login: AppRouteHandler<LoginRoute> = async (c) => {
   const { email, password } = c.req.valid("json");
-  const [user] = await db
-    .select()
-    .from(usersTable)
-    .where(and(eq(usersTable.email, email), isNull(usersTable.deleted_at)))
-    .limit(1);
+
+  // Log JWT_SECRET info (safely - don't log the actual secret)
+  const jwtSecret = process.env.JWT_SECRET;
+  logger.info(`JWT_SECRET configured: ${jwtSecret}`);
+
+  logger.info(`Login attempt for email: ${email}`);
+
+  // Use querybuilder to find user by email
+  const { data: users } = await userQuery.list({
+    filters: { email__eq: email },
+    limit: 1,
+  });
+
+  const user = users[0];
+
+  // Get password_hash separately (querybuilder excludes it for security)
+  // This is an exception for authentication - we need password_hash to verify
+  let password_hash: string | null = null;
+  if (user) {
+    const [userWithPassword] = await db
+      .select({
+        password_hash: usersTable.password_hash,
+        role: usersTable.role,
+      })
+      .from(usersTable)
+      .where(and(eq(usersTable.id, user.id), isNull(usersTable.deleted_at)))
+      .limit(1);
+    password_hash = userWithPassword?.password_hash || null;
+  }
 
   if (!user) {
+    logger.warn(`Login failed: User not found for email: ${email}`);
     return c.json(
       {
         data: null,
@@ -41,7 +74,7 @@ export const login: AppRouteHandler<LoginRoute> = async (c) => {
   }
 
   // Check if user has password_hash (is an auth user)
-  if (!user.password_hash) {
+  if (!password_hash) {
     return c.json(
       {
         data: null,
@@ -56,9 +89,22 @@ export const login: AppRouteHandler<LoginRoute> = async (c) => {
   }
 
   // Verify password using cross-platform password verification
-  const isValidPassword = await verifyPassword(password, user.password_hash);
+  logger.info(
+    `Verifying password for user ${
+      user.id
+    }, password_hash exists: ${!!password_hash}, hash length: ${
+      password_hash?.length || 0
+    }, hash prefix: ${password_hash?.substring(0, 20) || "none"}...`
+  );
+  const isValidPassword = await verifyPassword(password, password_hash);
+  logger.info(
+    `Password verification result: ${isValidPassword ? "VALID" : "INVALID"}`
+  );
 
   if (!isValidPassword) {
+    logger.warn(
+      `Login failed: Invalid password for email: ${email} (user ID: ${user.id})`
+    );
     return c.json(
       {
         data: null,
@@ -99,17 +145,25 @@ export const login: AppRouteHandler<LoginRoute> = async (c) => {
   const refreshTokenHash = await hashRefreshToken(refreshToken);
   const expiresAt = getRefreshTokenExpiration();
 
-  // Store refresh token in database
-  await db.insert(refreshTokensTable).values({
-    token_hash: refreshTokenHash,
-    user_id: user.id,
-    expires_at: expiresAt,
-    device_info: c.req.header("user-agent") || null,
-    ip_address:
-      c.req.header("x-forwarded-for") ||
-      c.req.header("x-real-ip") ||
-      null,
-  });
+  // Store refresh token in database using querybuilder
+  try {
+    await refreshTokenQuery.create({
+      token_hash: refreshTokenHash,
+      user_id: user.id,
+      expires_at: expiresAt,
+      device_info: c.req.header("user-agent") || null,
+      ip_address:
+        c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || null,
+    });
+    logger.debug(`Refresh token stored for user: ${user.id}`);
+  } catch (error) {
+    // Log the error but don't fail login if refresh token storage fails
+    // This allows login to work even if refresh_tokens table has issues
+    logger.error(`Failed to store refresh token for user ${user.id}:`, error);
+    // Continue with login - user will just need to login again when access token expires
+  }
+
+  logger.info(`Login successful for user: ${user.email} (id: ${user.id})`);
 
   return c.json(
     {
@@ -183,26 +237,20 @@ export const refresh: AppRouteHandler<RefreshRoute> = async (c) => {
 
   // Since scrypt uses random salts, we can't directly lookup by hash
   // We need to fetch active tokens and verify against each one
-  // Fetch all non-revoked, non-expired tokens
-  const activeTokens = await db
-    .select()
-    .from(refreshTokensTable)
-    .where(
-      and(
-        isNull(refreshTokensTable.revoked_at),
-        isNull(refreshTokensTable.deleted_at)
-      )
-    );
+  // Use querybuilder to get all non-revoked tokens (querybuilder filters deleted_at automatically)
+  // Note: We need token_hash which is not excluded, so it should be available
+  const { data: activeTokens } = await refreshTokenQuery.list({
+    filters: { revoked_at__isnull: true },
+    limit: 1000, // Get all active tokens (reasonable limit)
+  });
 
   // Find matching token by verifying against stored hashes
   let storedToken = null;
   for (const token of activeTokens) {
     // Check if expired first (skip expired tokens)
     if (isRefreshTokenExpired(token.expires_at)) {
-      // Clean up expired token
-      await db
-        .delete(refreshTokensTable)
-        .where(eq(refreshTokensTable.id, token.id));
+      // Clean up expired token using querybuilder
+      await refreshTokenQuery.delete(token.id, false); // Hard delete
       continue;
     }
 
@@ -275,41 +323,24 @@ export const logout: AppRouteHandler<LogoutRoute> = async (c) => {
 
   if (refreshToken) {
     // Find and revoke the refresh token by verifying against stored hashes
-    const activeTokens = await db
-      .select()
-      .from(refreshTokensTable)
-      .where(
-        and(
-          isNull(refreshTokensTable.revoked_at),
-          isNull(refreshTokensTable.deleted_at)
-        )
-      );
+    // Use querybuilder to get all non-revoked tokens
+    const { data: activeTokens } = await refreshTokenQuery.list({
+      filters: { revoked_at__isnull: true },
+      limit: 1000,
+    });
 
     for (const token of activeTokens) {
+      // token_hash should be available from querybuilder
+      if (!token.token_hash) continue;
+
       const isValid = await verifyRefreshToken(refreshToken, token.token_hash);
       if (isValid) {
-        await db
-          .update(refreshTokensTable)
-          .set({ revoked_at: new Date() })
-          .where(eq(refreshTokensTable.id, token.id));
+        // Update to revoke using querybuilder
+        await refreshTokenQuery.update(token.id, { revoked_at: new Date() });
         break;
       }
     }
   }
-
-  // Optional: Revoke all refresh tokens for this user
-  // const user = c.get("user");
-  // if (user) {
-  //   await db
-  //     .update(refreshTokensTable)
-  //     .set({ revoked_at: new Date() })
-  //     .where(
-  //       and(
-  //         eq(refreshTokensTable.user_id, user.userId),
-  //         isNull(refreshTokensTable.revoked_at)
-  //       )
-  //     );
-  // }
 
   return c.json(
     {

@@ -287,6 +287,8 @@ export function createApp() {
   app.use(metrics);
   app.use(snapshot);
   app.use("/api/v1/*", logging);
+  // Also apply logging to auth routes for debugging
+  app.use("/auth/*", logging);
   return app;
 }
 

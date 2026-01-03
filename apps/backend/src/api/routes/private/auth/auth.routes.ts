@@ -16,9 +16,7 @@ const loginResponseSchema = z.object({
   accessToken: z
     .string()
     .openapi({ example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }),
-  refreshToken: z
-    .string()
-    .openapi({ example: "a1b2c3d4e5f6..." }),
+  refreshToken: z.string().openapi({ example: "a1b2c3d4e5f6..." }),
   user: userAuthSchema,
 });
 
@@ -182,6 +180,15 @@ export const refresh = createRoute({
     ),
     [HTTP_STATUS_CODES.UNAUTHORIZED]: responseSchema(
       "Invalid or expired refresh token",
+      null,
+      z.object({
+        name: z.string(),
+        message: z.string(),
+      }),
+      null
+    ),
+    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
+      "User not found",
       null,
       z.object({
         name: z.string(),
