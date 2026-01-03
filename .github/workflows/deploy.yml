@@ -99,6 +99,8 @@ jobs:
         working-directory: apps/backend
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SQS_QUEUE_URL: dummy-sqs-queue-url
+          REGION: ${{ secrets.REGION }}
           JWT_SECRET: ${{ secrets.JWT_SECRET  }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
           NODE_ENV: ${{ env.TF_VAR_environment }}
