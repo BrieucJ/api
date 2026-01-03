@@ -12,33 +12,37 @@ const appDir = import.meta?.dir
   : process.cwd();
 
 // Load environment-specific file based on NODE_ENV
-let envPath: string;
-if (process.env.NODE_ENV === "test") {
-  envPath = path.resolve(appDir, ".env.test");
-} else if (process.env.NODE_ENV === "production") {
-  envPath = path.resolve(appDir, ".env.production");
-} else if (process.env.NODE_ENV === "staging") {
-  envPath = path.resolve(appDir, ".env.staging");
-} else {
-  // Default to .env.dev for development
-  const envDevPath = path.resolve(appDir, ".env.dev");
-  const envPathLegacy = path.resolve(appDir, ".env");
-  envPath = envDevPath;
-  // Also try loading .env as fallback
+// Skip loading .env files in Lambda (AWS_LAMBDA_FUNCTION_NAME is set) or when running in production/staging
+// In these environments, all variables should come from Lambda environment variables
+const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const isProductionOrStaging =
+  process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
+
+if (!isLambda && !isProductionOrStaging) {
+  let envPath: string;
+  if (process.env.NODE_ENV === "test") {
+    envPath = path.resolve(appDir, ".env.test");
+  } else {
+    // Default to .env.dev for development
+    const envDevPath = path.resolve(appDir, ".env.dev");
+    const envPathLegacy = path.resolve(appDir, ".env");
+    envPath = envDevPath;
+    // Also try loading .env as fallback
+    expand(
+      config({
+        path: envPathLegacy,
+        quiet: true,
+      })
+    );
+  }
+
   expand(
     config({
-      path: envPathLegacy,
+      path: envPath,
       quiet: true,
     })
   );
 }
-
-expand(
-  config({
-    path: envPath,
-    quiet: true,
-  })
-);
 
 // Base schema with common fields
 const BaseEnvSchema = z.object({
