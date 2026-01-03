@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "test": "LOG_LEVEL=silent bun test tests"
+    "test": "LOG_LEVEL=silent bun test src"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.159",

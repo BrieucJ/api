@@ -1,0 +1,13 @@
+[test]
+# Coverage settings
+coverage = true
+coverage-dir = "./coverage"
+coverage-reporter = ["text", "html", "lcov"]
+coverageSkipTestFiles = true
+
+# Test timeout
+timeout = 30000
+
+# Preload test environment
+preload = ["./src/tests/setup.ts"]
+

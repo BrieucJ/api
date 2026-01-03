@@ -1,0 +1,74 @@
+# Co-located Tests Rule
+
+## Test File Location
+
+**All test files must be co-located next to the source files they test.**
+
+### Pattern
+
+- Test files should be placed in the same directory as the source file they test
+- Test files must use the `.test.ts` extension
+- Test files should be named after the source file they test
+
+### Examples
+
+✅ **Correct:**
+```
+src/jobs/handlers/processRawMetrics.ts
+src/jobs/handlers/processRawMetrics.test.ts
+
+src/queue/local.ts
+src/queue/local.test.ts
+
+src/services/statsPusher.ts
+src/services/statsPusher.test.ts
+```
+
+❌ **Incorrect:**
+```
+src/jobs/handlers/processRawMetrics.ts
+tests/jobs/handlers/processRawMetrics.test.ts  # Separate tests directory
+
+src/queue/local.ts
+tests/queue/local.test.ts  # Separate tests directory
+```
+
+### Test Helpers
+
+Test helpers and setup files should be placed in `src/tests/`:
+
+```
+src/tests/setup.ts                    # Global test setup
+src/tests/helpers/db-setup.ts         # Database setup helpers
+src/tests/helpers/test-helpers.ts     # Test utility functions
+```
+
+### Import Paths
+
+When importing test helpers from co-located tests, use the `@/tests/` alias:
+
+```typescript
+import { resetTestDatabase } from "@/tests/helpers/db-setup";
+import { withTransaction } from "@/tests/helpers/test-helpers";
+```
+
+### Test Script
+
+The test script should run tests from the `src` directory:
+
+```json
+{
+  "scripts": {
+    "test": "LOG_LEVEL=silent bun test src"
+  }
+}
+```
+
+Bun will automatically discover all `.test.ts` files recursively in the `src` directory.
+
+### Benefits
+
+1. **Better discoverability**: Tests are immediately visible next to the code they test
+2. **Easier refactoring**: Moving a file also moves its tests
+3. **Clearer ownership**: It's obvious which tests belong to which files
+4. **Simpler imports**: Relative imports are shorter and clearer

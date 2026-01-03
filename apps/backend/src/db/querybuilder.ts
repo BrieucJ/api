@@ -35,6 +35,8 @@ import {
   PgInteger,
   PgBigInt53,
   PgBoolean,
+  PgText,
+  PgVarchar,
 } from "drizzle-orm/pg-core";
 import { stringToVector, generateRowEmbedding } from "@/utils/encode";
 
@@ -203,11 +205,26 @@ export function createQueryBuilder<T extends Table>(table: T) {
         const distance = cosineDistance(columns.embedding, searchVector);
         const searchPattern = `%${search}%`;
 
-        // Find text-searchable columns (message, source, level for logs)
+        // Find text-searchable columns automatically by type
         const textSearchableColumns: Column<any>[] = [];
-        if (columns.message) textSearchableColumns.push(columns.message);
-        if (columns.source) textSearchableColumns.push(columns.source);
-        if (columns.level) textSearchableColumns.push(columns.level);
+        const excludedFromSearch = [
+          "id",
+          "embedding",
+          "deleted_at",
+          "password_hash",
+          "created_at",
+          "updated_at",
+        ];
+
+        for (const [fieldName, col] of Object.entries(columns)) {
+          // Skip excluded columns
+          if (excludedFromSearch.includes(fieldName)) continue;
+
+          // Check if column is a text type (PgText or PgVarchar)
+          if (col instanceof PgText || col instanceof PgVarchar) {
+            textSearchableColumns.push(col);
+          }
+        }
 
         // Build keyword search conditions (ILIKE for case-insensitive)
         // Use OR to combine multiple column searches
