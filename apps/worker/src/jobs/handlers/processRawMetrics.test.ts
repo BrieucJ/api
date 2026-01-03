@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { processRawMetrics } from "@/jobs/handlers/processRawMetrics";
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
-import { withTransaction } from "@/tests/helpers/test-helpers";
+import { withTransaction, retryUntil } from "@/tests/helpers/test-helpers";
 import { metrics } from "@shared/db";
 import { createQueryBuilder } from "@shared/db";
 
@@ -45,11 +45,20 @@ describe("Process Raw Metrics Handler", () => {
 
       await processRawMetrics(payload);
 
-      // Check if metrics were created
-      const { data } = await metricsQuery.list({
-        filters: { endpoint__eq: "/api/v1/users" },
-        limit: 10,
-      });
+      // Retry query to handle CI timing issues
+      const { data } = await retryUntil(
+        async () => {
+          const result = await metricsQuery.list({
+            filters: { endpoint__eq: "/api/v1/users" },
+            limit: 10,
+          });
+          if (result.data.length === 0) {
+            throw new Error("No metrics found yet");
+          }
+          return result;
+        },
+        { maxAttempts: 10, delayMs: 100 }
+      );
 
       expect(data.length).toBeGreaterThan(0);
       const metric = data[0];
@@ -90,10 +99,20 @@ describe("Process Raw Metrics Handler", () => {
 
       await processRawMetrics(payload);
 
-      const { data } = await metricsQuery.list({
-        filters: { endpoint__eq: "/api/v1/test" },
-        limit: 1,
-      });
+      // Retry query to handle CI timing issues
+      const { data } = await retryUntil(
+        async () => {
+          const result = await metricsQuery.list({
+            filters: { endpoint__eq: "/api/v1/test" },
+            limit: 1,
+          });
+          if (result.data.length === 0) {
+            throw new Error("No metrics found yet");
+          }
+          return result;
+        },
+        { maxAttempts: 10, delayMs: 100 }
+      );
 
       expect(data.length).toBeGreaterThan(0);
       const metric = data[0];
@@ -174,10 +193,20 @@ describe("Process Raw Metrics Handler", () => {
 
       await processRawMetrics(payload);
 
-      const { data } = await metricsQuery.list({
-        filters: { endpoint__eq: "/api/v1/test" },
-        limit: 1,
-      });
+      // Retry query to handle CI timing issues
+      const { data } = await retryUntil(
+        async () => {
+          const result = await metricsQuery.list({
+            filters: { endpoint__eq: "/api/v1/test" },
+            limit: 1,
+          });
+          if (result.data.length === 0) {
+            throw new Error("No metrics found yet");
+          }
+          return result;
+        },
+        { maxAttempts: 10, delayMs: 100 }
+      );
 
       expect(data.length).toBeGreaterThan(0);
       const metric = data[0];

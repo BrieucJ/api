@@ -1,8 +1,6 @@
 import { logger } from "@/utils/logger";
-import { db } from "@/db/db";
-import { metrics, metricsInsertSchema } from "@shared/db";
-import { generateRowEmbedding } from "@shared/utils";
-import type { ProcessRawMetricsPayload, RawMetric } from "../types";
+import { metrics, createQueryBuilder } from "@shared/db";
+import type { ProcessRawMetricsPayload } from "../types";
 
 const METRICS_WINDOW_SECONDS = 60;
 
@@ -187,7 +185,9 @@ export async function processRawMetrics(
       return insertData;
     });
 
-    // Insert aggregated metrics into database
+    // Insert aggregated metrics into database using querybuilder
+    const metricsQuery = createQueryBuilder<typeof metrics>(metrics);
+
     for (const data of inserts) {
       // Log before insert
       logger.debug("ABOUT TO INSERT", {
@@ -207,16 +207,8 @@ export async function processRawMetrics(
       }
 
       try {
-        const insertValues = {
-          ...data,
-          embedding: generateRowEmbedding(data),
-        };
-
-        logger.debug("Insert values error_rate", {
-          error_rate: insertValues.error_rate,
-        });
-
-        const result = await db.insert(metrics).values(insertValues);
+        // Querybuilder automatically handles embedding generation
+        await metricsQuery.create(data as any);
 
         // Log after successful insert
         logger.debug("SUCCESSFULLY INSERTED", {
