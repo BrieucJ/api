@@ -72,7 +72,8 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
   const isTest = data.NODE_ENV === "test";
 
   // JWT_SECRET is required in all environments except test
-  if (!isTest && !data.JWT_SECRET) {
+  // Check for undefined, null, or empty string
+  if (!isTest && (!data.JWT_SECRET || data.JWT_SECRET.trim() === "")) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "JWT_SECRET is required in non-test environments",
