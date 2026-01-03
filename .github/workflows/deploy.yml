@@ -99,7 +99,7 @@ jobs:
         working-directory: apps/backend
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SQS_QUEUE_URL: dummy-sqs-queue-url
+          SQS_QUEUE_URL: https://sqs.eu-west-3.amazonaws.com/123456789012/dummy-queue-for-migrations
           REGION: ${{ secrets.REGION }}
           JWT_SECRET: ${{ secrets.JWT_SECRET  }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
