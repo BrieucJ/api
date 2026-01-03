@@ -54,7 +54,10 @@ const BaseEnvSchema = z.object({
     "silent",
   ]),
   DATABASE_URL: z.url(),
-  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
+  JWT_SECRET: z
+    .string()
+    .min(32, "JWT_SECRET must be at least 32 characters")
+    .optional(),
   JWT_EXPIRES_IN: z.string().default("24h"),
   REGION: z.string().optional(),
   SQS_QUEUE_URL: z.url().optional(),
@@ -66,6 +69,16 @@ const BaseEnvSchema = z.object({
 const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
   const isProduction = data.NODE_ENV === "production";
   const isStaging = data.NODE_ENV === "staging";
+  const isTest = data.NODE_ENV === "test";
+
+  // JWT_SECRET is required in all environments except test
+  if (!isTest && !data.JWT_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "JWT_SECRET is required in non-test environments",
+      path: ["JWT_SECRET"],
+    });
+  }
 
   // In production/staging, SQS_QUEUE_URL is required
   if (isProduction || isStaging) {
@@ -97,4 +110,14 @@ if (error) {
   process.exit(1);
 }
 
-export default env!;
+// Provide default JWT_SECRET for test environments
+const envWithDefaults = {
+  ...env!,
+  JWT_SECRET:
+    env!.JWT_SECRET ||
+    (env!.NODE_ENV === "test"
+      ? "test-jwt-secret-key-for-testing-only-min-32-chars"
+      : env!.JWT_SECRET),
+};
+
+export default envWithDefaults as env & { JWT_SECRET: string };

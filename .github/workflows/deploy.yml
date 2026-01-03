@@ -1,13 +1,8 @@
 name: Deploy
 
 on:
-  workflow_run:
-    workflows: ["Tests"]
-    types:
-      - completed
-    branches:
-      - production
-      - staging
+  push:
+    branches: [staging, production]
   workflow_dispatch:
     inputs:
       environment:
@@ -22,31 +17,105 @@ env:
   AWS_REGION: "eu-west-3"
 
 jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Setup test database
+        working-directory: apps/backend
+        run: bun run test:db:setup
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/api_test
+          JWT_SECRET: test-jwt-secret-key-minimum-32-characters-long-for-testing
+          LOG_LEVEL: silent
+
+      - name: Run backend tests
+        working-directory: apps/backend
+        run: bun run test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/api_test
+          JWT_SECRET: test-jwt-secret-key-minimum-32-characters-long-for-testing
+          LOG_LEVEL: silent
+
+      - name: Run worker tests
+        working-directory: apps/worker
+        run: bun run test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/api_test
+          LOG_LEVEL: silent
+
+      - name: Run frontend tests
+        working-directory: apps/client
+        run: bun run test
+
+      - name: Generate coverage reports
+        working-directory: apps/backend
+        run: bun run test:coverage
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/api_test
+          JWT_SECRET: test-jwt-secret-key-minimum-32-characters-long-for-testing
+          LOG_LEVEL: silent
+        continue-on-error: true
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            apps/backend/coverage/
+            apps/client/coverage/
+          retention-days: 7
+
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    # Only deploy if tests passed (when triggered by workflow_run) or manual dispatch
-    if: |
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
-    environment: ${{ github.event.inputs.environment || github.event.workflow_run.head_branch || github.ref_name }}
+    needs: test # Deploy only runs after test succeeds
+    environment: ${{ github.event.inputs.environment || github.ref_name }}
     env:
-      TF_VAR_environment: ${{ github.event.inputs.environment || github.event.workflow_run.head_branch || github.ref_name }}
+      TF_VAR_environment: ${{ github.event.inputs.environment || github.ref_name }}
       TF_VAR_region: ${{ secrets.REGION }}
       TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
       TF_VAR_log_level: ${{ secrets.LOG_LEVEL || 'info' }}
       TF_VAR_port: ${{ secrets.PORT || '8080' }}
       TF_VAR_worker_mode: lambda
-      TF_VAR_image_tag: ${{ github.event.workflow_run.head_sha || github.sha }}
+      TF_VAR_image_tag: ${{ github.sha }}
       TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
       TF_VAR_jwt_expires_in: ${{ secrets.JWT_EXPIRES_IN || '24h' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        # Use the commit from the test workflow run if triggered by workflow_run
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -77,7 +146,7 @@ jobs:
       - name: Build and Push Backend Lambda Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
+          IMAGE_TAG: ${{ github.sha }}
           ENVIRONMENT: ${{ env.TF_VAR_environment }}
         run: |
           echo "::group::Building Backend Lambda Image"
@@ -93,7 +162,7 @@ jobs:
       - name: Build and Push Worker Lambda Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
+          IMAGE_TAG: ${{ github.sha }}
           ENVIRONMENT: ${{ env.TF_VAR_environment }}
         run: |
           echo "::group::Building Worker Lambda Image"
@@ -132,6 +201,7 @@ jobs:
       - name: Terraform Apply
         working-directory: infra
         run: terraform apply -auto-approve -input=false tfplan
+
       - name: Initialize Worker Lambda (Schedule Cron Jobs)
         run: |
           echo "🔄 Invoking worker Lambda to initialize cron jobs..."
