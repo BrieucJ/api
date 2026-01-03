@@ -56,7 +56,7 @@ jobs:
           JWT_SECRET: test-jwt-secret-key-minimum-32-characters-long-for-testing
           LOG_LEVEL: silent
 
-      - name: Run backend tests with coverage
+      - name: Run backend tests
         working-directory: apps/backend
         run: bun run test:coverage
         env:
@@ -65,7 +65,7 @@ jobs:
           JWT_SECRET: test-jwt-secret-key-minimum-32-characters-long-for-testing
           LOG_LEVEL: silent
 
-      - name: Run worker tests with coverage
+      - name: Run worker tests
         working-directory: apps/worker
         run: bun run test:coverage
         env:
@@ -73,9 +73,9 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/api_test
           LOG_LEVEL: silent
 
-      - name: Run frontend tests with coverage
+      - name: Run frontend tests
         working-directory: apps/client
-        run: npx vitest run --coverage --environment jsdom
+        run: bun run test
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
