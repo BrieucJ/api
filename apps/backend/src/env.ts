@@ -2,29 +2,14 @@
 import { config } from "dotenv";
 import { expand } from "dotenv-expand";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 // Get the directory where this file is located, then go up to the app directory
 // For Bun: use import.meta.dir
-// For Node.js/drizzle-kit: use process.cwd() since we're in the app root
-let appDir: string;
-try {
-  // Try Bun's import.meta.dir first
-  if (import.meta?.dir) {
-    appDir = path.resolve(import.meta.dir, "..");
-  } else if (import.meta?.url) {
-    // Node.js ESM fallback
-    const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    appDir = path.resolve(currentDir, "..");
-  } else {
-    // Fallback to process.cwd() for tools like drizzle-kit
-    appDir = process.cwd();
-  }
-} catch {
-  // If all else fails, use process.cwd()
-  appDir = process.cwd();
-}
+// Fallback to process.cwd() for tools like drizzle-kit that run from app root
+const appDir = import.meta?.dir
+  ? path.resolve(import.meta.dir, "..")
+  : process.cwd();
 
 // Load environment-specific file based on NODE_ENV
 let envPath: string;
@@ -69,10 +54,7 @@ const BaseEnvSchema = z.object({
     "silent",
   ]),
   DATABASE_URL: z.url(),
-  JWT_SECRET: z
-    .string()
-    .min(32, "JWT_SECRET must be at least 32 characters")
-    .optional(),
+  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   JWT_EXPIRES_IN: z.string().default("24h"),
   REGION: z.string().optional(),
   SQS_QUEUE_URL: z.url().optional(),
@@ -102,8 +84,6 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
       });
     }
   }
-
-  // WORKER_URL is now optional - worker stats are retrieved from database
 });
 
 export type env = z.infer<typeof EnvSchema>;

@@ -7,7 +7,7 @@ const tags = ["Auth"];
 
 // Login request schema
 const loginRequestSchema = z.object({
-  email: z.string().email().openapi({ example: "admin@example.com" }),
+  email: z.email().openapi({ example: "admin@example.com" }),
   password: z.string().min(1).openapi({ example: "password123" }),
 });
 
