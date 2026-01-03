@@ -1,4 +1,3 @@
-import env from "../env";
 import { logPersistence } from "./logPersistence";
 
 const COLORS = {
@@ -31,7 +30,7 @@ const levelPriority: Record<BunLoggerLevel, number> = {
   trace: 6,
 };
 
-const envLevel = (env && env.LOG_LEVEL) || "info";
+const envLevel = (process.env.LOG_LEVEL as BunLoggerLevel) || "info";
 const envPriority = levelPriority[envLevel] ?? 4;
 
 function shouldLog(level: BunLoggerLevel) {

@@ -27,6 +27,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Breadcrumb,
   BreadcrumbList,
   BreadcrumbItem,
@@ -341,35 +349,42 @@ export default function DashboardLayout() {
             </>
           )}
           {user && (
-            <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/50">
-              <User className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-              <span className="text-xs md:text-sm font-medium hidden sm:inline">
-                {user.email}
-              </span>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0 md:h-9 md:w-9"
+                >
+                  <User className="h-3 w-3 md:h-4 md:w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">Account</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={toggleTheme}>
+                  {theme === "dark" ? (
+                    <Sun className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Moon className="mr-2 h-4 w-4" />
+                  )}
+                  <span>Toggle theme</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} variant="destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleLogout}
-            className="h-8 px-2 md:h-9 md:px-3 text-xs md:text-sm"
-            title="Logout"
-          >
-            <LogOut className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-            <span className="hidden sm:inline">Logout</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={toggleTheme}
-            className="h-8 w-8 p-0 md:h-9 md:w-9"
-          >
-            {theme === "dark" ? (
-              <Sun className="w-3 h-3 md:w-4 md:h-4" />
-            ) : (
-              <Moon className="w-3 h-3 md:w-4 md:h-4" />
-            )}
-          </Button>
         </div>
       </header>
 

@@ -241,19 +241,6 @@ export function createApp() {
           return origin;
         }
 
-        // Allow console frontend URL if configured
-        if (env.CONSOLE_FRONTEND_URL) {
-          try {
-            const frontendHost = new URL(env.CONSOLE_FRONTEND_URL).hostname;
-            const originHost = new URL(origin).hostname;
-            if (frontendHost === originHost) {
-              return origin;
-            }
-          } catch {
-            // If URL parsing fails, fall through
-          }
-        }
-
         // Default fallback for development
         return "http://localhost:5173";
       },
