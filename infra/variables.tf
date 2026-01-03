@@ -44,3 +44,15 @@ variable "image_tag" {
   type        = string
   default     = ""
 }
+
+variable "jwt_secret" {
+  description = "JWT secret key for token signing (must be at least 32 characters)"
+  type        = string
+  sensitive   = true
+}
+
+variable "jwt_expires_in" {
+  description = "JWT token expiration time (e.g., '24h', '7d', '30m')"
+  type        = string
+  default     = "24h"
+}

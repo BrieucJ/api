@@ -155,6 +155,8 @@ resource "aws_lambda_function" "api_lambda" {
       REGION        = var.region
       SQS_QUEUE_URL = var.worker_queue_url
       API_URL       = aws_apigatewayv2_api.api_gateway.api_endpoint
+      JWT_SECRET    = var.jwt_secret
+      JWT_EXPIRES_IN = var.jwt_expires_in
     }
   }
 

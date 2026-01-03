@@ -43,6 +43,8 @@ module "lambda" {
   worker_queue_arn        = module.worker.queue_arn
   worker_queue_url        = module.worker.queue_url
   image_tag               = var.image_tag
+  jwt_secret              = var.jwt_secret
+  jwt_expires_in          = var.jwt_expires_in
 }
 
 # --- Client Module ---
