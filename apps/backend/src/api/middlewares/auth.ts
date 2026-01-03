@@ -13,7 +13,7 @@ import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 const authMiddleware = createMiddleware(async (c: Context, next) => {
   // Use Hono's built-in JWT middleware to verify token
   const jwtMiddleware = jwt({
-    secret: env.JWT_SECRET,
+    secret: env.JWT_SECRET!,
   });
 
   // Apply JWT verification - jwt middleware will verify and set jwtPayload

@@ -1,3 +1,4 @@
+import env from "@/env";
 import { createApp } from "@/utils/helpers";
 import { logger } from "@/utils/logger";
 import configureOpenAPI from "@/utils/openApi";
@@ -19,7 +20,7 @@ import packageJSON from "../../package.json";
 // Store server start time for uptime calculation
 export const SERVER_START_TIME = Date.now();
 
-logger.info(`🚀 Server is running`);
+logger.info(`🚀 Server is running on http://localhost:${env.PORT}`);
 
 const app = createApp();
 
