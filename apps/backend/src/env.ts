@@ -4,16 +4,10 @@ import { expand } from "dotenv-expand";
 import path from "node:path";
 import { z } from "zod";
 
-// Get the directory where this file is located, then go up to the app directory
-// For Bun: use import.meta.dir
-// Fallback to process.cwd() for tools like drizzle-kit that run from app root
 const appDir = import.meta?.dir
   ? path.resolve(import.meta.dir, "..")
   : process.cwd();
 
-// Load environment-specific file based on NODE_ENV
-// Skip loading .env files in Lambda (AWS_LAMBDA_FUNCTION_NAME is set) or when running in production/staging
-// In these environments, all variables should come from Lambda environment variables
 const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 const isProductionOrStaging =
   process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
@@ -74,16 +68,6 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
   const isProduction = data.NODE_ENV === "production";
   const isStaging = data.NODE_ENV === "staging";
   const isTest = data.NODE_ENV === "test";
-
-  // JWT_SECRET is required in all environments except test
-  // Check for undefined, null, or empty string
-  if (!isTest && (!data.JWT_SECRET || data.JWT_SECRET.trim() === "")) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "JWT_SECRET is required in non-test environments",
-      path: ["JWT_SECRET"],
-    });
-  }
 
   // In production/staging, SQS_QUEUE_URL is required
   if (isProduction || isStaging) {
