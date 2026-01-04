@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { cleanupLogs } from "@/jobs/handlers/cleanupLogs";
+import { handler } from "@/jobs/cleanupLogs";
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
 import { withTransaction } from "@/tests/helpers/test-helpers";
 import { logs } from "@shared/db";
 import { createQueryBuilder } from "@shared/db";
-import { db } from "@/db/db";
+import { db } from "@/utils/db";
 import { sql } from "drizzle-orm";
 
 const logQuery = createQueryBuilder<typeof logs>(logs);
@@ -44,7 +44,7 @@ describe("Cleanup Logs Handler", () => {
         batchSize: 1000,
       };
 
-      await cleanupLogs(payload);
+      await handler(payload);
 
       // Check that old log was deleted - filter by our test messages
       const { data } = await logQuery.list({
@@ -97,7 +97,7 @@ describe("Cleanup Logs Handler", () => {
         batchSize: 1000, // Use large batch size to delete all at once
       };
 
-      await cleanupLogs(payload);
+      await handler(payload);
 
       // All old logs should be deleted
       const { data } = await logQuery.list({
@@ -131,7 +131,7 @@ describe("Cleanup Logs Handler", () => {
         batchSize: 1000,
       };
 
-      await cleanupLogs(payload);
+      await handler(payload);
 
       // Recent log should still exist - filter by our test message
       const { data } = await logQuery.list({
@@ -154,7 +154,7 @@ describe("Cleanup Logs Handler", () => {
       };
 
       // Should not throw
-      await cleanupLogs(payload);
+      await handler(payload);
       expect(true).toBe(true);
     })
   );

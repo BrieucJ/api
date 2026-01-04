@@ -1,8 +1,26 @@
+import { z } from "zod";
 import { logger } from "@/utils/logger";
 import { metrics, createQueryBuilder } from "@shared/db";
-import type { ProcessRawMetricsPayload } from "../types";
+import { JobType } from "./types";
+import type { JobDefinition } from "./types";
 
 const METRICS_WINDOW_SECONDS = 60;
+
+// Payload schema
+export const payloadSchema = z.object({
+  metrics: z.array(
+    z.object({
+      endpoint: z.string(),
+      latency: z.number(),
+      status: z.number(),
+      timestamp: z.number(),
+      requestSize: z.number().optional(),
+      responseSize: z.number().optional(),
+    })
+  ),
+});
+
+export type ProcessRawMetricsPayload = z.infer<typeof payloadSchema>;
 
 // Calculate percentile from sorted array
 function percentile(sorted: number[], p: number): number {
@@ -30,9 +48,10 @@ interface MetricsWindow {
   response_sizes: number[];
 }
 
-export async function processRawMetrics(
+// Handler
+export const handler = async (
   payload: ProcessRawMetricsPayload
-): Promise<void> {
+): Promise<void> => {
   logger.debug("Starting processing", {
     metricCount: payload.metrics.length,
     sampleMetrics: payload.metrics.slice(0, 3).map((m) => ({
@@ -251,4 +270,20 @@ export async function processRawMetrics(
     });
     throw error;
   }
-}
+};
+
+// Job definition
+export const definition: JobDefinition = {
+  type: JobType.PROCESS_RAW_METRICS,
+  name: "Process Raw Metrics",
+  description: "Processes raw metrics and aggregates them into time windows",
+  category: "metrics",
+  payloadSchema,
+  defaultOptions: {
+    maxAttempts: 3,
+  },
+  settings: {
+    windowSizeSeconds: 60,
+  },
+};
+

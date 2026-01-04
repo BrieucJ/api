@@ -37,40 +37,15 @@ export interface JobMetadata {
   settings?: Record<string, unknown>;
 }
 
+export interface CronConfig {
+  expression: string;
+  enabled: boolean;
+  defaultPayload: unknown;
+}
+
+export interface JobDefinition extends JobMetadata {
+  cron?: CronConfig;
+}
+
 // Re-export RawMetric from shared types
 export type { RawMetric } from "@shared/types";
-
-// Job payload schemas
-export const processMetricsPayloadSchema = z.object({
-  windowStart: z.string().datetime(),
-  windowEnd: z.string().datetime(),
-});
-
-export const processRawMetricsPayloadSchema = z.object({
-  metrics: z.array(
-    z.object({
-      endpoint: z.string(),
-      latency: z.number(),
-      status: z.number(),
-      timestamp: z.number(),
-      requestSize: z.number().optional(),
-      responseSize: z.number().optional(),
-    })
-  ),
-});
-
-export const cleanupLogsPayloadSchema = z.object({
-  olderThanDays: z.number().int().positive().default(30),
-  batchSize: z.number().int().positive().default(1000),
-});
-
-export const healthCheckPayloadSchema = z.object({
-  checkType: z.enum(["database", "queue", "scheduler"]).optional(),
-});
-
-export type ProcessMetricsPayload = z.infer<typeof processMetricsPayloadSchema>;
-export type ProcessRawMetricsPayload = z.infer<
-  typeof processRawMetricsPayloadSchema
->;
-export type CleanupLogsPayload = z.infer<typeof cleanupLogsPayloadSchema>;
-export type HealthCheckPayload = z.infer<typeof healthCheckPayloadSchema>;

@@ -1,6 +1,6 @@
 import * as cron from "node-cron";
 import { logger } from "@/utils/logger";
-import { getQueue } from "@/queue";
+import { getQueue } from "@/services/queue";
 import type { Scheduler, CronJob } from "./types";
 import type { JobType } from "@/jobs/types";
 
@@ -93,3 +93,4 @@ export class LocalScheduler implements Scheduler {
     logger.info("Stopped all scheduled jobs");
   }
 }
+

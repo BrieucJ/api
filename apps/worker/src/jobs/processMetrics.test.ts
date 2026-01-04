@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { processMetrics } from "@/jobs/handlers/processMetrics";
+import { handler } from "@/jobs/processMetrics";
 
 describe("Process Metrics Handler", () => {
   it("should process metrics without throwing", async () => {
@@ -9,7 +9,7 @@ describe("Process Metrics Handler", () => {
     };
 
     // Should not throw
-    await processMetrics(payload);
+    await handler(payload);
     expect(true).toBe(true);
   });
 
@@ -19,7 +19,7 @@ describe("Process Metrics Handler", () => {
       windowEnd: new Date("2024-01-01T01:00:00Z").toISOString(),
     };
 
-    await processMetrics(payload);
+    await handler(payload);
     expect(true).toBe(true);
   });
 
@@ -30,7 +30,8 @@ describe("Process Metrics Handler", () => {
       windowEnd: now.toISOString(),
     };
 
-    await processMetrics(payload);
+    await handler(payload);
     expect(true).toBe(true);
   });
 });
+

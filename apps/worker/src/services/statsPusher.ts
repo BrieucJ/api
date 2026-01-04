@@ -1,11 +1,11 @@
 import { workerStats } from "@shared/db";
 import { createQueryBuilder } from "@shared/db";
 import { logger } from "@/utils/logger";
-import { getQueue } from "@/queue";
-import { getAllJobs } from "@/jobs/registry";
-import { defaultCronJobs } from "@/scheduler/jobs";
+import { getQueue } from "@/services/queue";
+import { getAllJobs } from "@/jobs";
+import { defaultCronJobs } from "@/services/scheduler/jobs";
 import env from "@/env";
-import { LocalQueue } from "@/queue/local";
+import { LocalQueue } from "@/services/queue/local";
 
 export class StatsPusher {
   private intervalId?: Timer;

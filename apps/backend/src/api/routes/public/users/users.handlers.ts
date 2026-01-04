@@ -56,10 +56,8 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
   const input = c.req.valid("json");
   const { password, ...rest } = input;
 
-  // Hash the password before storing
   const password_hash = await hashPassword(password);
 
-  // Create user with hashed password
   const created = await userQuery.create({
     ...rest,
     password_hash,

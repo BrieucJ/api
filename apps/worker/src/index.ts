@@ -1,95 +1,11 @@
 import env from "@/env";
 import { logger } from "@/utils/logger";
-import { getQueue } from "@/queue";
-import { getScheduler } from "@/scheduler";
-import { defaultCronJobs } from "@/scheduler/jobs";
-import { getJobHandler, hasJobHandler } from "@/jobs/registry";
-import type { Job } from "@/jobs/types";
-import { LocalQueue } from "@/queue/local";
+import { getQueue } from "@/services/queue";
+import { getScheduler } from "@/services/scheduler";
+import { defaultCronJobs } from "@/services/scheduler/jobs";
+import { LocalQueue } from "@/services/queue/local";
 import { StatsPusher } from "@/services/statsPusher";
-
-async function processJob(job: Job): Promise<void> {
-  const { type, payload, attempts, maxAttempts } = job;
-
-  if (attempts >= maxAttempts) {
-    logger.error(`Job ${job.id} exceeded max attempts`, {
-      jobId: job.id,
-      type,
-      attempts,
-      maxAttempts,
-    });
-    return;
-  }
-
-  if (!hasJobHandler(type)) {
-    logger.error(`No handler found for job type: ${type}`, {
-      jobId: job.id,
-      type,
-    });
-    return;
-  }
-
-  const handler = getJobHandler(type);
-  if (!handler) {
-    logger.error(`Handler is undefined for job type: ${type}`, {
-      jobId: job.id,
-      type,
-    });
-    return;
-  }
-
-  try {
-    logger.info(`Processing job ${job.id}`, {
-      jobId: job.id,
-      type,
-      attempts: attempts + 1,
-    });
-
-    await handler(payload as any);
-
-    logger.info(`Completed job ${job.id}`, {
-      jobId: job.id,
-      type,
-    });
-  } catch (error) {
-    logger.error(`Failed to process job ${job.id}`, {
-      jobId: job.id,
-      type,
-      attempts: attempts + 1,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    // Retry logic
-    if (attempts + 1 < maxAttempts) {
-      const retryJob: Job = {
-        ...job,
-        attempts: attempts + 1,
-      };
-
-      // Exponential backoff: 2^attempts seconds
-      const delay = Math.pow(2, attempts) * 1000;
-      const queue = getQueue();
-      await queue.enqueue(type, payload, {
-        delay,
-        maxAttempts,
-      });
-
-      logger.info(`Scheduled retry for job ${job.id}`, {
-        jobId: job.id,
-        type,
-        attempts: attempts + 1,
-        delay,
-      });
-    } else {
-      logger.error(`Job ${job.id} failed after ${maxAttempts} attempts`, {
-        jobId: job.id,
-        type,
-        maxAttempts,
-      });
-    }
-  }
-}
+import { processJob } from "@/utils/jobProcessor";
 
 async function startWorker(): Promise<void> {
   // Start HTTP server if in local mode
@@ -149,7 +65,7 @@ async function startWorker(): Promise<void> {
         queue.stopPolling();
       }
 
-      const { LocalScheduler } = await import("./scheduler/local");
+      const { LocalScheduler } = await import("./services/scheduler/local");
       if (scheduler instanceof LocalScheduler) {
         scheduler.stopAll();
       }

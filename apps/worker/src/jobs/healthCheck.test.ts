@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { healthCheck } from "@/jobs/handlers/healthCheck";
+import { handler } from "@/jobs/healthCheck";
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
 import { withTransaction } from "@/tests/helpers/test-helpers";
 import { workerStats } from "@shared/db";
@@ -17,7 +17,7 @@ describe("Health Check Handler", () => {
     withTransaction(async () => {
       const payload = {};
 
-      await healthCheck(payload);
+      await handler(payload);
       expect(true).toBe(true);
     })
   );
@@ -29,7 +29,7 @@ describe("Health Check Handler", () => {
         checkType: "database" as const,
       };
 
-      await healthCheck(payload);
+      await handler(payload);
       expect(true).toBe(true);
     })
   );
@@ -51,7 +51,7 @@ describe("Health Check Handler", () => {
       const beforeTime = new Date();
       const payload = {};
 
-      await healthCheck(payload);
+      await handler(payload);
 
       // Wait a bit for async operations
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -80,7 +80,7 @@ describe("Health Check Handler", () => {
     withTransaction(async () => {
       const payload = {};
 
-      await healthCheck(payload);
+      await handler(payload);
 
       // Wait a bit for async operations
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -104,9 +104,10 @@ describe("Health Check Handler", () => {
 
       for (const checkType of checkTypes) {
         const payload = { checkType };
-        await healthCheck(payload);
+        await handler(payload);
       }
       expect(true).toBe(true);
     })
   );
 });
+

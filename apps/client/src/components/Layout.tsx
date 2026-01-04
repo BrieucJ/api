@@ -16,9 +16,11 @@ import {
   HelpCircle,
   LogOut,
   User,
+  ExternalLink,
 } from "lucide-react";
 import { useAppStore } from "@/store/appStore";
 import { useAuthStore } from "@/store/authStore";
+import config from "@/lib/config";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -62,6 +64,7 @@ const navigation = [
   { name: "Metrics", href: "/dashboard/metrics", icon: Activity },
   { name: "Replay", href: "/dashboard/replay", icon: RotateCcw },
   { name: "Worker", href: "/dashboard/worker", icon: Cpu },
+  { name: "Admin", href: "/dashboard/admin", icon: Database },
 ];
 
 type StatusType = "healthy" | "unhealthy" | "degraded" | "unknown";
@@ -213,12 +216,24 @@ export default function DashboardLayout() {
                 >
                   v{apiInfo.version}
                 </Badge>
+
                 <Badge
                   variant="outline"
                   className="text-[10px] md:text-xs hidden md:inline-flex px-1 md:px-2"
                 >
                   {apiInfo.environment}
                 </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-[10px] md:text-xs hidden sm:flex"
+                  onClick={() =>
+                    window.open(`${config.BACKEND_URL}/reference`, "_blank")
+                  }
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Docs
+                </Button>
               </>
             )}
           </div>

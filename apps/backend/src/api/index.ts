@@ -5,6 +5,7 @@ import configureOpenAPI from "@/utils/openApi";
 import { auth } from "@/api/middlewares";
 //PUBLIC ROUTES
 import users from "@/api/routes/public/users/users.index";
+import refreshTokens from "@/api/routes/public/refreshTokens/refreshTokens.index";
 // PRIVATE ROUTES
 import authRoutes from "@/api/routes/private/auth/auth.index";
 import logs from "@/api/routes/private/logs/logs.index";
@@ -14,6 +15,7 @@ import metrics from "@/api/routes/private/metrics/metrics.index";
 import replay from "@/api/routes/private/replay/replay.index";
 import error from "@/api/routes/private/error/error.index";
 import worker from "@/api/routes/private/worker/worker.index";
+import admin from "@/api/routes/private/admin/admin.index";
 import { Scalar } from "@scalar/hono-api-reference";
 import packageJSON from "../../package.json";
 
@@ -46,7 +48,7 @@ app.get(
   })
 );
 
-const publicRoutes = [users] as const;
+const publicRoutes = [users, refreshTokens] as const;
 
 const privateRoutes = [
   authRoutes,
@@ -57,6 +59,7 @@ const privateRoutes = [
   replay,
   error,
   worker,
+  admin,
 ] as const;
 
 const allRoutes = [...publicRoutes, ...privateRoutes] as const;

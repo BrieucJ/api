@@ -1,11 +1,11 @@
-import { getQueue } from "@/queue";
-import { getScheduler } from "@/scheduler";
+import { getQueue } from "@/services/queue";
+import { getScheduler } from "@/services/scheduler";
 import { logger } from "@/utils/logger";
 import type { Job } from "@/jobs/types";
-import { getAllJobs } from "@/jobs/registry";
+import { getAllJobs } from "@/jobs";
 import env from "@/env";
-import { LocalQueue } from "@/queue/local";
-import { LocalScheduler } from "@/scheduler/local";
+import { LocalQueue } from "@/services/queue/local";
+import { LocalScheduler } from "@/services/scheduler/local";
 
 const PORT = env.PORT;
 
@@ -79,7 +79,7 @@ const server = Bun.serve({
           ...job,
           payloadSchema: job.payloadSchema._def
             ? {
-                type: job.payloadSchema._def.typeName || "object",
+                type: (job.payloadSchema._def as any).typeName || "object",
                 description: job.payloadSchema.description || "",
               }
             : {},
@@ -93,10 +93,10 @@ const server = Bun.serve({
         logger.error("Failed to get jobs", {
           error: error instanceof Error ? error.message : String(error),
         });
-        return new Response(
-          JSON.stringify({ error: "Failed to get jobs" }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Failed to get jobs" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
       }
     }
 

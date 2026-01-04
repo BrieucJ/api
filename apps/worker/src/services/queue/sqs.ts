@@ -104,7 +104,7 @@ export class SQSQueue implements Queue {
       logger.error("Failed to dequeue job from SQS", {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return null;
     }
   }
 
@@ -139,3 +139,4 @@ export class SQSQueue implements Queue {
     });
   }
 }
+

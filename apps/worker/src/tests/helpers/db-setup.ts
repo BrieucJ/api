@@ -1,4 +1,4 @@
-import { db } from "@/db/db";
+import { db } from "@/utils/db";
 import { sql } from "drizzle-orm";
 import postgres from "postgres";
 import env from "@/env";

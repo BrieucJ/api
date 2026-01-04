@@ -1,11 +1,21 @@
+import { z } from "zod";
 import { logger } from "@/utils/logger";
-import { db } from "@/db/db";
+import { db } from "@/utils/db";
 import { sql } from "drizzle-orm";
 import { workerStats, createQueryBuilder } from "@shared/db";
 import env from "@/env";
-import type { HealthCheckPayload } from "../types";
+import { JobType } from "./types";
+import type { JobDefinition } from "./types";
 
-export async function healthCheck(payload: HealthCheckPayload): Promise<void> {
+// Payload schema
+export const payloadSchema = z.object({
+  checkType: z.enum(["database", "queue", "scheduler"]).optional(),
+});
+
+export type HealthCheckPayload = z.infer<typeof payloadSchema>;
+
+// Handler
+export const handler = async (payload: HealthCheckPayload): Promise<void> => {
   logger.info("Running health check", { payload });
 
   try {
@@ -94,4 +104,24 @@ export async function healthCheck(payload: HealthCheckPayload): Promise<void> {
     });
     throw error;
   }
-}
+};
+
+// Job definition
+export const definition: JobDefinition = {
+  type: JobType.HEALTH_CHECK,
+  name: "Health Check",
+  description: "Performs health checks on database, queue, and scheduler",
+  category: "monitoring",
+  payloadSchema,
+  defaultOptions: {
+    maxAttempts: 1,
+  },
+  settings: {},
+  cron: {
+    expression: "*/5 * * * *", // Every 5 minutes - heartbeat to keep Lambda active
+    enabled: true,
+    defaultPayload: {
+      checkType: "database",
+    },
+  },
+};

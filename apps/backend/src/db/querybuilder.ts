@@ -24,6 +24,8 @@ import {
   desc,
   sql,
   isNull,
+  cosineDistance,
+  or,
   type Column,
   type SQL,
 } from "drizzle-orm";
@@ -36,6 +38,7 @@ import {
   PgText,
   PgVarchar,
 } from "drizzle-orm/pg-core";
+import { stringToVector } from "@/utils/encode";
 
 type Col = Column<any>;
 type Val = unknown;
@@ -137,7 +140,6 @@ export function createQueryBuilder<T extends Table>(table: T) {
   const colNames = Object.keys(columns);
   const baseQuery = (qb: any) => {
     // global filter: soft delete
-    // Fix: Check if deleted_at column exists in columns, not on table object
     if (columns.deleted_at) {
       qb = qb.where(isNull(columns.deleted_at));
     }
@@ -197,123 +199,124 @@ export function createQueryBuilder<T extends Table>(table: T) {
       }
 
       // Hybrid search: Combine keyword (text) search with vector (semantic) search
-      // if (search && columns.embedding) {
-      //   const searchVector = stringToVector(search, 16);
-      //   const distance = cosineDistance(columns.embedding, searchVector);
-      //   const searchPattern = `%${search}%`;
+      if (search && columns.embedding) {
+        const searchVector = stringToVector(search, 16);
+        const distance = cosineDistance(columns.embedding, searchVector);
+        const searchPattern = `%${search}%`;
 
-      //   // Find text-searchable columns automatically by type
-      //   const textSearchableColumns: Column<any>[] = [];
-      //   const excludedFromSearch = [
-      //     "id",
-      //     "embedding",
-      //     "deleted_at",
-      //     "password_hash",
-      //     "created_at",
-      //     "updated_at",
-      //   ];
+        // Find text-searchable columns automatically by type
+        const textSearchableColumns: Column<any>[] = [];
+        const excludedFromSearch = [
+          "id",
+          "embedding",
+          "deleted_at",
+          "password_hash",
+          "created_at",
+          "updated_at",
+        ];
 
-      //   for (const [fieldName, col] of Object.entries(columns)) {
-      //     // Skip excluded columns
-      //     if (excludedFromSearch.includes(fieldName)) continue;
+        for (const [fieldName, col] of Object.entries(columns)) {
+          // Skip excluded columns
+          if (excludedFromSearch.includes(fieldName)) continue;
 
-      //     // Check if column is a text type (PgText or PgVarchar)
-      //     if (col instanceof PgText || col instanceof PgVarchar) {
-      //       textSearchableColumns.push(col);
-      //     }
-      //   }
+          // Check if column is a text type (PgText or PgVarchar)
+          if (col instanceof PgText || col instanceof PgVarchar) {
+            textSearchableColumns.push(col);
+          }
+        }
 
-      //   // Build keyword search conditions (ILIKE for case-insensitive)
-      //   // Use OR to combine multiple column searches
-      //   const keywordConditions: SQL[] = [];
-      //   for (const col of textSearchableColumns) {
-      //     keywordConditions.push(ilike(col, searchPattern));
-      //   }
-      //   const keywordSearch =
-      //     keywordConditions.length > 0 ? or(...keywordConditions)! : sql`false`;
+        // Build keyword search conditions (ILIKE for case-insensitive)
+        // Use OR to combine multiple column searches
+        const keywordConditions: SQL[] = [];
+        for (const col of textSearchableColumns) {
+          keywordConditions.push(ilike(col, searchPattern));
+        }
+        const keywordSearch =
+          keywordConditions.length > 0 ? or(...keywordConditions)! : sql`false`;
 
-      //   // Get candidates with both keyword match score and vector distance
-      //   // Score: 0 = keyword match, 1 = vector distance (lower is better)
-      //   const candidateQb = baseQuery(
-      //     db
-      //       .select({
-      //         ...visibleColumns,
-      //         hasKeywordMatch: sql<boolean>`${keywordSearch}`.as(
-      //           "has_keyword_match"
-      //         ),
-      //         vectorDistance: distance.as("vector_distance"),
-      //       })
-      //       .from(table as any)
-      //   );
+        // Get candidates with both keyword match score and vector distance
+        // Score: 0 = keyword match, 1 = vector distance (lower is better)
+        const candidateQb = baseQuery(
+          db
+            .select({
+              ...visibleColumns,
+              hasKeywordMatch: sql<boolean>`${keywordSearch}`.as(
+                "has_keyword_match"
+              ),
+              vectorDistance: distance.as("vector_distance"),
+            })
+            .from(table as any)
+        );
 
-      //   // Apply existing filters
-      //   for (const clause of whereClauses) {
-      //     candidateQb.where(clause);
-      //   }
+        // Apply existing filters
+        for (const clause of whereClauses) {
+          candidateQb.where(clause);
+        }
 
-      //   // Get more candidates than needed for better ranking
-      //   const candidates = (await candidateQb.limit(
-      //     Math.max(limit * 3, 100)
-      //   )) as Array<
-      //     T["$inferSelect"] & {
-      //       hasKeywordMatch: boolean;
-      //       vectorDistance: number;
-      //     }
-      //   >;
+        // Get more candidates than needed for better ranking
+        const candidates = (await candidateQb.limit(
+          Math.max(limit * 3, 100)
+        )) as Array<
+          T["$inferSelect"] & {
+            hasKeywordMatch: boolean;
+            vectorDistance: number;
+          }
+        >;
 
-      //   if (candidates.length === 0) {
-      //     return { data: [], total: 0 };
-      //   }
+        if (candidates.length === 0) {
+          return { data: [], total: 0 };
+        }
 
-      //   // Rank and filter results:
-      //   // 1. Keyword matches first (exact/partial text matches)
-      //   // 2. Then vector similarity (semantic matches)
-      //   // 3. Only return if there are meaningful matches
-      //   const keywordMatches = candidates.filter((c) => c.hasKeywordMatch);
-      //   const vectorMatches = candidates
-      //     .filter((c) => !c.hasKeywordMatch) // Don't duplicate keyword matches
-      //     .sort((a, b) => a.vectorDistance - b.vectorDistance); // Sort by distance
+        // Rank and filter results:
+        // 1. Keyword matches first (exact/partial text matches)
+        // 2. Then vector similarity (semantic matches)
+        // 3. Only return if there are meaningful matches
+        const keywordMatches = candidates.filter((c) => c.hasKeywordMatch);
+        const vectorMatches = candidates
+          .filter((c) => !c.hasKeywordMatch) // Don't duplicate keyword matches
+          .sort((a, b) => a.vectorDistance - b.vectorDistance); // Sort by distance
 
-      //   // Combine: keyword matches first, then best vector matches
-      //   // Only include vector matches if they're reasonably similar (distance < 1.0)
-      //   const relevantVectorMatches = vectorMatches.filter(
-      //     (c) => c.vectorDistance < 0.6
-      //   );
+        // Combine: keyword matches first, then best vector matches
+        // Only include vector matches if they're reasonably similar (distance < 1.0)
+        const relevantVectorMatches = vectorMatches.filter(
+          (c) => c.vectorDistance < 0.6
+        );
 
-      //   const combinedResults = [
-      //     ...keywordMatches,
-      //     ...relevantVectorMatches.slice(
-      //       0,
-      //       Math.max(0, limit - keywordMatches.length)
-      //     ),
-      //   ].slice(0, limit);
+        const combinedResults = [
+          ...keywordMatches,
+          ...relevantVectorMatches.slice(
+            0,
+            Math.max(0, limit - keywordMatches.length)
+          ),
+        ].slice(0, limit);
 
-      //   // Remove computed fields
-      //   const finalResults = combinedResults.map(
-      //     ({ hasKeywordMatch: _, vectorDistance: __, ...item }) => item
-      //   ) as T["$inferSelect"][];
+        // Remove computed fields
+        const finalResults = combinedResults.map(
+          ({ hasKeywordMatch: _, vectorDistance: __, ...item }) => item
+        ) as T["$inferSelect"][];
 
-      //   // Count total relevant results (keyword + reasonable vector matches)
-      //   const countQb = baseQuery(
-      //     db
-      //       .select({ count: sql<number>`count(*)`.mapWith(Number) })
-      //       .from(table as any)
-      //   );
+        // Count total relevant results (keyword + reasonable vector matches)
+        const countQb = baseQuery(
+          db
+            .select({ count: sql<number>`count(*)`.mapWith(Number) })
+            .from(table as any)
+        );
 
-      //   for (const clause of whereClauses) {
-      //     countQb.where(clause);
-      //   }
+        for (const clause of whereClauses) {
+          countQb.where(clause);
+        }
 
-      //   // Count: keyword matches OR vector matches with distance < 1.0
-      //   countQb.where(or(keywordSearch, sql`${distance} < 1.0`)!);
+        // Count: keyword matches OR vector matches with distance < 1.0
+        countQb.where(or(keywordSearch, sql`${distance} < 1.0`)!);
 
-      //   const [countRow] = await countQb;
+        const [countRow] = await countQb;
 
-      //   return {
-      //     data: finalResults,
-      //     total: countRow?.count || 0,
-      //   };
-      // }
+        return {
+          data: finalResults,
+          total: countRow?.count || 0,
+        };
+      }
+
       const orderFn = order === "asc" ? asc : desc;
       qb = qb.orderBy(orderFn((table as any)[order_by]));
 

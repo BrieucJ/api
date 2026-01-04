@@ -10,3 +10,4 @@ export interface Queue {
   acknowledge(jobId: string): Promise<void>;
   reject(jobId: string, error?: Error): Promise<void>;
 }
+

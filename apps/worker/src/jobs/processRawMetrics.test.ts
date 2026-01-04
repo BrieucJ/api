@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { processRawMetrics } from "@/jobs/handlers/processRawMetrics";
+import { handler } from "@/jobs/processRawMetrics";
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
 import { withTransaction, retryUntil } from "@/tests/helpers/test-helpers";
 import { metrics } from "@shared/db";
@@ -43,7 +43,7 @@ describe("Process Raw Metrics Handler", () => {
         ],
       };
 
-      await processRawMetrics(payload);
+      await handler(payload);
 
       // Retry query to handle CI timing issues
       const { data } = await retryUntil(
@@ -97,7 +97,7 @@ describe("Process Raw Metrics Handler", () => {
         ],
       };
 
-      await processRawMetrics(payload);
+      await handler(payload);
 
       // Retry query to handle CI timing issues
       const { data } = await retryUntil(
@@ -146,7 +146,7 @@ describe("Process Raw Metrics Handler", () => {
         ],
       };
 
-      await processRawMetrics(payload);
+      await handler(payload);
 
       const { data } = await metricsQuery.list({
         filters: { endpoint__eq: "/api/v1/test" },
@@ -165,7 +165,7 @@ describe("Process Raw Metrics Handler", () => {
         metrics: [],
       };
 
-      await processRawMetrics(payload);
+      await handler(payload);
 
       // Should not throw and should not create any metrics
       const { data } = await metricsQuery.list({
@@ -191,7 +191,7 @@ describe("Process Raw Metrics Handler", () => {
         })),
       };
 
-      await processRawMetrics(payload);
+      await handler(payload);
 
       // Retry query to handle CI timing issues
       const { data } = await retryUntil(
@@ -218,3 +218,4 @@ describe("Process Raw Metrics Handler", () => {
     })
   );
 });
+

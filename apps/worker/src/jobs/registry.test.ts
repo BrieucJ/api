@@ -4,7 +4,7 @@ import {
   hasJobHandler,
   getJobMetadata,
   getAllJobs,
-} from "@/jobs/registry";
+} from "@/jobs";
 import { JobType } from "@/jobs/types";
 
 describe("Job Registry", () => {

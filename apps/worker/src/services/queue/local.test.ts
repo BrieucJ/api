@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { LocalQueue } from "@/queue/local";
+import { LocalQueue } from "@/services/queue/local";
 import { JobType } from "@/jobs/types";
 
 describe("LocalQueue", () => {

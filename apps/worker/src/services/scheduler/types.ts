@@ -17,3 +17,4 @@ export interface Scheduler {
   unschedule(jobId: string): Promise<void>;
   list(): CronJob[] | Promise<CronJob[]>;
 }
+

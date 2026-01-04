@@ -5,12 +5,12 @@ import type {
   Context,
 } from "aws-lambda";
 import { logger } from "@/utils/logger";
-import { getJobHandler, hasJobHandler } from "@/jobs/registry";
 import { JobType } from "@/jobs/types";
-import { SQSQueue } from "@/queue/sqs";
+import { SQSQueue } from "@/services/queue/sqs";
 import { StatsPusher } from "@/services/statsPusher";
-import { getScheduler } from "@/scheduler";
-import { defaultCronJobs } from "@/scheduler/jobs";
+import { getScheduler } from "@/services/scheduler";
+import { defaultCronJobs } from "@/services/scheduler/jobs";
+import { processJobDirect } from "@/utils/jobProcessor";
 import env from "@/env";
 
 // Initialize stats pusher at module level for Lambda container reuse
@@ -84,22 +84,6 @@ interface EventBridgeJobEvent {
   payload: unknown;
 }
 
-async function processJob(jobType: JobType, payload: unknown): Promise<void> {
-  if (!hasJobHandler(jobType)) {
-    throw new Error(`No handler found for job type: ${jobType}`);
-  }
-
-  const handler = getJobHandler(jobType);
-  if (!handler) {
-    throw new Error(`Handler is undefined for job type: ${jobType}`);
-  }
-
-  logger.info(`Processing job ${jobType}`, { jobType, payload });
-  // Type assertion needed since payload is unknown but handler expects specific type
-  await handler(payload as any);
-  logger.info(`Completed job ${jobType}`, { jobType });
-}
-
 async function handleSQSRecord(record: SQSRecord): Promise<void> {
   try {
     const job = JSON.parse(record.body) as {
@@ -108,7 +92,7 @@ async function handleSQSRecord(record: SQSRecord): Promise<void> {
       receiptHandle?: string;
     };
 
-    await processJob(job.type, job.payload);
+    await processJobDirect(job.type, job.payload);
 
     // Push stats after job processing
     await statsPusher.pushStats();
@@ -133,7 +117,7 @@ async function handleEventBridgeEvent(
 ): Promise<void> {
   try {
     const { jobType, payload } = event.detail;
-    await processJob(jobType, payload);
+    await processJobDirect(jobType, payload);
 
     // Push stats after job processing
     await statsPusher.pushStats();

@@ -231,7 +231,12 @@ export function createApp() {
   app.use(
     cors({
       origin: (origin) => {
-        // Allow localhost for development
+        // Allow requests without origin (same-origin, Postman, etc.)
+        if (!origin) {
+          return "http://localhost:5173";
+        }
+
+        // Allow localhost for development (any port)
         if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
           return origin;
         }
@@ -244,7 +249,7 @@ export function createApp() {
         // Default fallback for development
         return "http://localhost:5173";
       },
-      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization"],
       exposeHeaders: ["Content-Type"],
       maxAge: 600,

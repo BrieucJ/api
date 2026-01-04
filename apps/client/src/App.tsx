@@ -7,6 +7,10 @@ import MetricsPage from "@/pages/MetricsPage";
 import ReplayPage from "@/pages/ReplayPage";
 import WorkerPage from "@/pages/WorkerPage";
 import Login from "@/pages/Login";
+import AdminIndex from "@/pages/AdminIndex";
+import AdminModelPage from "@/pages/AdminModelPage";
+import AdminFormPage from "@/pages/AdminFormPage";
+import AdminDetailPage from "@/pages/AdminDetailPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function App() {
@@ -28,6 +32,14 @@ export default function App() {
           <Route path="metrics" element={<MetricsPage />} />
           <Route path="replay" element={<ReplayPage />} />
           <Route path="worker" element={<WorkerPage />} />
+          <Route path="admin" element={<AdminIndex />} />
+          <Route path="admin/:modelName" element={<AdminModelPage />} />
+          <Route path="admin/:modelName/add" element={<AdminFormPage />} />
+          <Route path="admin/:modelName/:id" element={<AdminDetailPage />} />
+          <Route
+            path="admin/:modelName/:id/change"
+            element={<AdminFormPage />}
+          />
         </Route>
       </Routes>
     </BrowserRouter>
