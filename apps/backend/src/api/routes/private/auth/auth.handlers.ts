@@ -238,15 +238,32 @@ export const refresh: AppRouteHandler<RefreshRoute> = async (c) => {
   // Since scrypt uses random salts, we can't directly lookup by hash
   // We need to fetch active tokens and verify against each one
   // Use querybuilder to get all non-revoked tokens (querybuilder filters deleted_at automatically)
-  // Note: We need token_hash which is not excluded, so it should be available
   const { data: activeTokens } = await refreshTokenQuery.list({
     filters: { revoked_at__isnull: true },
     limit: 1000, // Get all active tokens (reasonable limit)
   });
 
-  // Find matching token by verifying against stored hashes
+  // If no active tokens, reject immediately
+  if (!activeTokens || activeTokens.length === 0) {
+    return c.json(
+      {
+        data: null,
+        error: {
+          name: "UnauthorizedError",
+          message: "Invalid or expired refresh token",
+        },
+        metadata: null,
+      },
+      HTTP_STATUS_CODES.UNAUTHORIZED
+    );
+  }
+
   let storedToken = null;
   for (const token of activeTokens) {
+    if (token.revoked_at) {
+      continue;
+    }
+
     // Check if expired first (skip expired tokens)
     if (isRefreshTokenExpired(token.expires_at)) {
       // Clean up expired token using querybuilder
@@ -255,6 +272,7 @@ export const refresh: AppRouteHandler<RefreshRoute> = async (c) => {
     }
 
     // Verify the incoming token against this stored hash
+    // token_hash is available directly from querybuilder results
     const isValid = await verifyRefreshToken(refreshToken, token.token_hash);
     if (isValid) {
       storedToken = token;
@@ -277,7 +295,7 @@ export const refresh: AppRouteHandler<RefreshRoute> = async (c) => {
   }
 
   // Get user
-  const user = await userQuery.get(storedToken.user_id);
+  const user = await userQuery.get(storedToken!.user_id);
   if (!user || user.deleted_at) {
     return c.json(
       {
@@ -318,8 +336,15 @@ export const refresh: AppRouteHandler<RefreshRoute> = async (c) => {
 
 export const logout: AppRouteHandler<LogoutRoute> = async (c) => {
   // Get refresh token from request body if provided
-  const body = c.req.valid("json");
-  const refreshToken = body?.refreshToken;
+  // Body is optional, so handle case where it might be undefined
+  let refreshToken: string | undefined;
+  try {
+    const body = c.req.valid("json");
+    refreshToken = body?.refreshToken;
+  } catch (error) {
+    // If body validation fails (e.g., empty body), that's okay - refreshToken is optional
+    refreshToken = undefined;
+  }
 
   if (refreshToken) {
     // Find and revoke the refresh token by verifying against stored hashes
@@ -330,13 +355,16 @@ export const logout: AppRouteHandler<LogoutRoute> = async (c) => {
     });
 
     for (const token of activeTokens) {
-      // token_hash should be available from querybuilder
-      if (!token.token_hash) continue;
-
+      // token_hash is available directly from querybuilder results
       const isValid = await verifyRefreshToken(refreshToken, token.token_hash);
       if (isValid) {
         // Update to revoke using querybuilder
-        await refreshTokenQuery.update(token.id, { revoked_at: new Date() });
+        try {
+          await refreshTokenQuery.update(token.id, { revoked_at: new Date() });
+        } catch (error) {
+          logger.error(`Failed to revoke refresh token ${token.id}:`, error);
+          // Continue - don't fail logout if token revocation fails
+        }
         break;
       }
     }

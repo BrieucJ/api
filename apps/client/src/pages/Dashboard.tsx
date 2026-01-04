@@ -32,6 +32,7 @@ import {
 import { useAppStore } from "@/store/appStore";
 import MetricsChart from "@/components/MetricsChart";
 import LogsCard from "@/components/LogsCard";
+import { getCountryInfo } from "@/lib/countries";
 
 type Timeframe = "5m" | "15m" | "30m" | "1h" | "6h" | "24h";
 
@@ -563,14 +564,6 @@ export default function Dashboard() {
                 </p>
               )}
             </div>
-            <Button
-              variant="outline"
-              className="w-full mt-3 md:mt-4 text-xs md:text-sm h-8 md:h-9"
-              onClick={() => navigate("/dashboard/metrics")}
-            >
-              View All Metrics
-              <ArrowRight className="ml-2 h-3 w-3 md:h-4 md:w-4" />
-            </Button>
           </CardContent>
         </Card>
 
@@ -590,41 +583,45 @@ export default function Dashboard() {
           <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
             <div className="space-y-2 md:space-y-3">
               {topCountries.length > 0 ? (
-                topCountries.map((item, index) => (
-                  <div
-                    key={item.country}
-                    className="flex items-center justify-between p-2 bg-muted rounded"
-                  >
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <Badge
-                        variant="outline"
-                        className="w-6 md:w-8 justify-center text-[10px] md:text-xs px-1"
-                      >
-                        {index + 1}
-                      </Badge>
-                      <span className="text-xs md:text-sm font-medium">
-                        {item.country}
-                      </span>
+                topCountries.map((item, index) => {
+                  const { name, flag } = getCountryInfo(item.country);
+                  return (
+                    <div
+                      key={item.country}
+                      className="flex items-center justify-between p-2 bg-muted rounded"
+                    >
+                      <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                        <Badge
+                          variant="outline"
+                          className="w-6 md:w-8 justify-center text-[10px] md:text-xs px-1 shrink-0"
+                        >
+                          {index + 1}
+                        </Badge>
+                        {flag && (
+                          <span
+                            className="text-base md:text-lg shrink-0"
+                            role="img"
+                            aria-label={name}
+                          >
+                            {flag}
+                          </span>
+                        )}
+                        <span className="text-xs md:text-sm font-medium truncate">
+                          {name}
+                        </span>
+                      </div>
+                      <div className="text-xs md:text-sm font-semibold ml-2 shrink-0">
+                        {item.count.toLocaleString()}
+                      </div>
                     </div>
-                    <div className="text-xs md:text-sm font-semibold">
-                      {item.count.toLocaleString()}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="text-xs md:text-sm text-muted-foreground">
                   No country data available
                 </p>
               )}
             </div>
-            <Button
-              variant="outline"
-              className="w-full mt-3 md:mt-4 text-xs md:text-sm h-8 md:h-9"
-              onClick={() => navigate("/dashboard/replay")}
-            >
-              View All Requests
-              <ArrowRight className="ml-2 h-3 w-3 md:h-4 md:w-4" />
-            </Button>
           </CardContent>
         </Card>
       </div>

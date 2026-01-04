@@ -207,7 +207,6 @@ export async function processRawMetrics(
       }
 
       try {
-        // Querybuilder automatically handles embedding generation
         await metricsQuery.create(data as any);
 
         // Log after successful insert

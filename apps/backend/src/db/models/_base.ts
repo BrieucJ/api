@@ -1,4 +1,4 @@
-import { timestamp, integer, vector } from "drizzle-orm/pg-core";
+import { timestamp, integer } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export default {
@@ -8,5 +8,4 @@ export default {
     .$onUpdate(() => sql`(now() AT TIME ZONE 'utc'::text)`),
   created_at: timestamp({ mode: "date" }).defaultNow().notNull(),
   deleted_at: timestamp({ mode: "date" }),
-  embedding: vector({ dimensions: 16 }),
 };

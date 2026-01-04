@@ -32,7 +32,7 @@ export const userSelectSchema = createSelectSchema(users)
     email: emailField,
     role: roleField,
   })
-  .omit({ deleted_at: true, embedding: true, password_hash: true })
+  .omit({ deleted_at: true, password_hash: true })
   .openapi("UserSelect");
 
 export const userAuthSchema = z
@@ -54,7 +54,6 @@ export const userInsertSchema = createInsertSchema(users)
     updated_at: true,
     created_at: true,
     deleted_at: true,
-    embedding: true,
   })
   .openapi("UserInsert");
 
@@ -72,7 +71,7 @@ export const userUpdateSchema = createUpdateSchema(users)
     updated_at: true,
     created_at: true,
     deleted_at: true,
-    embedding: true,
+
     password_hash: true,
   })
   .openapi("UserUpdate");

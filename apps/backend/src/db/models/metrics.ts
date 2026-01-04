@@ -54,7 +54,7 @@ export const metricsSelectSchema = createSelectSchema(metrics)
     request_size: requestSizeField,
     response_size: responseSizeField,
   })
-  .omit({ deleted_at: true, embedding: true })
+  .omit({ deleted_at: true })
   .openapi("MetricsSelect");
 
 export const metricsInsertSchema = createInsertSchema(metrics)
@@ -72,7 +72,6 @@ export const metricsInsertSchema = createInsertSchema(metrics)
     updated_at: true,
     created_at: true,
     deleted_at: true,
-    embedding: true,
   })
   .openapi("MetricsInsert");
 
@@ -91,6 +90,5 @@ export const metricsUpdateSchema = createUpdateSchema(metrics)
     updated_at: true,
     created_at: true,
     deleted_at: true,
-    embedding: true,
   })
   .openapi("MetricsUpdate");

@@ -93,7 +93,7 @@ export const snapshotSelectSchema = createSelectSchema(requestSnapshots)
     geo_lon: geoLonField,
     geo_source: geoSourceField,
   })
-  .omit({ deleted_at: true, embedding: true })
+  .omit({ deleted_at: true })
   .openapi("SnapshotSelect");
 
 export const snapshotInsertSchema = createInsertSchema(requestSnapshots)
@@ -115,7 +115,6 @@ export const snapshotInsertSchema = createInsertSchema(requestSnapshots)
     updated_at: true,
     created_at: true,
     deleted_at: true,
-    embedding: true,
   })
   .openapi("SnapshotInsert");
 
@@ -138,6 +137,5 @@ export const snapshotUpdateSchema = createUpdateSchema(requestSnapshots)
     updated_at: true,
     created_at: true,
     deleted_at: true,
-    embedding: true,
   })
   .openapi("SnapshotUpdate");

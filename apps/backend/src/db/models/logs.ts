@@ -34,7 +34,7 @@ export const logSelectSchema = createSelectSchema(logs)
     level: levelField,
     message: messageField,
   })
-  .omit({ deleted_at: true, embedding: true })
+  .omit({ deleted_at: true })
   .openapi("LogSelect");
 
 // INSERT schema
@@ -48,6 +48,5 @@ export const logInsertSchema = createInsertSchema(logs)
     updated_at: true,
     created_at: true,
     deleted_at: true,
-    embedding: true,
   })
   .openapi("LogInsert");

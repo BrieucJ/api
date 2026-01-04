@@ -15,6 +15,13 @@
       "when": 1767482104480,
       "tag": "0001_soft_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767536581137,
+      "tag": "0002_secret_lilandra",
+      "breakpoints": true
     }
   ]
 }

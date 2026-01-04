@@ -10,7 +10,6 @@ import { db } from "@/db/db";
 import { pgTable, text, integer, timestamp, vector } from "drizzle-orm/pg-core";
 import { createQueryBuilder } from "@/db/querybuilder";
 import { sql } from "drizzle-orm";
-import { stringToVector } from "@/utils/encode";
 
 /* ──────────────────────────────────────────────────────────────
    Test table definition
@@ -23,7 +22,6 @@ const testTable = pgTable("test_table", {
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
   deleted_at: timestamp("deleted_at"),
-  embedding: vector({ dimensions: 16 }),
 });
 
 const qb = createQueryBuilder(testTable);
@@ -41,8 +39,7 @@ beforeAll(async () => {
       tags TEXT[],
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      deleted_at TIMESTAMP,
-      embedding vector(16)
+      deleted_at TIMESTAMP
     )
   `);
 });
@@ -54,22 +51,19 @@ beforeEach(async () => {
       name: "Alice",
       age: 30,
       tags: ["x", "y"],
-      embedding: stringToVector("Alice", 16),
     },
-    { name: "Bob", age: 0, tags: [], embedding: stringToVector("Bob", 16) },
+    { name: "Bob", age: 0, tags: [] },
     {
       name: "Charlie",
       age: 35,
       tags: ["z"],
-      embedding: stringToVector("Charlie", 16),
     },
     {
       name: "Diana",
       age: 28,
       tags: ["x"],
-      embedding: stringToVector("Diana", 16),
     },
-    { name: "Eve", age: 40, tags: ["y"], embedding: stringToVector("Eve", 16) },
+    { name: "Eve", age: 40, tags: ["y"] },
   ]);
 });
 
@@ -189,7 +183,6 @@ describe("QueryBuilder – pagination & CRUD", () => {
       name: "Frank",
       age: 22,
       tags: ["f"],
-      embedding: stringToVector("Frank", 16),
     });
     expect(row.id).toBeDefined();
     expect(row.name).toBe("Frank");

@@ -1,8 +1,12 @@
-import { pgTable, text, timestamp, integer, index, uniqueIndex } from "drizzle-orm/pg-core";
 import {
-  createSelectSchema,
-  createInsertSchema,
-} from "drizzle-zod";
+  pgTable,
+  text,
+  timestamp,
+  integer,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@hono/zod-openapi";
 import base from "./_base";
@@ -37,8 +41,14 @@ const tokenHashField = z.string().openapi({ example: "scrypt$salt$hash" });
 const userIdField = z.number().int().min(1).openapi({ example: 1 });
 const expiresAtField = z.date().openapi({ example: new Date() });
 const revokedAtField = z.date().nullable().openapi({ example: null });
-const deviceInfoField = z.string().nullable().openapi({ example: "Mozilla/5.0..." });
-const ipAddressField = z.string().nullable().openapi({ example: "192.168.1.1" });
+const deviceInfoField = z
+  .string()
+  .nullable()
+  .openapi({ example: "Mozilla/5.0..." });
+const ipAddressField = z
+  .string()
+  .nullable()
+  .openapi({ example: "192.168.1.1" });
 
 export const refreshTokenSelectSchema = createSelectSchema(refreshTokens)
   .extend({
@@ -50,7 +60,7 @@ export const refreshTokenSelectSchema = createSelectSchema(refreshTokens)
     device_info: deviceInfoField,
     ip_address: ipAddressField,
   })
-  .omit({ deleted_at: true, embedding: true })
+  .omit({ deleted_at: true })
   .openapi("RefreshTokenSelect");
 
 export const refreshTokenInsertSchema = createInsertSchema(refreshTokens)
@@ -66,7 +76,5 @@ export const refreshTokenInsertSchema = createInsertSchema(refreshTokens)
     updated_at: true,
     created_at: true,
     deleted_at: true,
-    embedding: true,
   })
   .openapi("RefreshTokenInsert");
-

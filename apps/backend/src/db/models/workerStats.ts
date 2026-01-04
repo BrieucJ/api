@@ -68,7 +68,7 @@ export const availableJobSchema = z.object({
 });
 
 export const workerStatsSelectSchema = createSelectSchema(workerStats)
-  .omit({ deleted_at: true, embedding: true })
+  .omit({ deleted_at: true })
   .openapi("WorkerStatsSelect");
 
 export const workerStatsInsertSchema = createInsertSchema(workerStats)
@@ -86,7 +86,6 @@ export const workerStatsInsertSchema = createInsertSchema(workerStats)
     created_at: true,
     updated_at: true,
     deleted_at: true,
-    embedding: true,
   })
   .openapi("WorkerStatsInsert");
 
@@ -105,7 +104,6 @@ export const workerStatsUpdateSchema = createUpdateSchema(workerStats)
     created_at: true,
     updated_at: true,
     deleted_at: true,
-    embedding: true,
   })
   .openapi("WorkerStatsUpdate");
 
