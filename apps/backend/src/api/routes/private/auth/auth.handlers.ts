@@ -24,10 +24,6 @@ import { logger } from "@/utils/logger";
 export const login: AppRouteHandler<LoginRoute> = async (c) => {
   const { email, password } = c.req.valid("json");
 
-  // Log JWT_SECRET info (safely - don't log the actual secret)
-  const jwtSecret = process.env.JWT_SECRET;
-  logger.info(`JWT_SECRET configured: ${jwtSecret}`);
-
   logger.info(`Login attempt for email: ${email}`);
 
   // Use querybuilder to find user by email
@@ -83,18 +79,7 @@ export const login: AppRouteHandler<LoginRoute> = async (c) => {
     );
   }
 
-  // Verify password using cross-platform password verification
-  logger.info(
-    `Verifying password for user ${
-      user.id
-    }, password_hash exists: ${!!password_hash}, hash length: ${
-      password_hash?.length || 0
-    }, hash prefix: ${password_hash?.substring(0, 20) || "none"}...`
-  );
   const isValidPassword = await verifyPassword(password, password_hash);
-  logger.info(
-    `Password verification result: ${isValidPassword ? "VALID" : "INVALID"}`
-  );
 
   if (!isValidPassword) {
     logger.warn(
