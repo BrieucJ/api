@@ -7,7 +7,7 @@ import {
   afterAll,
 } from "bun:test";
 import { db } from "@/db/db";
-import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { QueryBuilder } from "@/db/querybuilder";
 import { sql } from "drizzle-orm";
 
@@ -19,6 +19,7 @@ const testTable = pgTable("test_table", {
   name: text("name").notNull(),
   age: integer("age").notNull(),
   tags: text("tags").array(),
+  metadata: jsonb("metadata"),
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
   deleted_at: timestamp("deleted_at"),
@@ -37,6 +38,7 @@ beforeAll(async () => {
       name TEXT NOT NULL,
       age INTEGER NOT NULL,
       tags TEXT[],
+      metadata JSONB,
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
       deleted_at TIMESTAMP
@@ -51,19 +53,67 @@ beforeEach(async () => {
       name: "Alice",
       age: 30,
       tags: ["x", "y"],
+      metadata: {
+        email: "alice@example.com",
+        role: "admin",
+        settings: {
+          theme: "dark",
+          notifications: true,
+        },
+        nested: {
+          level1: {
+            level2: {
+              value: "deep_value",
+            },
+          },
+        },
+      },
     },
-    { name: "Bob", age: 0, tags: [] },
+    {
+      name: "Bob",
+      age: 0,
+      tags: [],
+      metadata: {
+        email: "bob@example.com",
+        role: "user",
+        settings: {
+          theme: "light",
+          notifications: false,
+        },
+      },
+    },
     {
       name: "Charlie",
       age: 35,
       tags: ["z"],
+      metadata: {
+        email: "charlie@example.com",
+        role: "admin",
+        settings: {
+          theme: "dark",
+          notifications: true,
+        },
+        tags: ["important", "vip"],
+      },
     },
     {
       name: "Diana",
       age: 28,
       tags: ["x"],
+      metadata: {
+        email: "diana@example.com",
+        role: "user",
+        settings: {
+          theme: "light",
+        },
+      },
     },
-    { name: "Eve", age: 40, tags: ["y"] },
+    {
+      name: "Eve",
+      age: 40,
+      tags: ["y"],
+      metadata: null,
+    },
   ]);
 });
 
@@ -513,22 +563,313 @@ describe("QueryBuilder – include deleted records", () => {
 });
 
 /* ──────────────────────────────────────────────────────────────
-   Nested JSONB Path Support
+   JSONB Query Support
 ────────────────────────────────────────────────────────────── */
-describe("QueryBuilder – nested JSONB paths", () => {
-  // Note: This test requires a table with JSONB column
-  // Since testTable doesn't have JSONB, we'll test the parsing logic
-  // by verifying it doesn't throw errors for nested paths
-  it("supports single-level JSONB paths (backward compatible)", async () => {
-    // This should work if testTable had a JSONB column
-    // For now, we just verify the code doesn't break
-    expect(true).toBe(true);
+describe("QueryBuilder – JSONB queries", () => {
+  describe("Nested JSONB path queries", () => {
+    it("supports single-level JSONB path queries", async () => {
+      // Query: metadata__jsonb__email__eq
+      const res = await qb.list({
+        filters: { metadata__jsonb__email__eq: "alice@example.com" },
+      });
+      expect(res.data.length).toBe(1);
+      expect(res.data[0]?.name).toBe("Alice");
+    });
+
+    it("supports multi-level JSONB path queries", async () => {
+      // Query: metadata__jsonb__settings__theme__eq
+      const res = await qb.list({
+        filters: { metadata__jsonb__settings__theme__eq: "dark" },
+      });
+      expect(res.data.length).toBe(2); // Alice and Charlie
+      const names = res.data.map((r) => r.name).sort();
+      expect(names).toEqual(["Alice", "Charlie"]);
+    });
+
+    it("supports deep nested JSONB path queries", async () => {
+      // Query: metadata__jsonb__nested__level1__level2__value__eq
+      const res = await qb.list({
+        filters: {
+          metadata__jsonb__nested__level1__level2__value__eq: "deep_value",
+        },
+      });
+      expect(res.data.length).toBe(1);
+      expect(res.data[0]?.name).toBe("Alice");
+    });
+
+    it("supports JSONB path queries with like operator", async () => {
+      // Query: metadata__jsonb__email__like
+      const res = await qb.list({
+        filters: { metadata__jsonb__email__like: "example" },
+      });
+      expect(res.data.length).toBe(4); // All except Eve (null metadata)
+      expect(res.data.every((r) => r.name !== "Eve")).toBe(true);
+    });
+
+    it("supports JSONB path queries with ilike operator", async () => {
+      // Query: metadata__jsonb__email__ilike (case-insensitive)
+      const res = await qb.list({
+        filters: { metadata__jsonb__email__ilike: "ALICE" },
+      });
+      expect(res.data.length).toBe(1);
+      expect(res.data[0]?.name).toBe("Alice");
+    });
+
+    it("supports JSONB path queries with ne operator", async () => {
+      // Query: metadata__jsonb__role__ne
+      const res = await qb.list({
+        filters: { metadata__jsonb__role__ne: "admin" },
+      });
+      expect(res.data.length).toBe(2); // Bob and Diana (users)
+      const names = res.data.map((r) => r.name).sort();
+      expect(names).toEqual(["Bob", "Diana"]);
+    });
+
+    it("returns empty results for non-existent JSONB paths", async () => {
+      const res = await qb.list({
+        filters: { metadata__jsonb__nonexistent__eq: "value" },
+      });
+      expect(res.data.length).toBe(0);
+    });
+
+    it("throws error for invalid JSONB field", async () => {
+      await expect(
+        qb.list({ filters: { name__jsonb__key__eq: "value" } })
+      ).rejects.toThrow();
+    });
+
+    it("throws error for empty JSONB path", async () => {
+      await expect(
+        qb.list({ filters: { metadata__jsonb__eq: "value" } })
+      ).rejects.toThrow();
+    });
   });
 
-  it("supports multi-level JSONB paths", async () => {
-    // This would test: field__jsonb__level1__level2__key__eq
-    // Since testTable doesn't have JSONB, we verify the code structure
-    expect(true).toBe(true);
+  describe("JSONB column operators", () => {
+    it("supports jsonb__contains operator", async () => {
+      // Query: metadata__jsonb__contains
+      const res = await qb.list({
+        filters: {
+          metadata__jsonb__contains: JSON.stringify({ role: "admin" }),
+        },
+      });
+      expect(res.data.length).toBe(2); // Alice and Charlie
+      const names = res.data.map((r) => r.name).sort();
+      expect(names).toEqual(["Alice", "Charlie"]);
+    });
+
+    it("supports jsonb__key_exists operator", async () => {
+      // Query: metadata__jsonb__key_exists
+      const res = await qb.list({
+        filters: { metadata__jsonb__key_exists: "tags" },
+      });
+      expect(res.data.length).toBe(1); // Only Charlie has tags
+      expect(res.data[0]?.name).toBe("Charlie");
+    });
+
+    it("supports jsonb__all_keys_exist operator", async () => {
+      // Query: metadata__jsonb__all_keys_exist
+      const res = await qb.list({
+        filters: {
+          metadata__jsonb__all_keys_exist: ["email", "role", "settings"],
+        },
+      });
+      expect(res.data.length).toBe(4); // All except Eve (null metadata)
+      expect(res.data.every((r) => r.name !== "Eve")).toBe(true);
+    });
+
+    it("supports jsonb__all_keys_exist with single key", async () => {
+      const res = await qb.list({
+        filters: { metadata__jsonb__all_keys_exist: "email" },
+      });
+      expect(res.data.length).toBe(4); // All except Eve
+    });
+
+    it("supports jsonb__any_key_exists operator", async () => {
+      // Query: metadata__jsonb__any_key_exists
+      const res = await qb.list({
+        filters: { metadata__jsonb__any_key_exists: ["tags", "nested"] },
+      });
+      expect(res.data.length).toBe(2); // Alice (has nested) and Charlie (has tags)
+      const names = res.data.map((r) => r.name).sort();
+      expect(names).toEqual(["Alice", "Charlie"]);
+    });
+
+    it("supports jsonb__any_key_exists with single key", async () => {
+      const res = await qb.list({
+        filters: { metadata__jsonb__any_key_exists: "tags" },
+      });
+      expect(res.data.length).toBe(1); // Only Charlie
+      expect(res.data[0]?.name).toBe("Charlie");
+    });
+
+    it("supports jsonb__eq operator on JSONB column", async () => {
+      // Query: metadata__jsonb__eq (exact match)
+      const aliceMetadata = {
+        email: "alice@example.com",
+        role: "admin",
+        settings: {
+          theme: "dark",
+          notifications: true,
+        },
+        nested: {
+          level1: {
+            level2: {
+              value: "deep_value",
+            },
+          },
+        },
+      };
+      const res = await qb.list({
+        filters: {
+          metadata__jsonb__eq: JSON.stringify(aliceMetadata),
+        },
+      });
+      expect(res.data.length).toBe(1);
+      expect(res.data[0]?.name).toBe("Alice");
+    });
+
+    it("supports jsonb__ne operator on JSONB column", async () => {
+      // Query: metadata__jsonb__ne
+      const res = await qb.list({
+        filters: {
+          metadata__jsonb__ne: "null",
+        },
+      });
+      expect(res.data.length).toBe(4); // All except Eve (null metadata)
+    });
+
+    it("handles null JSONB values correctly", async () => {
+      // Eve has null metadata
+      const res = await qb.list({
+        filters: { metadata__isnull: null },
+      });
+      expect(res.data.length).toBe(1);
+      expect(res.data[0]?.name).toBe("Eve");
+    });
+
+    it("handles non-null JSONB values correctly", async () => {
+      const res = await qb.list({
+        filters: { metadata__isnotnull: null },
+      });
+      expect(res.data.length).toBe(4); // All except Eve
+    });
+  });
+
+  describe("JSONB queries with AND/OR filters", () => {
+    it("supports AND filters with JSONB paths", async () => {
+      const res = await qb.list({
+        filters: {
+          metadata__jsonb__role__eq: "admin",
+          metadata__jsonb__settings__theme__eq: "dark",
+        },
+      });
+      expect(res.data.length).toBe(2); // Alice and Charlie
+      const names = res.data.map((r) => r.name).sort();
+      expect(names).toEqual(["Alice", "Charlie"]);
+    });
+
+    it("supports OR filters with JSONB paths", async () => {
+      const res = await qb.list({
+        filters: [
+          { metadata__jsonb__role__eq: "admin" },
+          { metadata__jsonb__settings__theme__eq: "light" },
+        ],
+      });
+      expect(res.data.length).toBe(4); // Alice, Charlie (admin), Bob, Diana (light theme)
+      const names = res.data.map((r) => r.name).sort();
+      expect(names).toEqual(["Alice", "Bob", "Charlie", "Diana"]);
+    });
+
+    it("supports complex AND/OR combinations with JSONB", async () => {
+      const res = await qb.list({
+        filters: [
+          {
+            metadata__jsonb__role__eq: "admin",
+            metadata__jsonb__settings__theme__eq: "dark",
+          },
+          {
+            metadata__jsonb__role__eq: "user",
+            metadata__jsonb__settings__theme__eq: "light",
+          },
+        ],
+      });
+      expect(res.data.length).toBe(4); // All users with matching role/theme
+      const names = res.data.map((r) => r.name).sort();
+      expect(names).toEqual(["Alice", "Bob", "Charlie", "Diana"]);
+    });
+  });
+
+  describe("JSONB queries with pagination and ordering", () => {
+    it("supports pagination with JSONB filters", async () => {
+      const res = await qb.list({
+        filters: { metadata__jsonb__role__eq: "admin" },
+        limit: 1,
+        offset: 0,
+      });
+      expect(res.data.length).toBe(1);
+      expect(res.total).toBe(2);
+    });
+
+    it("supports ordering with JSONB filters", async () => {
+      const res = await qb.list({
+        filters: { metadata__isnotnull: null },
+        order_by: { field: "name", order: "asc" },
+      });
+      expect(res.data.length).toBe(4); // All except Eve (null metadata)
+      expect(res.data[0]?.name).toBe("Alice");
+      expect(res.data[3]?.name).toBe("Diana"); // Last one alphabetically (Eve is filtered out)
+      expect(res.data.every((r) => r.name !== "Eve")).toBe(true);
+    });
+  });
+
+  describe("JSONB edge cases", () => {
+    it("handles empty JSONB objects", async () => {
+      // Insert a record with empty metadata
+      await qb.create({
+        name: "EmptyMeta",
+        age: 25,
+        tags: [],
+        metadata: {},
+      });
+
+      const res = await qb.list({
+        filters: { metadata__jsonb__key_exists: "nonexistent" },
+      });
+      // Should not include EmptyMeta
+      expect(res.data.find((r) => r.name === "EmptyMeta")).toBeUndefined();
+    });
+
+    it("handles JSONB arrays", async () => {
+      // Charlie has tags array in metadata
+      const res = await qb.list({
+        filters: { metadata__jsonb__key_exists: "tags" },
+      });
+      expect(res.data.length).toBe(1);
+      expect(res.data[0]?.name).toBe("Charlie");
+    });
+
+    it("handles numeric values in JSONB paths", async () => {
+      // Insert a record with numeric keys in JSONB
+      await qb.create({
+        name: "NumericKeys",
+        age: 25,
+        tags: [],
+        metadata: {
+          scores: {
+            1: 100,
+            2: 200,
+          },
+        },
+      });
+
+      // Note: JSONB path queries work with string keys, not numeric indices
+      // This test verifies the system doesn't break with numeric-looking keys
+      const res = await qb.list({
+        filters: { metadata__jsonb__key_exists: "scores" },
+      });
+      expect(res.data.length).toBeGreaterThan(0);
+    });
   });
 });
 

@@ -143,7 +143,14 @@ export const LOOKUP_MAP: Record<string, (col: Col, value: Val) => SQL | any> = {
 
 // JSON/JSONB operators
 const JSONB_LOOKUP_MAP: Record<string, (col: Col, value: Val) => SQL> = {
-  jsonb__contains: (col, v) => sql`${col} @> ${v}`,
+  jsonb__contains: (col, v) => {
+    // Cast value to JSONB for @> operator
+    // Use sql.raw to properly cast the parameterized value
+    const jsonStr = typeof v === "string" ? v : JSON.stringify(v);
+    // Escape single quotes for SQL safety
+    const escaped = jsonStr.replace(/'/g, "''");
+    return sql`${col} @> ${sql.raw(`'${escaped}'::jsonb`)}`;
+  },
   jsonb__key_exists: (col, v) => sql`${col} ? ${v}`,
   jsonb__all_keys_exist: (col, v) =>
     sql`${col} ?& ${
@@ -163,8 +170,22 @@ const JSONB_LOOKUP_MAP: Record<string, (col: Col, value: Val) => SQL> = {
           )}]`
         : sql`ARRAY[${v}]`
     }`,
-  jsonb__eq: (col, v) => sql`${col} = ${v}`,
-  jsonb__ne: (col, v) => sql`${col} != ${v}`,
+  jsonb__eq: (col, v) => {
+    // Cast value to JSONB for = operator
+    const jsonStr = typeof v === "string" ? v : JSON.stringify(v);
+    const escaped = jsonStr.replace(/'/g, "''");
+    return sql`${col} = ${sql.raw(`'${escaped}'::jsonb`)}`;
+  },
+  jsonb__ne: (col, v) => {
+    // Cast value to JSONB for != operator
+    // Special handling for "null" string to check for non-null JSONB
+    if (v === "null" || v === null) {
+      return sql`${col} IS NOT NULL`;
+    }
+    const jsonStr = typeof v === "string" ? v : JSON.stringify(v);
+    const escaped = jsonStr.replace(/'/g, "''");
+    return sql`${col} != ${sql.raw(`'${escaped}'::jsonb`)}`;
+  },
 };
 
 function castValueForColumn(col: Column<any>, value: any): any {
@@ -488,18 +509,29 @@ export class QueryBuilder<T extends Table> {
         lookup = pathAndOperator[pathAndOperator.length - 1] || "eq";
         jsonbPathSegments = pathAndOperator.slice(0, -1);
 
-        if (jsonbPathSegments.length === 0) {
-          throw new Error(
-            `Invalid JSONB filter format: ${rawKey}. Path cannot be empty`
-          );
-        }
-
         this.validateFieldExists(field, "filter");
 
         const col = this.columns[field];
         if (!(col instanceof PgJsonb)) {
           throw new Error(`Field '${field}' is not a JSONB column`);
         }
+
+        // If there are path segments, this is a nested path query
+        // Otherwise, check if it's a JSONB column operator
+        if (jsonbPathSegments.length === 0) {
+          // No path segments - check if this is a JSONB column operator
+          const jsonbColumnOp = JSONB_LOOKUP_MAP[`jsonb__${lookup}`];
+          if (jsonbColumnOp) {
+            whereClauses.push(jsonbColumnOp(col, rawValue));
+            continue;
+          } else {
+            throw new Error(
+              `Invalid JSONB filter format: ${rawKey}. Path cannot be empty. Use field__jsonb__operator for JSONB column operators, or field__jsonb__path__operator for nested paths.`
+            );
+          }
+        }
+
+        // This is a nested path query: field__jsonb__path1__path2__...__key__operator
 
         // Build nested JSONB path access
         // Use -> for intermediate levels (returns JSONB) and ->> for final level (returns text)
@@ -518,7 +550,7 @@ export class QueryBuilder<T extends Table> {
 
         const value = castFilterValue(col, lookup, rawValue);
 
-        // For JSONB, we need special handling
+        // For JSONB path queries, we support eq, ne, like, ilike on the extracted value
         if (lookup === "eq") {
           whereClauses.push(eq(jsonbCol, value));
         } else if (lookup === "ne") {
@@ -528,18 +560,9 @@ export class QueryBuilder<T extends Table> {
         } else if (lookup === "ilike") {
           whereClauses.push(ilike(jsonbCol, `%${value}%`));
         } else {
-          // For other operators, we need to check if they work on the JSONB column itself
-          // or if we need to use the nested path
-          const jsonbOp = JSONB_LOOKUP_MAP[`jsonb__${lookup}`];
-          if (jsonbOp) {
-            // These operators work on the JSONB column itself, not the extracted value
-            // So we use the original column, not the nested path
-            whereClauses.push(jsonbOp(col, value));
-          } else {
-            throw new Error(
-              `Unsupported JSONB operator '${lookup}' for nested path`
-            );
-          }
+          throw new Error(
+            `Unsupported JSONB path operator '${lookup}'. Supported operators for paths: eq, ne, like, ilike`
+          );
         }
         continue;
       } else {
