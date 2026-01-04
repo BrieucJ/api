@@ -150,9 +150,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const fetchLogs = async () => {
       try {
-        const query: Record<string, string> = {
-          order_by: "id",
-          order: isInitialLoad ? "desc" : "asc",
+        const query: Record<string, any> = {
+          order_by: JSON.stringify({
+            field: "id",
+            order: isInitialLoad ? "desc" : "asc",
+          }),
         };
 
         if (isInitialLoad) {
@@ -168,34 +170,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
           }
         }
 
-        console.log(
-          "[LogsPolling] Fetching with query:",
-          query,
-          "lastId:",
-          lastId,
-          "isInitialLoad:",
-          isInitialLoad
-        );
         const response = await (client as any).logs.$get({ query });
         if (response.ok) {
           const data = (await response.json()) as { data?: LogSelectType[] };
-          console.log(
-            "[LogsPolling] Received",
-            data.data?.length || 0,
-            "logs",
-            data.data
-          );
+
           if (data.data && data.data.length > 0) {
             for (const log of data.data) {
               lastId = Math.max(lastId, log.id);
               get().addLog(log);
             }
-            console.log(
-              "[LogsPolling] After adding, total logs in store:",
-              get().logs.length,
-              "lastId:",
-              lastId
-            );
 
             if (isInitialLoad) {
               isInitialLoad = false;
@@ -232,9 +215,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const fetchMetrics = async () => {
       try {
-        const query: Record<string, string> = {
-          order_by: "id",
-          order: isInitialLoad ? "desc" : "asc",
+        const query: Record<string, any> = {
+          order_by: JSON.stringify({
+            field: "id",
+            order: isInitialLoad ? "desc" : "asc",
+          }),
         };
 
         if (isInitialLoad) {

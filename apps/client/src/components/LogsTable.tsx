@@ -107,7 +107,7 @@ export default function LogsTable({
         },
         cell: ({ row }) => {
           return (
-            <div className="text-sm truncate">
+            <div className="text-sm truncate whitespace-nowrap">
               {new Date(row.getValue("created_at")).toLocaleString(undefined, {
                 year: "2-digit",
                 month: "2-digit",
@@ -120,6 +120,7 @@ export default function LogsTable({
             </div>
           );
         },
+        meta: { className: "whitespace-nowrap" },
         enableSorting: true,
         enableColumnFilter: true,
       },
@@ -140,11 +141,12 @@ export default function LogsTable({
         },
         cell: ({ row }) => {
           return (
-            <div className="truncate">
+            <div className="truncate whitespace-nowrap">
               <LevelBadge level={row.getValue("level")} />
             </div>
           );
         },
+        meta: { className: "whitespace-nowrap" },
         enableSorting: true,
         enableColumnFilter: true,
         filterFn: (row, id, value) => {
@@ -168,9 +170,12 @@ export default function LogsTable({
         },
         cell: ({ row }) => {
           return (
-            <div className="text-sm truncate">{row.getValue("source")}</div>
+            <div className="text-sm truncate whitespace-nowrap">
+              {row.getValue("source")}
+            </div>
           );
         },
+        meta: { className: "whitespace-nowrap" },
         enableSorting: true,
         enableColumnFilter: true,
       },
@@ -189,9 +194,29 @@ export default function LogsTable({
         },
         cell: ({ row }) => {
           return (
-            <div className="text-sm truncate">{row.getValue("message")}</div>
+            <div
+              className="text-sm truncate min-w-0"
+              style={{
+                maxWidth: "100%",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {row.getValue("message")}
+            </div>
           );
         },
+        meta: {
+          className: "min-w-0",
+          style: {
+            width: "40%",
+            maxWidth: "50%",
+          },
+        },
+        size: 400,
+        minSize: 200,
+        maxSize: 1000,
         enableSorting: false,
         enableColumnFilter: true,
       },
@@ -238,21 +263,26 @@ export default function LogsTable({
   }, [levelOptions, sourceOptions, showMetaAsContent]);
 
   return (
-    <DataTable
-      columns={columns}
-      data={displayLogs}
-      enablePagination={false}
-      pageSize={1000}
-      emptyMessage={
-        searchValue.trim() && !isSearching ? "No results found" : "No logs yet"
-      }
-      showRowCount={true}
-      columnLabels={columnLabels}
-      searchValue={searchValue}
-      onSearchChange={setSearchValue}
-      searchPlaceholder="Search logs..."
-      isLoading={isSearching}
-    />
+    <div className="w-full min-w-0 max-w-full flex flex-col h-full min-h-0">
+      <DataTable
+        columns={columns}
+        data={displayLogs}
+        enablePagination={false}
+        pageSize={1000}
+        emptyMessage={
+          searchValue.trim() && !isSearching
+            ? "No results found"
+            : "No logs yet"
+        }
+        showRowCount={true}
+        columnLabels={columnLabels}
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        searchPlaceholder="Search logs..."
+        isLoading={isSearching}
+        className="w-full min-w-0 max-w-full"
+      />
+    </div>
   );
 }
 

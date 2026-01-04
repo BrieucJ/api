@@ -121,9 +121,12 @@ function enumFromSchema<T extends z.ZodObject<any>>(schema: T) {
 }
 
 // Complete pagination + ordering helper
+// Querybuilder format: order_by={"field":"id","order":"asc"} or order_by=[{"field":"id","order":"asc"},{"field":"name","order":"desc"}]
 export function paginationWithOrderingSchema<T extends z.ZodObject<any>>(
   schema: T
 ) {
+  const orderByFieldEnum = enumFromSchema(schema);
+
   return z
     .object({
       limit: z.coerce
@@ -151,16 +154,74 @@ export function paginationWithOrderingSchema<T extends z.ZodObject<any>>(
           example: 0,
         })
         .default(0),
-      order_by: enumFromSchema(schema).default("id"),
-      order: z.enum(["asc", "desc"]).default("asc"),
+      // Querybuilder format: order_by={"field":"id","order":"asc"} or order_by=[{"field":"id","order":"asc"},{"field":"name","order":"desc"}]
+      // Accepts both JSON string and object (for API tools like Scalar)
+      order_by: z
+        .union([
+          z.object({
+            field: orderByFieldEnum,
+            order: z.enum(["asc", "desc"]),
+          }),
+          z.array(
+            z.object({
+              field: orderByFieldEnum,
+              order: z.enum(["asc", "desc"]),
+            })
+          ),
+          z.string().transform((val, ctx) => {
+            // Parse as JSON for querybuilder format
+            try {
+              const parsed = JSON.parse(val);
+              // Validate it matches querybuilder format
+              if (typeof parsed === "object" && parsed !== null) {
+                if (Array.isArray(parsed)) {
+                  const orderByArraySchema = z.array(
+                    z.object({
+                      field: orderByFieldEnum,
+                      order: z.enum(["asc", "desc"]),
+                    })
+                  );
+                  return orderByArraySchema.parse(parsed);
+                } else if ("field" in parsed && "order" in parsed) {
+                  // Object format: {field: "id", order: "asc"}
+                  const orderByObjectSchema = z.object({
+                    field: orderByFieldEnum,
+                    order: z.enum(["asc", "desc"]),
+                  });
+                  return orderByObjectSchema.parse(parsed);
+                }
+              }
+              throw new Error("Invalid order_by format");
+            } catch (e) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `order_by must be valid JSON matching querybuilder format: {"field":"id","order":"asc"} or [{"field":"id","order":"asc"}]`,
+              });
+              return z.NEVER;
+            }
+          }),
+        ])
+        .default({ field: "id", order: "asc" })
+        .openapi({
+          param: {
+            name: "order_by",
+            in: "query",
+          },
+          example: JSON.stringify({ field: "id", order: "asc" }),
+        }),
       search: z.string().optional(),
-      filters: z.string().optional().describe(`Available operators:
-${Object.keys(LOOKUP_MAP).join(", ")}
+      filters: z.string().optional()
+        .describe(`Filter conditions as query parameters (AND by default).
+Available operators: ${Object.keys(LOOKUP_MAP).join(", ")}
 
-Example usage:
+Example usage (AND conditions):
 - ?name__ilike=John
 - ?age__gte=18
-- ?created_at__between=2023-01-01,2023-12-31
+- ?name__ilike=John&age__gte=18 (both conditions must match)
+
+For OR conditions, pass filters as JSON string:
+- ?filters=[{"name__eq":"John"},{"name__eq":"Bob"}] (John OR Bob)
+- ?filters=[{"name__eq":"John","age__gte":30},{"name__eq":"Bob","age__gte":25}] (complex OR)
   `),
     })
     .loose();

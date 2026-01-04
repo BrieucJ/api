@@ -1,20 +1,15 @@
 import type { AppRouteHandler } from "@/utils/types";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { refreshTokenQuery } from "@/db/queries";
 import type { ListRoute, GetRoute, RemoveRoute } from "./refreshTokens.routes";
-import { refreshTokens as refreshTokensTable } from "@/db/models/refreshTokens";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
-
-const refreshTokenQuery =
-  createQueryBuilder<typeof refreshTokensTable>(refreshTokensTable);
 
 export const list: AppRouteHandler<ListRoute> = async (c) => {
   const query = c.req.valid("query");
-  const { limit, offset, order_by, order, search, ...filters } = query;
+  const { limit, offset, order_by, search, ...filters } = query;
   const { data, total } = await refreshTokenQuery.list({
     limit,
     offset,
     order_by,
-    order,
     search,
     filters,
   });

@@ -5,9 +5,8 @@ import type {
   LogoutRoute,
   RefreshRoute,
 } from "./auth.routes";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { userQuery, refreshTokenQuery } from "@/db/queries";
 import { users as usersTable } from "@/db/models/users";
-import { refreshTokens as refreshTokensTable } from "@/db/models/refreshTokens";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import { signAccessToken } from "@/utils/jwt";
 import { verifyPassword } from "@/utils/password";
@@ -21,10 +20,6 @@ import {
 import { db } from "@/db/db";
 import { eq, isNull, and } from "drizzle-orm";
 import { logger } from "@/utils/logger";
-
-const userQuery = createQueryBuilder<typeof usersTable>(usersTable);
-const refreshTokenQuery =
-  createQueryBuilder<typeof refreshTokensTable>(refreshTokensTable);
 
 export const login: AppRouteHandler<LoginRoute> = async (c) => {
   const { email, password } = c.req.valid("json");

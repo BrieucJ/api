@@ -1,14 +1,11 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { logs } from "@/db/models/logs";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { logQuery } from "@/db/queries";
 import {
   client,
   createTestUser,
   withTransaction,
 } from "@/tests/helpers/test-helpers";
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
-
-const logQuery = createQueryBuilder<typeof logs>(logs);
 
 describe("Logs API", () => {
   beforeEach(async () => {
@@ -42,8 +39,7 @@ describe("Logs API", () => {
             query: {
               limit: 10,
               offset: 0,
-              order_by: "id",
-              order: "asc",
+              order_by: JSON.stringify({ field: "id", order: "asc" }),
             },
           },
           {
@@ -152,7 +148,9 @@ describe("Logs API", () => {
         // Should have at least the error log we created
         expect(body.data.length).toBeGreaterThanOrEqual(1);
         // All returned logs should have level === "error"
-        const allErrorLogs = body.data.every((log: any) => log.level === "error");
+        const allErrorLogs = body.data.every(
+          (log: any) => log.level === "error"
+        );
         expect(allErrorLogs).toBe(true);
         // Verify our specific log is in the results
         const hasOurLog = body.data.some((log: any) => log.id === errorLog.id);
@@ -183,8 +181,7 @@ describe("Logs API", () => {
             query: {
               limit: 2,
               offset: 0,
-              order_by: "id",
-              order: "asc",
+              order_by: JSON.stringify({ field: "id", order: "asc" }),
             },
           },
           {

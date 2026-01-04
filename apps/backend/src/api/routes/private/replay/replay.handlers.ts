@@ -1,11 +1,7 @@
 import type { AppRouteHandler } from "@/utils/types";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { requestSnapshotQuery } from "@/db/queries";
 import type { ListRoute, GetRoute, ReplayRoute } from "./replay.routes";
-import { requestSnapshots as snapshotsTable } from "@/db/models/requestSnapshots";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
-
-const snapshotsQuery =
-  createQueryBuilder<typeof snapshotsTable>(snapshotsTable);
 
 export const list: AppRouteHandler<ListRoute> = async (c) => {
   const query = c.req.valid("query");
@@ -13,7 +9,6 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     limit,
     offset,
     order_by,
-    order,
     search,
     method,
     path,
@@ -42,11 +37,10 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     queryBuilderFilters.timestamp__lte = endDate;
   }
 
-  const { data, total } = await snapshotsQuery.list({
+  const { data, total } = await requestSnapshotQuery.list({
     limit,
     offset,
-    order_by,
-    order,
+    order_by: order_by || { field: "id", order: "asc" },
     search,
     filters: queryBuilderFilters,
   });
@@ -68,7 +62,7 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
 export const get: AppRouteHandler<GetRoute> = async (c) => {
   const { id } = c.req.valid("param");
 
-  const snapshot = await snapshotsQuery.get(id);
+  const snapshot = await requestSnapshotQuery.get(id);
 
   if (!snapshot) {
     return c.json(
@@ -94,7 +88,7 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
 export const replay: AppRouteHandler<ReplayRoute> = async (c) => {
   const { id } = c.req.valid("param");
 
-  const snapshot = await snapshotsQuery.get(id);
+  const snapshot = await requestSnapshotQuery.get(id);
 
   if (!snapshot) {
     return c.json(

@@ -2,8 +2,7 @@ import { testClient } from "hono/testing";
 import app from "@/api/index";
 import env from "@/env";
 import { sign } from "hono/jwt";
-import { users } from "@/db/models/users";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { userQuery } from "@/db/queries";
 import { hashPassword } from "@/utils/password";
 import { runInTransaction } from "./db-setup";
 
@@ -21,7 +20,6 @@ export async function createTestUser(
   password: string = "password123",
   role: "admin" | "user" = "admin"
 ): Promise<{ user: any; token: string }> {
-  const userQuery = createQueryBuilder<typeof users>(users);
   const password_hash = await hashPassword(password);
 
   // Check if user already exists

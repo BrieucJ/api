@@ -59,8 +59,7 @@ describe("Health Check Handler", () => {
       const { data } = await statsQuery.list({
         filters: { worker_mode__eq: "local" },
         limit: 1,
-        order_by: "last_heartbeat",
-        order: "desc",
+        order_by: { field: "last_heartbeat", order: "desc" },
       });
 
       expect(data.length).toBeGreaterThan(0);
@@ -110,4 +109,3 @@ describe("Health Check Handler", () => {
     })
   );
 });
-

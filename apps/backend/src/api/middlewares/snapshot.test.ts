@@ -2,12 +2,8 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import snapshotMiddleware from "@/api/middlewares/snapshot";
 import { createMockContextForMiddleware } from "@/tests/helpers/test-helpers";
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
-import { requestSnapshots } from "@/db/models/requestSnapshots";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { requestSnapshotQuery } from "@/db/queries";
 import { wait } from "@/tests/helpers/test-helpers";
-
-const snapshotsQuery =
-  createQueryBuilder<typeof requestSnapshots>(requestSnapshots);
 
 describe("Snapshot Middleware", () => {
   beforeEach(async () => {
@@ -31,7 +27,7 @@ describe("Snapshot Middleware", () => {
     await wait(100);
 
     // Check if snapshot was created
-    const { data } = await snapshotsQuery.list({
+    const { data } = await requestSnapshotQuery.list({
       filters: { path__eq: "/api/v1/users" },
       limit: 1,
     });
@@ -57,7 +53,7 @@ describe("Snapshot Middleware", () => {
     // Wait a bit to ensure no snapshot is created
     await wait(100);
 
-    const { data } = await snapshotsQuery.list({
+    const { data } = await requestSnapshotQuery.list({
       filters: { path__eq: "/health" },
       limit: 1,
     });
@@ -83,11 +79,10 @@ describe("Snapshot Middleware", () => {
 
     await wait(100);
 
-    const { data } = await snapshotsQuery.list({
+    const { data } = await requestSnapshotQuery.list({
       filters: { path__eq: "/api/v1/users" },
       limit: 1,
-      order_by: "id",
-      order: "desc",
+      order_by: { field: "id", order: "desc" },
     });
 
     expect(data.length).toBeGreaterThan(0);
@@ -119,11 +114,10 @@ describe("Snapshot Middleware", () => {
 
     await wait(100);
 
-    const { data } = await snapshotsQuery.list({
+    const { data } = await requestSnapshotQuery.list({
       filters: { path__eq: "/api/v1/users" },
       limit: 1,
-      order_by: "id",
-      order: "desc",
+      order_by: { field: "id", order: "desc" },
     });
 
     expect(data.length).toBeGreaterThan(0);
@@ -157,11 +151,10 @@ describe("Snapshot Middleware", () => {
 
     await wait(100);
 
-    const { data } = await snapshotsQuery.list({
+    const { data } = await requestSnapshotQuery.list({
       filters: { path__eq: "/api/v1/users" },
       limit: 1,
-      order_by: "id",
-      order: "desc",
+      order_by: { field: "id", order: "desc" },
     });
 
     expect(data.length).toBeGreaterThan(0);
@@ -192,11 +185,10 @@ describe("Snapshot Middleware", () => {
 
     await wait(100);
 
-    const { data } = await snapshotsQuery.list({
+    const { data } = await requestSnapshotQuery.list({
       filters: { path__eq: "/api/v1/users" },
       limit: 1,
-      order_by: "id",
-      order: "desc",
+      order_by: { field: "id", order: "desc" },
     });
 
     expect(data.length).toBeGreaterThan(0);
@@ -231,11 +223,10 @@ describe("Snapshot Middleware", () => {
 
     await wait(100);
 
-    const { data } = await snapshotsQuery.list({
+    const { data } = await requestSnapshotQuery.list({
       filters: { path__eq: "/api/v1/users" },
       limit: 1,
-      order_by: "id",
-      order: "desc",
+      order_by: { field: "id", order: "desc" },
     });
 
     expect(data.length).toBeGreaterThan(0);

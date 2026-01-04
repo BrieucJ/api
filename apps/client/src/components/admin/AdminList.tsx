@@ -70,11 +70,13 @@ export default function AdminList({ model }: AdminListProps) {
     setLoading(true);
     setError(null);
     try {
-      const query: Record<string, string> = {
+      const query: Record<string, any> = {
         limit: pagination.limit.toString(),
         offset: pagination.offset.toString(),
-        order_by: "id",
-        order: "desc",
+        order_by: JSON.stringify({
+          field: "id",
+          order: "desc",
+        }),
       };
 
       if (search && schema) {

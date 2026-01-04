@@ -55,8 +55,7 @@ export class StatsPusher {
       const { data } = await statsQuery.list({
         filters: { worker_mode__eq: env.WORKER_MODE },
         limit: 1,
-        order_by: "last_heartbeat",
-        order: "desc",
+        order_by: { field: "last_heartbeat", order: "desc" },
       });
 
       if (data.length > 0 && data[0]) {

@@ -1,10 +1,7 @@
 import type { AppRouteHandler } from "@/utils/types";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { metricsQuery } from "@/db/queries";
 import type { ListRoute, AggregateRoute } from "./metrics.routes";
-import { metrics as metricsTable } from "@/db/models/metrics";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
-
-const metricsQuery = createQueryBuilder<typeof metricsTable>(metricsTable);
 
 export const list: AppRouteHandler<ListRoute> = async (c) => {
   const query = c.req.valid("query");
@@ -12,7 +9,6 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     limit,
     offset,
     order_by,
-    order,
     search,
     endpoint,
     startDate,
@@ -36,8 +32,7 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
   const { data, total } = await metricsQuery.list({
     limit,
     offset,
-    order_by,
-    order,
+    order_by: order_by || { field: "id", order: "asc" },
     search,
     filters: queryBuilderFilters,
   });
@@ -89,8 +84,7 @@ export const aggregate: AppRouteHandler<AggregateRoute> = async (c) => {
   const { data: results } = await metricsQuery.list({
     filters: queryBuilderFilters,
     limit: 10000, // Large limit for aggregation
-    order_by: "window_start",
-    order: "asc",
+    order_by: { field: "window_start", order: "asc" },
   });
 
   // Convert error_rate from percentage (0-100) back to decimal (0-1) for API

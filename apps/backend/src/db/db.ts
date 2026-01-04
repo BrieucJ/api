@@ -57,7 +57,13 @@ expand(
   })
 );
 
-const client = postgres(process.env.DATABASE_URL!, {
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL environment variable is required. Please set it in your .env file."
+  );
+}
+
+const client = postgres(process.env.DATABASE_URL, {
   max: 3, // Allow 3 connections for parallel queries (Lambda can handle this)
   idle_timeout: 60000, // 60 seconds
   connect_timeout: 10, // 10 second connection timeout
@@ -74,15 +80,13 @@ const client = postgres(process.env.DATABASE_URL!, {
   },
 });
 
-// Suppress NOTICE messages in test environment
-if (process.env.NODE_ENV === "test") {
-  client.unsafe("SET client_min_messages TO 'warning'").catch(() => {
-    // Ignore errors if connection not ready yet
-  });
-}
-
 export const db = drizzle(client, {
   logger: {
     logQuery: (query, params) => dbLogger.debug(query, params),
   },
 });
+
+// Ensure db is properly initialized and available
+if (!db) {
+  throw new Error("Failed to initialize database connection");
+}

@@ -1,5 +1,5 @@
 import type { AppRouteHandler } from "@/utils/types";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { userQuery } from "@/db/queries";
 import type {
   ListRoute,
   GetRoute,
@@ -7,20 +7,16 @@ import type {
   PatchRoute,
   RemoveRoute,
 } from "./users.routes";
-import { users as usersTable } from "@/db/models/users";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import { hashPassword } from "@/utils/password";
 
-const userQuery = createQueryBuilder<typeof usersTable>(usersTable);
-
 export const list: AppRouteHandler<ListRoute> = async (c) => {
   const query = c.req.valid("query");
-  const { limit, offset, order_by, order, search, ...filters } = query;
+  const { limit, offset, order_by, search, ...filters } = query;
   const { data, total } = await userQuery.list({
     limit,
     offset,
     order_by,
-    order,
     search,
     filters,
   });

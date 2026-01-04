@@ -1,14 +1,11 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { workerStats } from "@/db/models/workerStats";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { workerStatsQuery } from "@/db/queries";
 import {
   client,
   createTestUser,
   withTransaction,
 } from "@/tests/helpers/test-helpers";
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
-
-const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
 
 describe("Worker API", () => {
   beforeEach(async () => {
@@ -26,7 +23,7 @@ describe("Worker API", () => {
         );
 
         // Create test worker stats
-        await statsQuery.create({
+        await workerStatsQuery.create({
           worker_mode: "lambda",
           queue_size: 5,
           processing_count: 2,
@@ -84,7 +81,7 @@ describe("Worker API", () => {
         );
 
         // Create multiple worker stats with different timestamps
-        await statsQuery.create({
+        await workerStatsQuery.create({
           worker_mode: "local",
           queue_size: 1,
           processing_count: 1,
@@ -97,7 +94,7 @@ describe("Worker API", () => {
         // Wait a bit to ensure different timestamps
         await new Promise((resolve) => setTimeout(resolve, 10));
 
-        await statsQuery.create({
+        await workerStatsQuery.create({
           worker_mode: "lambda",
           queue_size: 10,
           processing_count: 5,

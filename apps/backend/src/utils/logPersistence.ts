@@ -1,7 +1,13 @@
-import { logs, logInsertSchema } from "@/db/models/logs";
-import { createQueryBuilder } from "@/db/querybuilder";
-
-const logQuery = createQueryBuilder<typeof logs>(logs);
+import { logInsertSchema } from "@/db/models/logs";
+// Lazy-load logQuery to avoid circular dependency
+let _logQuery: any = null;
+async function getLogQuery() {
+  if (!_logQuery) {
+    const queriesModule = await import("@/db/queries");
+    _logQuery = queriesModule.logQuery;
+  }
+  return _logQuery;
+}
 
 export class LogPersistence {
   async save(entry: {
@@ -12,6 +18,8 @@ export class LogPersistence {
   }) {
     try {
       const data = logInsertSchema.parse(entry);
+      // Lazy-load logQuery only when actually saving
+      const logQuery = await getLogQuery();
       await logQuery.create(data);
     } catch (error) {
       // Log to console if DB persistence fails

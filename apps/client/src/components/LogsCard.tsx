@@ -1,25 +1,19 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from "@/components/ui/card";
 import LogsCardContent from "./LogsTable";
 import { useAppStore } from "@/store/appStore";
-import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
 
 export default function LogsCard() {
-  const navigate = useNavigate();
   const logs = useAppStore((state) => state.logs);
   const lastLog = logs[0]?.created_at;
 
   return (
-    <Card className="hover:shadow-lg transition w-full overflow-hidden">
+    <Card className="hover:shadow-lg transition">
       <CardHeader className="p-3 md:p-6">
         <CardTitle className="text-base md:text-lg">Logs</CardTitle>
         <CardDescription className="flex flex-col sm:flex-row gap-1 sm:gap-2 p-0 m-0">

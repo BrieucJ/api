@@ -1,15 +1,11 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { requestSnapshots } from "@/db/models/requestSnapshots";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { requestSnapshotQuery } from "@/db/queries";
 import {
   client,
   createTestUser,
   withTransaction,
 } from "@/tests/helpers/test-helpers";
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
-
-const snapshotsQuery =
-  createQueryBuilder<typeof requestSnapshots>(requestSnapshots);
 
 describe("Replay API", () => {
   beforeEach(async () => {
@@ -27,7 +23,7 @@ describe("Replay API", () => {
         );
 
         // Create test snapshots
-        await snapshotsQuery.create({
+        await requestSnapshotQuery.create({
           method: "GET",
           path: "/api/v1/users",
           version: "1.0.0",
@@ -36,7 +32,7 @@ describe("Replay API", () => {
           headers: { "Content-Type": "application/json" },
         });
 
-        await snapshotsQuery.create({
+        await requestSnapshotQuery.create({
           method: "POST",
           path: "/api/v1/users",
           version: "1.0.0",
@@ -50,8 +46,7 @@ describe("Replay API", () => {
             query: {
               limit: 10,
               offset: 0,
-              order_by: "id",
-              order: "asc",
+              order_by: JSON.stringify({ field: "id", order: "asc" }),
             },
           },
           {
@@ -79,14 +74,14 @@ describe("Replay API", () => {
           "admin"
         );
 
-        await snapshotsQuery.create({
+        await requestSnapshotQuery.create({
           method: "GET",
           path: "/api/v1/users",
           version: "1.0.0",
           stage: "test",
         });
 
-        await snapshotsQuery.create({
+        await requestSnapshotQuery.create({
           method: "POST",
           path: "/api/v1/users",
           version: "1.0.0",
@@ -127,14 +122,14 @@ describe("Replay API", () => {
           "admin"
         );
 
-        await snapshotsQuery.create({
+        await requestSnapshotQuery.create({
           method: "GET",
           path: "/api/v1/users",
           version: "1.0.0",
           stage: "test",
         });
 
-        await snapshotsQuery.create({
+        await requestSnapshotQuery.create({
           method: "GET",
           path: "/api/v1/users/:id",
           version: "1.0.0",
@@ -175,7 +170,7 @@ describe("Replay API", () => {
           "admin"
         );
 
-        await snapshotsQuery.create({
+        await requestSnapshotQuery.create({
           method: "GET",
           path: "/api/v1/users",
           version: "1.0.0",
@@ -183,7 +178,7 @@ describe("Replay API", () => {
           status_code: 200,
         });
 
-        await snapshotsQuery.create({
+        await requestSnapshotQuery.create({
           method: "GET",
           path: "/api/v1/users",
           version: "1.0.0",
@@ -227,7 +222,7 @@ describe("Replay API", () => {
 
         // Create multiple snapshots
         for (let i = 0; i < 5; i++) {
-          await snapshotsQuery.create({
+          await requestSnapshotQuery.create({
             method: "GET",
             path: `/api/v1/endpoint${i}`,
             version: "1.0.0",
@@ -240,8 +235,7 @@ describe("Replay API", () => {
             query: {
               limit: 2,
               offset: 0,
-              order_by: "id",
-              order: "asc",
+              order_by: JSON.stringify({ field: "id", order: "asc" }),
             },
           },
           {
@@ -285,7 +279,7 @@ describe("Replay API", () => {
           "admin"
         );
 
-        const snapshot = await snapshotsQuery.create({
+        const snapshot = await requestSnapshotQuery.create({
           method: "GET",
           path: "/api/v1/users",
           version: "1.0.0",
@@ -364,7 +358,7 @@ describe("Replay API", () => {
 
         // Create a snapshot for a simple GET request to a route that exists
         // Use /health which requires auth, but the replay adds x-internal-replay header
-        const snapshot = await snapshotsQuery.create({
+        const snapshot = await requestSnapshotQuery.create({
           method: "GET",
           path: "/health",
           version: "1.0.0",
@@ -439,7 +433,7 @@ describe("Replay API", () => {
         );
 
         // Create a snapshot for a blocked path
-        const snapshot = await snapshotsQuery.create({
+        const snapshot = await requestSnapshotQuery.create({
           method: "GET",
           path: "/replay",
           version: "1.0.0",

@@ -1,16 +1,10 @@
 import { createMiddleware } from "hono/factory";
 import type { Context } from "hono";
-import {
-  requestSnapshots,
-  snapshotInsertSchema,
-} from "@/db/models/requestSnapshots";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { snapshotInsertSchema } from "@/db/models/requestSnapshots";
+import { requestSnapshotQuery } from "@/db/queries";
 import env from "@/env";
 import packageJSON from "../../../package.json";
 import { logger } from "@/utils/logger";
-
-const snapshotsQuery =
-  createQueryBuilder<typeof requestSnapshots>(requestSnapshots);
 
 const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
   const path = c.req.path;
@@ -138,7 +132,7 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
           geo_source: geoSource ?? null,
         });
 
-        await snapshotsQuery.create(data);
+        await requestSnapshotQuery.create(data);
       } catch (error) {
         logger.error("Failed to store snapshot", {
           error: error instanceof Error ? error.message : String(error),
@@ -176,7 +170,7 @@ const snapshotMiddleware = createMiddleware(async (c: Context, next) => {
           geo_source: geoSource ?? null,
         });
 
-        await snapshotsQuery.create(data);
+        await requestSnapshotQuery.create(data);
       } catch (err) {
         logger.error("Failed to store error snapshot", {
           error: err instanceof Error ? err.message : String(err),

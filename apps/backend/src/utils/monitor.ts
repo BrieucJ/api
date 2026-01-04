@@ -1,9 +1,6 @@
 import type { AppOpenAPI } from "./types";
 import { streamSSE } from "hono/streaming";
-import { createQueryBuilder } from "@/db/querybuilder";
-import { logs } from "@/db/models/logs";
-
-const logQuery = createQueryBuilder<typeof logs>(logs);
+import { logQuery } from "@/db/queries";
 
 export default function configureMonitoring(app: AppOpenAPI) {
   app.get("/logs/stream", async (c) => {
@@ -13,8 +10,7 @@ export default function configureMonitoring(app: AppOpenAPI) {
       const { data: initialLogs } = await logQuery.list({
         limit: INITIAL_LOG_COUNT,
         offset: 0,
-        order_by: "id",
-        order: "desc",
+        order_by: { field: "id", order: "desc" },
       });
 
       // Send them newest first (no reverse needed)
@@ -33,8 +29,7 @@ export default function configureMonitoring(app: AppOpenAPI) {
         const { data: newLogs } = await logQuery.list({
           filters: { id__gt: lastId },
           limit: 1000, // Large limit to get all new logs
-          order_by: "id",
-          order: "asc",
+          order_by: { field: "id", order: "asc" },
         });
 
         for (const log of newLogs) {

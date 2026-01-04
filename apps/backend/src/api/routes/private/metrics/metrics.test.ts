@@ -1,14 +1,11 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { metrics } from "@/db/models/metrics";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { metricsQuery } from "@/db/queries";
 import {
   client,
   createTestUser,
   withTransaction,
 } from "@/tests/helpers/test-helpers";
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
-
-const metricsQuery = createQueryBuilder<typeof metrics>(metrics);
 
 describe("Metrics API", () => {
   beforeEach(async () => {
@@ -57,8 +54,7 @@ describe("Metrics API", () => {
             query: {
               limit: 10,
               offset: 0,
-              order_by: "id",
-              order: "asc",
+              order_by: JSON.stringify({ field: "id", order: "asc" }),
             },
           },
           {
@@ -210,8 +206,7 @@ describe("Metrics API", () => {
             query: {
               limit: 2,
               offset: 0,
-              order_by: "id",
-              order: "asc",
+              order_by: JSON.stringify({ field: "id", order: "asc" }),
             },
           },
           {

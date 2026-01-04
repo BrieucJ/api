@@ -1,8 +1,7 @@
 import type { AppRouteHandler } from "@/utils/types";
 import type { GetRoute } from "./health.routes";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
-import { createQueryBuilder } from "@/db/querybuilder";
-import { workerStats } from "@/db/models/workerStats";
+import { workerStatsQuery } from "@/db/queries";
 import { SERVER_START_TIME } from "@/api/index";
 import { logger } from "@/utils/logger";
 
@@ -23,8 +22,7 @@ function getUptime(): number {
 
 async function checkDatabaseHealth() {
   const start = Date.now();
-  const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
-  await statsQuery.getFirst();
+  await workerStatsQuery.getFirst();
   const responseTime = Date.now() - start;
   return {
     status: "healthy" as const,
@@ -34,10 +32,8 @@ async function checkDatabaseHealth() {
 }
 
 async function checkWorkerHealth() {
-  const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
-  const latestStat = await statsQuery.getFirst({
-    order_by: "last_heartbeat",
-    order: "desc",
+  const latestStat = await workerStatsQuery.getFirst({
+    order_by: { field: "last_heartbeat", order: "desc" },
   });
 
   if (!latestStat) {

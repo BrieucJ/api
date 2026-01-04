@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { users } from "@/db/models/users";
-import { createQueryBuilder } from "@/db/querybuilder";
 import {
   client,
   createTestUser,
@@ -9,8 +8,6 @@ import {
 import { resetTestDatabase } from "@/tests/helpers/db-setup";
 import { db } from "@/db/db";
 import { eq } from "drizzle-orm";
-
-const userQuery = createQueryBuilder<typeof users>(users);
 
 describe("Users API", () => {
   beforeEach(async () => {
@@ -28,8 +25,7 @@ describe("Users API", () => {
           query: {
             limit: 10,
             offset: 0,
-            order_by: "id",
-            order: "asc",
+            order_by: JSON.stringify({ field: "id", order: "asc" }),
           },
         });
 
@@ -51,7 +47,7 @@ describe("Users API", () => {
           query: {
             limit: 10,
             offset: 0,
-            filters: { email__eq: "filter@test.com" },
+            email__eq: "filter@test.com",
           },
         });
 
@@ -75,8 +71,7 @@ describe("Users API", () => {
           query: {
             limit: 2,
             offset: 0,
-            order_by: "id",
-            order: "asc",
+            order_by: JSON.stringify({ field: "id", order: "asc" }),
           },
         });
 

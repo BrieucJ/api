@@ -292,7 +292,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-3 md:space-y-6">
+    <div className="space-y-3 md:space-y-6 w-full min-w-0 max-w-full">
       {/* Timeframe Selector */}
       <div className="flex flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>

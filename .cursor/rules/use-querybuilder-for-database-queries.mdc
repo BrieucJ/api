@@ -17,33 +17,44 @@ The querybuilder provides the following methods:
 
 ## Usage Pattern
 
-```typescript
-import { createQueryBuilder } from "@/db/querybuilder";
-import { tableName } from "@/db/models/tableName";
+**Recommended: Use centralized query builders**
 
-const query = createQueryBuilder<typeof tableName>(tableName);
+```typescript
+import { userQuery, logQuery, metricsQuery } from "@/db/queries";
 
 // List with filters
-const { data, total } = await query.list({
+const { data, total } = await userQuery.list({
   filters: { field__eq: value, otherField__gte: minValue },
   search: "search term",
   limit: 20,
   offset: 0,
-  order_by: "id",
-  order: "desc"
+  order_by: { field: "id", order: "desc" }
 });
 
 // Get by ID
-const item = await query.get(id);
+const item = await userQuery.get(id);
 
 // Create
-const created = await query.create(data);
+const created = await userQuery.create(data);
 
 // Update
-const updated = await query.update(id, partialData);
+const updated = await userQuery.update(id, partialData);
 
 // Delete
-const deleted = await query.delete(id);
+const deleted = await userQuery.delete(id);
+```
+
+**Alternative: Create custom query builder (for edge cases)**
+
+```typescript
+import { QueryBuilder } from "@/db/querybuilder";
+import { tableName } from "@/db/models/tableName";
+
+// Only use this if you need custom configuration
+const query = new QueryBuilder(tableName, {
+  excludeColumns: ["custom_field"],
+  queryLogger: { enabled: true, slowQueryThreshold: 500 }
+});
 ```
 
 ## Filter Syntax

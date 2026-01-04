@@ -101,7 +101,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div
-      className={`flex flex-col space-y-4 w-full min-w-0 flex-1 min-h-0 ${
+      className={`flex flex-col space-y-4 w-full min-w-0 h-full min-h-0 ${
         className || ""
       }`}
     >
@@ -116,86 +116,85 @@ export function DataTable<TData, TValue>({
         )}
         <ColumnVisibilityToggle table={table} columnLabels={columnLabels} />
       </div>
-      <div className="rounded-md border overflow-hidden flex flex-col w-full min-w-0 flex-1 min-h-0">
+      <div className="rounded-md border overflow-hidden flex flex-col w-full min-w-0 max-w-full flex-1 min-h-0">
         <div
-          className="overflow-y-auto overflow-x-auto flex-1 min-h-0 min-w-0 w-full"
-          style={{ maxWidth: "100%" }}
+          className="overflow-y-auto overflow-x-auto flex-1 min-h-0 min-w-0 w-full max-w-full"
+          style={{
+            position: "relative",
+          }}
         >
-          <div className="w-full min-w-0" style={{ maxWidth: "100%" }}>
-            <Table className="w-full" style={{ maxWidth: "100%" }}>
-              <TableHeader className="sticky top-0 bg-background z-10">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      const columnMeta = header.column.columnDef.meta as
-                        | { className?: string }
+          <Table className="w-full">
+            <TableHeader className="sticky top-0 bg-background z-10">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const columnMeta = header.column.columnDef.meta as
+                      | { className?: string; style?: React.CSSProperties }
+                      | undefined;
+                    return (
+                      <TableHead
+                        key={header.id}
+                        className={cn("py-1", columnMeta?.className)}
+                        style={columnMeta?.style}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </TableHead>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                // Show skeleton rows while loading
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    {visibleColumns.map((column) => (
+                      <TableCell key={column.id} className="py-1">
+                        <div className="h-4 bg-muted animate-pulse rounded" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => {
+                      const columnMeta = cell.column.columnDef.meta as
+                        | { className?: string; style?: React.CSSProperties }
                         | undefined;
                       return (
-                        <TableHead
-                          key={header.id}
-                          className={cn("py-1", columnMeta?.className)}
+                        <TableCell
+                          key={cell.id}
+                          className={cn("py-1 min-w-0", columnMeta?.className)}
+                          style={columnMeta?.style}
                         >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
                       );
                     })}
                   </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  // Show skeleton rows while loading
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <TableRow key={`skeleton-${index}`}>
-                      {visibleColumns.map((column) => (
-                        <TableCell key={column.id} className="py-1">
-                          <div className="h-4 bg-muted animate-pulse rounded" />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map((cell) => {
-                        const columnMeta = cell.column.columnDef.meta as
-                          | { className?: string }
-                          | undefined;
-                        return (
-                          <TableCell
-                            key={cell.id}
-                            className={cn(
-                              "py-1 min-w-0",
-                              columnMeta?.className
-                            )}
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={visibleColumns.length}
-                      className="h-24 text-center"
-                    >
-                      {emptyMessage}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={visibleColumns.length}
+                    className="h-24 text-center"
+                  >
+                    {emptyMessage}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
       {enablePagination && (

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { refreshTokens } from "@/db/models/refreshTokens";
-import { createQueryBuilder } from "@/db/querybuilder";
+import { refreshTokenQuery } from "@/db/queries";
 import {
   client,
   createTestUser,
@@ -14,9 +13,7 @@ import {
 } from "@/utils/refreshToken";
 import { db } from "@/db/db";
 import { eq } from "drizzle-orm";
-
-const refreshTokenQuery =
-  createQueryBuilder<typeof refreshTokens>(refreshTokens);
+import { refreshTokens as refreshTokenTable } from "@/db/models/refreshTokens";
 
 /**
  * Helper to create a test refresh token
@@ -67,8 +64,7 @@ describe("RefreshTokens API", () => {
           query: {
             limit: 10,
             offset: 0,
-            order_by: "id",
-            order: "asc",
+            order_by: JSON.stringify({ field: "id", order: "asc" }),
           },
         });
 
@@ -163,8 +159,7 @@ describe("RefreshTokens API", () => {
           query: {
             limit: 2,
             offset: 0,
-            order_by: "id",
-            order: "asc",
+            order_by: JSON.stringify({ field: "id", order: "asc" }),
           },
         });
 
@@ -196,8 +191,7 @@ describe("RefreshTokens API", () => {
           query: {
             limit: 10,
             offset: 0,
-            order_by: "id",
-            order: "desc",
+            order_by: JSON.stringify({ field: "id", order: "desc" }),
           },
         });
 
@@ -309,8 +303,8 @@ describe("RefreshTokens API", () => {
         // Verify token is hard deleted (not just soft deleted)
         const [deletedToken] = await db
           .select()
-          .from(refreshTokens)
-          .where(eq(refreshTokens.id, refreshToken.id))
+          .from(refreshTokenTable)
+          .where(eq(refreshTokenTable.id, refreshToken.id))
           .limit(1);
 
         expect(deletedToken).toBeUndefined();
@@ -356,8 +350,8 @@ describe("RefreshTokens API", () => {
         // Verify token is deleted
         const [deletedToken] = await db
           .select()
-          .from(refreshTokens)
-          .where(eq(refreshTokens.id, refreshToken.id))
+          .from(refreshTokenTable)
+          .where(eq(refreshTokenTable.id, refreshToken.id))
           .limit(1);
 
         expect(deletedToken).toBeUndefined();
