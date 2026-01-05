@@ -145,6 +145,7 @@ resource "aws_lambda_function" "api_lambda" {
   role          = aws_iam_role.lambda_role.arn
   timeout       = 10
   memory_size   = 1024
+  reserved_concurrent_executions = 1
 
   environment {
     variables = {
