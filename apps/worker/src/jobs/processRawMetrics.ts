@@ -22,11 +22,16 @@ export const payloadSchema = z.object({
 
 export type ProcessRawMetricsPayload = z.infer<typeof payloadSchema>;
 
-// Calculate percentile from sorted array
+// Calculate percentile from sorted array using nearest rank method
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
-  const index = Math.ceil((p / 100) * sorted.length) - 1;
-  return sorted[Math.max(0, index)] || 0;
+  // Nearest rank method: index = ceil((p/100) * n) - 1
+  // Clamp to ensure valid array bounds
+  const index = Math.max(
+    0,
+    Math.min(Math.ceil((p / 100) * sorted.length) - 1, sorted.length - 1)
+  );
+  return sorted[index] || 0;
 }
 
 // Get current window key
@@ -286,4 +291,3 @@ export const definition: JobDefinition = {
     windowSizeSeconds: 60,
   },
 };
-

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -13,14 +12,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  ArrowRight,
   AlertCircle,
   Activity,
   Clock,
@@ -33,52 +24,15 @@ import { useAppStore } from "@/store/appStore";
 import MetricsChart from "@/components/MetricsChart";
 import LogsCard from "@/components/LogsCard";
 import { getCountryInfo } from "@/lib/countries";
-
-type Timeframe = "5m" | "15m" | "30m" | "1h" | "6h" | "24h";
-
-const TIMEFRAME_OPTIONS: { value: Timeframe; label: string }[] = [
-  { value: "5m", label: "Last 5 minutes" },
-  { value: "15m", label: "Last 15 minutes" },
-  { value: "30m", label: "Last 30 minutes" },
-  { value: "1h", label: "Last 1 hour" },
-  { value: "6h", label: "Last 6 hours" },
-  { value: "24h", label: "Last 24 hours" },
-];
-
-const TIMEFRAME_MS: Record<Timeframe, number> = {
-  "5m": 5 * 60 * 1000,
-  "15m": 15 * 60 * 1000,
-  "30m": 30 * 60 * 1000,
-  "1h": 60 * 60 * 1000,
-  "6h": 6 * 60 * 60 * 1000,
-  "24h": 24 * 60 * 60 * 1000,
-};
-
-const formatTimeframe = (timeframe: Timeframe): string => {
-  return (
-    TIMEFRAME_OPTIONS.find((opt) => opt.value === timeframe)?.label || timeframe
-  );
-};
-
-const timeframeToChartRange = (
-  timeframe: Timeframe
-): "1h" | "6h" | "24h" | "7d" => {
-  if (
-    timeframe === "5m" ||
-    timeframe === "15m" ||
-    timeframe === "30m" ||
-    timeframe === "1h"
-  ) {
-    return "1h";
-  }
-  if (timeframe === "6h") {
-    return "6h";
-  }
-  return "24h";
-};
+import {
+  type Timeframe,
+  TIMEFRAME_MS,
+  formatTimeframe,
+  timeframeToChartRange,
+  TimeframeSelector,
+} from "@/components/TimeframeSelector";
 
 export default function Dashboard() {
-  const navigate = useNavigate();
   const metrics = useAppStore((state) => state.metrics);
   const initMetricsPolling = useAppStore((state) => state.initMetricsPolling);
   const snapshots = useAppStore((state) => state.snapshots);
@@ -304,24 +258,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select
-            value={timeframe}
-            onValueChange={(value) => setTimeframe(value as Timeframe)}
-          >
-            <SelectTrigger
-              id="timeframe-select"
-              className="w-[140px] md:w-[180px] text-xs md:text-sm h-8 md:h-9"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIMEFRAME_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <TimeframeSelector value={timeframe} onChange={setTimeframe} />
         </div>
       </div>
 
