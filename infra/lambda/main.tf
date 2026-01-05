@@ -143,7 +143,7 @@ resource "aws_lambda_function" "api_lambda" {
   package_type  = "Image"
   image_uri     = "${aws_ecr_repository.repo.repository_url}:${var.image_tag != "" ? var.image_tag : var.environment}"
   role          = aws_iam_role.lambda_role.arn
-  timeout       = 10
+  timeout       = 30
   memory_size   = 1024
   reserved_concurrent_executions = 1
 
@@ -184,6 +184,11 @@ resource "aws_apigatewayv2_stage" "api_stage" {
   api_id      = aws_apigatewayv2_api.api_gateway.id
   name        = "$default"
   auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
+  }
 }
 
 resource "aws_lambda_permission" "api_invoke_permission" {
