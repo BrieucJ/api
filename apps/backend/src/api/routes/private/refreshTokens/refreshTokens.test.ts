@@ -48,11 +48,11 @@ describe("RefreshTokens API", () => {
     await resetTestDatabase();
   });
 
-  describe("GET /api/v1/refresh_tokens", () => {
+  describe("GET /refresh_tokens", () => {
     it(
       "should list all refresh tokens",
       withTransaction(async () => {
-        const { user } = await createTestUser(
+        const { user, token } = await createTestUser(
           "user1@test.com",
           "password123",
           "admin"
@@ -60,13 +60,20 @@ describe("RefreshTokens API", () => {
         await createTestRefreshToken(user.id);
         await createTestRefreshToken(user.id);
 
-        const res = await client["/api/v1/refresh_tokens"].$get({
-          query: {
-            limit: 10,
-            offset: 0,
-            order_by: JSON.stringify({ field: "id", order: "asc" }),
+        const res = await client["/refresh_tokens"].$get(
+          {
+            query: {
+              limit: 10,
+              offset: 0,
+              order_by: JSON.stringify({ field: "id", order: "asc" }),
+            },
           },
-        });
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -80,7 +87,7 @@ describe("RefreshTokens API", () => {
     it(
       "should filter refresh tokens by user_id",
       withTransaction(async () => {
-        const { user: user1 } = await createTestUser(
+        const { user: user1, token } = await createTestUser(
           "user1@test.com",
           "password123",
           "admin"
@@ -94,13 +101,20 @@ describe("RefreshTokens API", () => {
         await createTestRefreshToken(user1.id);
         await createTestRefreshToken(user2.id);
 
-        const res = await client["/api/v1/refresh_tokens"].$get({
-          query: {
-            limit: 10,
-            offset: 0,
-            user_id__eq: user1.id.toString(),
+        const res = await client["/refresh_tokens"].$get(
+          {
+            query: {
+              limit: 10,
+              offset: 0,
+              user_id__eq: user1.id.toString(),
+            },
           },
-        });
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -113,7 +127,7 @@ describe("RefreshTokens API", () => {
     it(
       "should filter refresh tokens by device_info",
       withTransaction(async () => {
-        const { user } = await createTestUser(
+        const { user, token } = await createTestUser(
           "user1@test.com",
           "password123",
           "admin"
@@ -122,13 +136,20 @@ describe("RefreshTokens API", () => {
         await createTestRefreshToken(user.id, { deviceInfo: "iPhone" });
         await createTestRefreshToken(user.id, { deviceInfo: "Android" });
 
-        const res = await client["/api/v1/refresh_tokens"].$get({
-          query: {
-            limit: 10,
-            offset: 0,
-            device_info__ilike: "iphone",
+        const res = await client["/refresh_tokens"].$get(
+          {
+            query: {
+              limit: 10,
+              offset: 0,
+              device_info__ilike: "iphone",
+            },
           },
-        });
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -144,7 +165,7 @@ describe("RefreshTokens API", () => {
     it(
       "should paginate refresh tokens",
       withTransaction(async () => {
-        const { user } = await createTestUser(
+        const { user, token } = await createTestUser(
           "user1@test.com",
           "password123",
           "admin"
@@ -155,13 +176,20 @@ describe("RefreshTokens API", () => {
           await createTestRefreshToken(user.id);
         }
 
-        const res = await client["/api/v1/refresh_tokens"].$get({
-          query: {
-            limit: 2,
-            offset: 0,
-            order_by: JSON.stringify({ field: "id", order: "asc" }),
+        const res = await client["/refresh_tokens"].$get(
+          {
+            query: {
+              limit: 2,
+              offset: 0,
+              order_by: JSON.stringify({ field: "id", order: "asc" }),
+            },
           },
-        });
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -176,7 +204,7 @@ describe("RefreshTokens API", () => {
     it(
       "should order refresh tokens by created_at desc",
       withTransaction(async () => {
-        const { user } = await createTestUser(
+        const { user, token } = await createTestUser(
           "user1@test.com",
           "password123",
           "admin"
@@ -187,13 +215,20 @@ describe("RefreshTokens API", () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
         const { refreshToken: token2 } = await createTestRefreshToken(user.id);
 
-        const res = await client["/api/v1/refresh_tokens"].$get({
-          query: {
-            limit: 10,
-            offset: 0,
-            order_by: JSON.stringify({ field: "id", order: "desc" }),
+        const res = await client["/refresh_tokens"].$get(
+          {
+            query: {
+              limit: 10,
+              offset: 0,
+              order_by: JSON.stringify({ field: "id", order: "desc" }),
+            },
           },
-        });
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -205,11 +240,11 @@ describe("RefreshTokens API", () => {
     );
   });
 
-  describe("GET /api/v1/refresh_tokens/:id", () => {
+  describe("GET /refresh_tokens/:id", () => {
     it(
       "should get refresh token by id",
       withTransaction(async () => {
-        const { user } = await createTestUser(
+        const { user, token } = await createTestUser(
           "user1@test.com",
           "password123",
           "admin"
@@ -219,9 +254,16 @@ describe("RefreshTokens API", () => {
           ipAddress: "192.168.1.1",
         });
 
-        const res = await client["/api/v1/refresh_tokens/:id"].$get({
-          param: { id: refreshToken.id.toString() },
-        });
+        const res = await client["/refresh_tokens/:id"].$get(
+          {
+            param: { id: refreshToken.id.toString() },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -238,9 +280,22 @@ describe("RefreshTokens API", () => {
     it(
       "should return 404 for non-existent refresh token",
       withTransaction(async () => {
-        const res = await client["/api/v1/refresh_tokens/:id"].$get({
-          param: { id: "99999" },
-        });
+        const { token } = await createTestUser(
+          "user1@test.com",
+          "password123",
+          "admin"
+        );
+
+        const res = await client["/refresh_tokens/:id"].$get(
+          {
+            param: { id: "99999" },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -253,16 +308,23 @@ describe("RefreshTokens API", () => {
     it(
       "should include all refresh token fields",
       withTransaction(async () => {
-        const { user } = await createTestUser(
+        const { user, token } = await createTestUser(
           "user1@test.com",
           "password123",
           "admin"
         );
         const { refreshToken } = await createTestRefreshToken(user.id);
 
-        const res = await client["/api/v1/refresh_tokens/:id"].$get({
-          param: { id: refreshToken.id.toString() },
-        });
+        const res = await client["/refresh_tokens/:id"].$get(
+          {
+            param: { id: refreshToken.id.toString() },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -280,20 +342,27 @@ describe("RefreshTokens API", () => {
     );
   });
 
-  describe("DELETE /api/v1/refresh_tokens/:id", () => {
+  describe("DELETE /refresh_tokens/:id", () => {
     it(
       "should delete refresh token (hard delete)",
       withTransaction(async () => {
-        const { user } = await createTestUser(
+        const { user, token } = await createTestUser(
           "user1@test.com",
           "password123",
           "admin"
         );
         const { refreshToken } = await createTestRefreshToken(user.id);
 
-        const res = await client["/api/v1/refresh_tokens/:id"].$delete({
-          param: { id: refreshToken.id.toString() },
-        });
+        const res = await client["/refresh_tokens/:id"].$delete(
+          {
+            param: { id: refreshToken.id.toString() },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -314,9 +383,22 @@ describe("RefreshTokens API", () => {
     it(
       "should return 404 for non-existent refresh token",
       withTransaction(async () => {
-        const res = await client["/api/v1/refresh_tokens/:id"].$delete({
-          param: { id: "99999" },
-        });
+        const { token } = await createTestUser(
+          "user1@test.com",
+          "password123",
+          "admin"
+        );
+
+        const res = await client["/refresh_tokens/:id"].$delete(
+          {
+            param: { id: "99999" },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 
@@ -329,7 +411,7 @@ describe("RefreshTokens API", () => {
     it(
       "should delete revoked refresh token",
       withTransaction(async () => {
-        const { user } = await createTestUser(
+        const { user, token } = await createTestUser(
           "user1@test.com",
           "password123",
           "admin"
@@ -338,9 +420,16 @@ describe("RefreshTokens API", () => {
           revokedAt: new Date(),
         });
 
-        const res = await client["/api/v1/refresh_tokens/:id"].$delete({
-          param: { id: refreshToken.id.toString() },
-        });
+        const res = await client["/refresh_tokens/:id"].$delete(
+          {
+            param: { id: refreshToken.id.toString() },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const body = await res.json();
 

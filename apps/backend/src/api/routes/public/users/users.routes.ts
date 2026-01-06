@@ -9,6 +9,7 @@ import {
   paginationWithOrderingSchema,
   paginationSchema,
   responseSchema,
+  selectFieldSchema,
 } from "@/utils/helpers";
 import {
   userInsertSchema,
@@ -42,6 +43,7 @@ export const get = createRoute({
   path: `${basePath}/{id}`,
   request: {
     params: idParamSchema,
+    ...selectFieldSchema(userSelectSchema),
   },
   responses: {
     [HTTP_STATUS_CODES.OK]: responseSchema(
@@ -64,6 +66,7 @@ export const create = createRoute({
   method: "post",
   request: {
     body: jsonContentRequired(userInsertSchema, "The user to create"),
+    ...selectFieldSchema(userSelectSchema),
   },
   tags,
   responses: {
@@ -88,6 +91,7 @@ export const patch = createRoute({
   path: `${basePath}/{id}`,
   request: {
     params: idParamSchema,
+    ...selectFieldSchema(userSelectSchema),
     ...requestBody(userUpdateSchema),
   },
   responses: {
@@ -112,11 +116,12 @@ export const remove = createRoute({
   path: `${basePath}/{id}`,
   request: {
     params: idParamSchema,
+    ...selectFieldSchema(userSelectSchema),
   },
   responses: {
     [HTTP_STATUS_CODES.OK]: responseSchema(
       "User deleted",
-      userSelectSchema.pick({ id: true }), // data schema
+      userSelectSchema, // data schema
       null, // no error
       null // no metadata
     ),

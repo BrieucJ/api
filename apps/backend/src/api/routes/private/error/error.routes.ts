@@ -9,6 +9,7 @@ export const error = createRoute({
   tags,
   method: "get",
   path: basePath,
+  hide: true,
   request: {
     query: z.object({
       errorRate: z.coerce

@@ -5,12 +5,13 @@ import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 
 export const list: AppRouteHandler<ListRoute> = async (c) => {
   const query = c.req.valid("query");
-  const { limit, offset, order_by, search, ...filters } = query;
+  const { limit, offset, order_by, search, select, ...filters } = query;
   const { data, total } = await logQuery.list({
     limit,
     offset,
     order_by,
     search,
+    select,
     filters,
   });
 

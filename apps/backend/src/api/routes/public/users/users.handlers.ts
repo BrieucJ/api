@@ -12,12 +12,13 @@ import { hashPassword } from "@/utils/password";
 
 export const list: AppRouteHandler<ListRoute> = async (c) => {
   const query = c.req.valid("query");
-  const { limit, offset, order_by, search, ...filters } = query;
+  const { limit, offset, order_by, search, select, ...filters } = query;
   const { data, total } = await userQuery.list({
     limit,
     offset,
     order_by,
     search,
+    select,
     filters,
   });
 
@@ -37,7 +38,9 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
 
 export const get: AppRouteHandler<GetRoute> = async (c) => {
   const { id } = c.req.valid("param");
-  const user = await userQuery.get(id);
+  const query = c.req.valid("query");
+  const { select } = query;
+  const user = await userQuery.get(id, { select });
   return c.json(
     {
       data: user,
@@ -50,14 +53,19 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
 
 export const create: AppRouteHandler<CreateRoute> = async (c) => {
   const input = c.req.valid("json");
+  const query = c.req.valid("query");
   const { password, ...rest } = input;
 
   const password_hash = await hashPassword(password);
 
-  const created = await userQuery.create({
-    ...rest,
-    password_hash,
-  });
+  const { select } = query;
+  const created = await userQuery.create(
+    {
+      ...rest,
+      password_hash,
+    },
+    { select }
+  );
 
   return c.json(
     {
@@ -71,6 +79,7 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
 
 export const patch: AppRouteHandler<PatchRoute> = async (c) => {
   const { id } = c.req.valid("param");
+  const query = c.req.valid("query");
   const input = c.req.valid("json");
   const { password, ...rest } = input;
 
@@ -79,7 +88,19 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
     ? { ...rest, password_hash: await hashPassword(password) }
     : rest;
 
-  const updated = await userQuery.update(id, updateData);
+  const { select } = query;
+  const updated = await userQuery.update(id, updateData, { select });
+
+  if (!updated) {
+    return c.json(
+      {
+        data: null,
+        error: { message: "User not found" },
+        metadata: null,
+      },
+      HTTP_STATUS_CODES.NOT_FOUND
+    );
+  }
 
   return c.json(
     {
@@ -93,11 +114,25 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
 
 export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
   const { id } = c.req.valid("param");
-  const deleted = await userQuery.delete(id);
+  const query = c.req.valid("query");
+  const { select } = query;
+
+  const deleted = await userQuery.delete(id, true, { select });
+
+  if (!deleted) {
+    return c.json(
+      {
+        data: null,
+        error: { message: "User not found" },
+        metadata: null,
+      },
+      HTTP_STATUS_CODES.NOT_FOUND
+    );
+  }
 
   return c.json(
     {
-      data: { id },
+      data: deleted,
       error: null,
       metadata: null,
     },

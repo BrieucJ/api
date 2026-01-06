@@ -237,9 +237,37 @@ describe("QueryBuilder – pagination & CRUD", () => {
     expect(row.name).toBe("Frank");
   });
 
+  it("create row with select", async () => {
+    const row = await qb.create(
+      {
+        name: "Frank",
+        age: 22,
+        tags: ["f"],
+      },
+      { select: ["id", "name"] }
+    );
+    expect(row.id).toBeDefined();
+    expect(row.name).toBe("Frank");
+    expect(row).not.toHaveProperty("age");
+    expect(row).not.toHaveProperty("tags");
+  });
+
   it("update row", async () => {
     const row = await qb.update(1, { age: 31 });
     expect(row?.age).toBe(31);
+  });
+
+  it("update row with select", async () => {
+    const row = await qb.update(
+      1,
+      { age: 31 },
+      { select: ["id", "name", "age"] }
+    );
+    expect(row?.id).toBe(1);
+    expect(row?.name).toBe("Alice");
+    expect(row?.age).toBe(31);
+    expect(row).not.toHaveProperty("tags");
+    expect(row).not.toHaveProperty("metadata");
   });
 
   it("soft delete row", async () => {
@@ -248,10 +276,47 @@ describe("QueryBuilder – pagination & CRUD", () => {
     expect(res.data.find((r) => r.id === 1)).toBeUndefined();
   });
 
+  it("soft delete row with select", async () => {
+    const deleted = await qb.delete(1, true, {
+      select: ["id", "name", "deleted_at"],
+    });
+    expect(deleted).toBeDefined();
+    expect(deleted?.id).toBe(1);
+    expect(deleted?.name).toBe("Alice");
+    expect(deleted?.deleted_at).toBeDefined();
+    expect(deleted).not.toHaveProperty("age");
+    expect(deleted).not.toHaveProperty("tags");
+    const res = await qb.list({});
+    expect(res.data.find((r) => r.id === 1)).toBeUndefined();
+  });
+
+  it("soft delete row with select (without deleted_at)", async () => {
+    const deleted = await qb.delete(1, true, { select: ["id", "name"] });
+    expect(deleted).toBeDefined();
+    expect(deleted?.id).toBe(1);
+    expect(deleted?.name).toBe("Alice");
+    expect(deleted).not.toHaveProperty("age");
+    expect(deleted).not.toHaveProperty("tags");
+    expect(deleted).not.toHaveProperty("deleted_at");
+    const res = await qb.list({});
+    expect(res.data.find((r) => r.id === 1)).toBeUndefined();
+  });
+
   it("hard delete row", async () => {
     const deleted = await qb.delete(2, false);
     expect(deleted).toBeDefined();
     expect(deleted?.id).toBe(2);
+    const res = await qb.list({});
+    expect(res.data.find((r) => r.id === 2)).toBeUndefined();
+  });
+
+  it("hard delete row with select", async () => {
+    const deleted = await qb.delete(2, false, { select: ["id", "name"] });
+    expect(deleted).toBeDefined();
+    expect(deleted?.id).toBe(2);
+    expect(deleted?.name).toBe("Bob");
+    expect(deleted).not.toHaveProperty("age");
+    expect(deleted).not.toHaveProperty("tags");
     const res = await qb.list({});
     expect(res.data.find((r) => r.id === 2)).toBeUndefined();
   });

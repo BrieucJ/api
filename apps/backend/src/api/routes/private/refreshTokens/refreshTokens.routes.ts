@@ -16,6 +16,7 @@ export const list = createRoute({
   tags,
   method: "get",
   path: basePath,
+  hide: true,
   request: {
     query: paginationWithOrderingSchema(refreshTokenSelectSchema),
   },
@@ -33,6 +34,7 @@ export const get = createRoute({
   tags,
   method: "get",
   path: `${basePath}/{id}`,
+  hide: true,
   request: {
     params: idParamSchema,
   },
@@ -56,6 +58,7 @@ export const remove = createRoute({
   tags,
   method: "delete",
   path: `${basePath}/{id}`,
+  hide: true,
   request: {
     params: idParamSchema,
   },

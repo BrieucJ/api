@@ -40,6 +40,7 @@ export const listModels = createRoute({
   tags,
   method: "get",
   path: "admin/models",
+  hide: true,
   summary: "List all available models",
   description:
     "Returns a list of all database models available for admin interface",
@@ -56,6 +57,7 @@ export const getSchema = createRoute({
   tags,
   method: "get",
   path: "admin/schema/{modelName}",
+  hide: true,
   summary: "Get schema for a model",
   description:
     "Returns the schema information for a specific model including all fields and their types",

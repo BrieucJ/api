@@ -297,6 +297,7 @@ export interface CountOptions<T extends Table = any> {
 export interface GetByOptions<T extends Table = any> {
   filters: QueryFilters<T>;
   order_by?: { field: string; order: "asc" | "desc" };
+  select?: string[];
   includeDeleted?: boolean;
 }
 
@@ -484,7 +485,31 @@ export class QueryBuilder<T extends Table> {
   private processFilterObject(filters: Record<string, any>): SQL[] {
     const whereClauses: SQL[] = [];
 
-    for (const [rawKey, rawValue] of Object.entries(filters)) {
+    // Only process keys that match filter syntax (contain __ for operators)
+    // This automatically excludes query parameters like select, limit, offset, etc.
+    // Filter syntax: field__operator (e.g., email__eq, age__gte)
+    const filterEntries = Object.entries(filters || {}).filter(
+      ([key, value]) => {
+        // Must have __ to be a filter (field__operator pattern)
+        // Skip undefined values, but allow null for isnull/isnotnull operators
+        if (!key.includes("__") || value === undefined) {
+          return false;
+        }
+        // Allow null values for isnull/isnotnull operators
+        const parts = key.toLowerCase().split("__");
+        const lookup = parts[parts.length - 1];
+        if (lookup === "isnull" || lookup === "isnotnull") {
+          return true; // Allow null value for these operators
+        }
+        return value !== null;
+      }
+    );
+
+    if (filterEntries.length === 0) {
+      return whereClauses;
+    }
+
+    for (const [rawKey, rawValue] of filterEntries) {
       const parts = rawKey.toLowerCase().split("__");
       const field = parts[0]!;
 
@@ -644,7 +669,14 @@ export class QueryBuilder<T extends Table> {
     );
 
     // Process filters using the new function (handles both object AND and array OR)
-    const whereClauses = filters ? this.processFilters(filters) : [];
+    // Only process if filters is provided and is not an empty object/array
+    const whereClauses =
+      filters &&
+      (Array.isArray(filters)
+        ? filters.length > 0
+        : Object.keys(filters).length > 0)
+        ? this.processFilters(filters)
+        : [];
 
     for (const clause of whereClauses) {
       qb = qb.where(clause);
@@ -844,9 +876,11 @@ export class QueryBuilder<T extends Table> {
    */
   async get(
     id: number,
-    options?: { includeDeleted?: boolean }
+    options?: { select?: string[]; includeDeleted?: boolean }
   ): Promise<T["$inferSelect"] | null> {
-    const includeDeleted = options?.includeDeleted ?? false;
+    const { select, includeDeleted = false } = options || {};
+    const selectColumns = this.getSelectColumns(select, includeDeleted);
+
     const result = await this.logQuery("get", async () => {
       const whereCondition =
         this.columns.deleted_at && !includeDeleted
@@ -857,7 +891,7 @@ export class QueryBuilder<T extends Table> {
           : eq((this.table as any).id, id);
 
       return await this.dbInstance
-        .select(this.getVisibleColumns(includeDeleted))
+        .select(selectColumns)
         .from(this.table as any)
         .where(whereCondition)
         .limit(1);
@@ -875,15 +909,15 @@ export class QueryBuilder<T extends Table> {
     const {
       filters,
       order_by = { field: "id", order: "desc" },
+      select,
       includeDeleted = false,
     } = options;
     this.validateFieldExists(order_by.field, "order_by");
     const orderFn = order_by.order === "asc" ? asc : desc;
+    const selectColumns = this.getSelectColumns(select, includeDeleted);
 
     let qb = this.baseQuery(
-      this.dbInstance
-        .select(this.getVisibleColumns(includeDeleted))
-        .from(this.table as any),
+      this.dbInstance.select(selectColumns).from(this.table as any),
       includeDeleted
     );
 
@@ -909,19 +943,21 @@ export class QueryBuilder<T extends Table> {
    */
   async getFirst(options?: {
     order_by?: { field: string; order: "asc" | "desc" };
+    select?: string[];
     includeDeleted?: boolean;
   }): Promise<T["$inferSelect"] | null> {
     const {
       order_by = { field: "id", order: "desc" },
+      select,
       includeDeleted = false,
     } = options || {};
     this.validateFieldExists(order_by.field, "order_by");
     const orderFn = order_by.order === "asc" ? asc : desc;
+    const selectColumns = this.getSelectColumns(select, includeDeleted);
+
     const [item] = await this.logQuery("getFirst", async () => {
       return await this.baseQuery(
-        this.dbInstance
-          .select(this.getVisibleColumns(includeDeleted))
-          .from(this.table as any),
+        this.dbInstance.select(selectColumns).from(this.table as any),
         includeDeleted
       )
         .orderBy(orderFn((this.table as any)[order_by.field]))
@@ -979,12 +1015,17 @@ export class QueryBuilder<T extends Table> {
    * @param data - Record data to insert
    * @returns Promise with created record
    */
-  async create(data: T["$inferInsert"]): Promise<T["$inferSelect"]> {
+  async create(
+    data: T["$inferInsert"],
+    options?: { select?: string[] }
+  ): Promise<T["$inferSelect"]> {
+    const { select } = options || {};
+    const selectColumns = this.getSelectColumns(select);
     const [created] = await this.logQuery("create", async () => {
       return await this.dbInstance
         .insert(this.table)
         .values(data)
-        .returning(this.visibleColumns);
+        .returning(selectColumns);
     });
     return created as T["$inferSelect"];
   }
@@ -997,8 +1038,10 @@ export class QueryBuilder<T extends Table> {
    */
   async update(
     id: number,
-    data: Partial<T["$inferInsert"]>
+    data: Partial<T["$inferInsert"]>,
+    options?: { select?: string[] }
   ): Promise<T["$inferSelect"] | null> {
+    const { select } = options || {};
     const [existing] = await this.logQuery("update (check)", async () => {
       return await this.dbInstance
         .select({ id: (this.table as any).id })
@@ -1019,12 +1062,13 @@ export class QueryBuilder<T extends Table> {
 
     // Update with only the provided fields
     // Note: updated_at is handled by schema's $onUpdate
+    const selectColumns = this.getSelectColumns(select);
     const [updated] = await this.logQuery("update", async () => {
       return await this.dbInstance
         .update(this.table)
         .set(updateFields as any)
         .where(eq((this.table as any).id, id))
-        .returning(this.visibleColumns);
+        .returning(selectColumns);
     });
     return updated as T["$inferSelect"];
   }
@@ -1093,26 +1137,34 @@ export class QueryBuilder<T extends Table> {
    * @param soft - Whether to soft delete (default: true)
    * @returns Promise with deleted record or null
    */
-  async delete(id: number, soft = true): Promise<T["$inferSelect"] | null> {
+  async delete(
+    id: number,
+    soft = true,
+    options?: { select?: string[] }
+  ): Promise<T["$inferSelect"] | null> {
+    const { select } = options || {};
     const hasDeletedAt = this.columns.deleted_at !== undefined;
 
     if (soft && hasDeletedAt) {
+      // For soft delete, allow deleted_at to be selected since we're setting it
+      const selectColumns = this.getSelectColumns(select, true);
       const [deleted] = await this.logQuery("delete (soft)", async () => {
         return await this.dbInstance
           .update(this.table)
           .set({ deleted_at: new Date() })
           .where(eq((this.table as any).id, id))
-          .returning(this.visibleColumns);
+          .returning(selectColumns);
       });
       return deleted || null;
     } else {
       // Hard delete - first get the record, then delete
       // Include deleted records when getting for hard delete
+      const selectColumns = this.getSelectColumns(select, true);
       const [toDelete] = await this.logQuery(
         "delete (hard - get)",
         async () => {
           return await this.baseQuery(
-            this.dbInstance.select(this.visibleColumns).from(this.table as any),
+            this.dbInstance.select(selectColumns).from(this.table as any),
             true
           )
             .where(eq((this.table as any).id, id))

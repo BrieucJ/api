@@ -14,6 +14,7 @@ export const getStats = createRoute({
   tags,
   method: "get",
   path: `${basePath}/stats`,
+  hide: true,
   request: {},
   responses: {
     [HTTP_STATUS_CODES.OK]: responseSchema(

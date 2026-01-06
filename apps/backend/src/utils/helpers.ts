@@ -126,6 +126,7 @@ export function paginationWithOrderingSchema<T extends z.ZodObject<any>>(
   schema: T
 ) {
   const orderByFieldEnum = enumFromSchema(schema);
+  const selectFieldEnum = enumFromSchema(schema); // For select field validation
 
   return z
     .object({
@@ -208,6 +209,46 @@ export function paginationWithOrderingSchema<T extends z.ZodObject<any>>(
             in: "query",
           },
           example: JSON.stringify({ field: "id", order: "asc" }),
+        }),
+      // Select specific fields to return
+      select: z
+        .union([
+          z.array(selectFieldEnum),
+          z.string().transform((val, ctx) => {
+            // Parse comma-separated string or JSON array
+            try {
+              // Try parsing as JSON first
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) {
+                return z.array(selectFieldEnum).parse(parsed);
+              }
+              throw new Error("select must be an array");
+            } catch {
+              // If not JSON, treat as comma-separated string
+              const fields = val
+                .split(",")
+                .map((f) => f.trim())
+                .filter(Boolean);
+              if (fields.length === 0) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: "select must contain at least one field",
+                });
+                return z.NEVER;
+              }
+              return z.array(selectFieldEnum).parse(fields);
+            }
+          }),
+        ])
+        .optional()
+        .openapi({
+          param: {
+            name: "select",
+            in: "query",
+          },
+          description:
+            'Comma-separated list of fields to select, or JSON array. Example: \'id,email,role\' or \'["id","email","role"]\'',
+          example: "id,email,role",
         }),
       search: z.string().optional(),
       filters: z.string().optional()
@@ -377,3 +418,52 @@ export const paginationSchema = z.object({
   offset: z.number(),
   total: z.number(),
 });
+
+/**
+ * Creates a query schema with select field for single record routes (get, patch, etc.)
+ * @param schema - The Zod schema to generate field enum from
+ * @returns Query schema object with select field
+ */
+export function selectFieldSchema<T extends z.ZodObject<any>>(schema: T) {
+  const fieldEnum = enumFromSchema(schema);
+  return {
+    query: z.object({
+      select: z
+        .union([
+          z.array(fieldEnum),
+          z.string().transform((val, ctx) => {
+            try {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) {
+                return z.array(fieldEnum).parse(parsed);
+              }
+              throw new Error("select must be an array");
+            } catch {
+              const fields = val
+                .split(",")
+                .map((f) => f.trim())
+                .filter(Boolean);
+              if (fields.length === 0) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: "select must contain at least one field",
+                });
+                return z.NEVER;
+              }
+              return z.array(fieldEnum).parse(fields);
+            }
+          }),
+        ])
+        .optional()
+        .openapi({
+          param: {
+            name: "select",
+            in: "query",
+          },
+          description:
+            'Comma-separated list of fields to select, or JSON array. Example: \'id,email,role\' or \'["id","email","role"]\'',
+          example: "id,email,role",
+        }),
+    }),
+  };
+}

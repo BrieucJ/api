@@ -10,6 +10,7 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     offset,
     order_by,
     search,
+    select,
     method,
     path,
     statusCode,
@@ -42,6 +43,7 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     offset,
     order_by: order_by || { field: "id", order: "asc" },
     search,
+    select,
     filters: queryBuilderFilters,
   });
 

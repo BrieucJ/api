@@ -60,6 +60,7 @@ export const get = createRoute({
   tags,
   method: "get",
   path: "health",
+  hide: true,
   summary: "Health check",
   description: "Comprehensive health check including all dependencies",
   request: {},

@@ -5,9 +5,9 @@ import configureOpenAPI from "@/utils/openApi";
 import { auth } from "@/api/middlewares";
 //PUBLIC ROUTES
 import users from "@/api/routes/public/users/users.index";
-import refreshTokens from "@/api/routes/public/refreshTokens/refreshTokens.index";
 // PRIVATE ROUTES
 import authRoutes from "@/api/routes/private/auth/auth.index";
+import refreshTokens from "@/api/routes/private/refreshTokens/refreshTokens.index";
 import logs from "@/api/routes/private/logs/logs.index";
 import info from "@/api/routes/private/info/info.index";
 import health from "@/api/routes/private/health/health.index";
@@ -48,10 +48,11 @@ app.get(
   })
 );
 
-const publicRoutes = [users, refreshTokens] as const;
+const publicRoutes = [users] as const;
 
 const privateRoutes = [
   authRoutes,
+  refreshTokens,
   logs,
   info,
   health,
