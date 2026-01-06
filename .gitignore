@@ -36,3 +36,4 @@ node_modules
 .terraform*
 
 postgres-data
+postgres-test-data
