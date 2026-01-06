@@ -42,6 +42,7 @@ module "lambda" {
   port                    = var.port
   worker_queue_arn        = module.worker.queue_arn
   worker_queue_url        = module.worker.queue_url
+  worker_api_url          = module.worker.worker_api_url
   image_tag               = var.image_tag
   jwt_secret              = var.jwt_secret
   jwt_expires_in          = var.jwt_expires_in

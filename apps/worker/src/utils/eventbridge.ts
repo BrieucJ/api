@@ -2,20 +2,13 @@ import {
   EventBridgeClient,
   PutRuleCommand,
   PutTargetsCommand,
-  DeleteRuleCommand,
-  RemoveTargetsCommand,
 } from "@aws-sdk/client-eventbridge";
-import {
-  LambdaClient,
-  AddPermissionCommand,
-  RemovePermissionCommand,
-} from "@aws-sdk/client-lambda";
+import { LambdaClient, AddPermissionCommand } from "@aws-sdk/client-lambda";
 import { logger } from "@/utils/logger";
 import env from "@/env";
-import type { Scheduler, CronJob } from "./types";
 import type { JobType } from "@/jobs/types";
 
-export class EventBridgeScheduler implements Scheduler {
+export class EventBridgeScheduler {
   private eventBridgeClient: EventBridgeClient;
   private lambdaClient: LambdaClient;
   private rulePrefix: string;
@@ -44,7 +37,6 @@ export class EventBridgeScheduler implements Scheduler {
     const ruleName = `${this.rulePrefix}-${jobType}`;
 
     // Convert cron expression to EventBridge schedule expression
-    // EventBridge uses rate() or cron() expressions
     const scheduleExpression = this.cronToEventBridge(cronExpression);
 
     try {
@@ -108,54 +100,6 @@ export class EventBridgeScheduler implements Scheduler {
     }
   }
 
-  async unschedule(jobId: string): Promise<void> {
-    try {
-      // Remove targets first
-      const removeTargetsCommand = new RemoveTargetsCommand({
-        Rule: jobId,
-        Ids: ["1"],
-      });
-      await this.eventBridgeClient.send(removeTargetsCommand);
-
-      // Remove Lambda permission
-      try {
-        const removePermissionCommand = new RemovePermissionCommand({
-          FunctionName: this.lambdaFunctionName,
-          StatementId: `${jobId}`,
-        });
-        await this.lambdaClient.send(removePermissionCommand);
-      } catch (error: any) {
-        // Ignore if permission doesn't exist
-        if (error.name !== "ResourceNotFoundException") {
-          logger.warn("Failed to remove Lambda permission", {
-            jobId,
-            error: error.message,
-          });
-        }
-      }
-
-      // Delete the rule
-      const deleteRuleCommand = new DeleteRuleCommand({
-        Name: jobId,
-      });
-      await this.eventBridgeClient.send(deleteRuleCommand);
-    } catch (error) {
-      logger.error("Failed to unschedule job in EventBridge", {
-        jobId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
-  }
-
-  list(): CronJob[] {
-    // EventBridge doesn't provide a simple way to list all rules with their targets
-    // This would require additional API calls to get rule details
-    // For now, return empty array - this can be enhanced later
-    logger.warn("EventBridge scheduler list() not fully implemented");
-    return [];
-  }
-
   private cronToEventBridge(cronExpression: string): string {
     // EventBridge cron format: cron(minute hour day-of-month month day-of-week year)
     // Standard cron: minute hour day-of-month month day-of-week
@@ -172,4 +116,3 @@ export class EventBridgeScheduler implements Scheduler {
     return cronExpression;
   }
 }
-

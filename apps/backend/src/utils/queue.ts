@@ -27,6 +27,65 @@ function getSQSClient(): SQSClient | null {
 }
 
 /**
+ * Execute a job synchronously by calling the worker directly
+ * Waits for the job to complete and returns the result
+ */
+export async function executeJobSync<T>(
+  jobType: JobType,
+  payload: T
+): Promise<{ data?: unknown; error?: string; metadata?: unknown }> {
+  const workerApiUrl = env.WORKER_API_URL;
+  const workerUrl = env.WORKER_URL;
+
+  // Use API Gateway URL in production, fall back to local URL in development
+  const baseUrl = workerApiUrl || workerUrl;
+  if (!baseUrl) {
+    throw new Error(
+      "WORKER_API_URL or WORKER_URL is required for synchronous job execution. Set it in your .env file."
+    );
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/jobs/execute`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: jobType,
+        payload,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to execute job: ${response.status} ${errorText}`
+      );
+    }
+
+    const result = (await response.json()) as {
+      data?: unknown;
+      error?: string;
+      metadata?: unknown;
+    };
+
+    logger.debug(`Job executed synchronously`, {
+      jobType,
+      hasError: !!result.error,
+    });
+
+    return result;
+  } catch (error) {
+    logger.error("Failed to execute job synchronously", {
+      jobType,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+/**
  * Enqueue a job to the worker queue
  * In production, this sends to SQS
  * In development, this could send to a local queue or HTTP endpoint

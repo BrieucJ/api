@@ -21,9 +21,9 @@ COPY apps/backend/tsconfig.json ./apps/backend/tsconfig.json
 COPY packages ./packages
 COPY packages/tsconfig.json ./packages/tsconfig.json
 
-# Build Lambda bundle: output to directory (bun outputs lambda.js directly in outdir when bundling)
+# Build Lambda bundle: output to directory (bun outputs index.js directly in outdir when bundling)
 RUN mkdir -p /var/task/dist
-RUN bun build apps/worker/src/servers/lambda.ts \
+RUN bun build apps/worker/src/index.ts \
     --target=node \
     --format=esm \
     --bundle \
@@ -39,7 +39,7 @@ WORKDIR /var/task
 
 # Copy package.json and bundled Lambda
 COPY apps/worker/package.json ./package.json
-COPY --from=build /var/task/dist/src/servers/lambda.js ./lambda.js
+COPY --from=build /var/task/dist/src/index.js ./index.js
 
 # Lambda handler
-CMD ["lambda.handler"]
+CMD ["index.handler"]

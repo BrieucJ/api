@@ -22,6 +22,21 @@ export const payloadSchema = z.object({
 
 export type ProcessRawMetricsPayload = z.infer<typeof payloadSchema>;
 
+// Result schema
+export const resultSchema = z.object({
+  windowCount: z.number(),
+  metricCount: z.number(),
+  windowsProcessed: z.array(
+    z.object({
+      endpoint: z.string(),
+      windowStart: z.string(),
+      windowEnd: z.string(),
+    })
+  ),
+});
+
+export type ProcessRawMetricsResult = z.infer<typeof resultSchema>;
+
 // Calculate percentile from sorted array using nearest rank method
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
@@ -56,7 +71,7 @@ interface MetricsWindow {
 // Handler
 export const handler = async (
   payload: ProcessRawMetricsPayload
-): Promise<void> => {
+): Promise<ProcessRawMetricsResult> => {
   logger.debug("Starting processing", {
     metricCount: payload.metrics.length,
     sampleMetrics: payload.metrics.slice(0, 3).map((m) => ({
@@ -263,10 +278,22 @@ export const handler = async (
       }
     }
 
+    const windowsProcessed = Array.from(windows.values()).map((window) => ({
+      endpoint: window.endpoint,
+      windowStart: new Date(window.start).toISOString(),
+      windowEnd: new Date(window.end).toISOString(),
+    }));
+
     logger.info("Processed raw metrics", {
       windowCount: windows.size,
       metricCount: payload.metrics.length,
     });
+
+    return {
+      windowCount: windows.size,
+      metricCount: payload.metrics.length,
+      windowsProcessed,
+    };
   } catch (error) {
     logger.error("Failed to process raw metrics", {
       payload,
@@ -284,6 +311,7 @@ export const definition: JobDefinition = {
   description: "Processes raw metrics and aggregates them into time windows",
   category: "metrics",
   payloadSchema,
+  resultSchema,
   defaultOptions: {
     maxAttempts: 3,
   },

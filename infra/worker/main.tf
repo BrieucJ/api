@@ -235,3 +235,45 @@ resource "aws_lambda_permission" "eventbridge_permission" {
   source_arn    = "arn:aws:events:${var.region}:${data.aws_caller_identity.current.account_id}:rule/*"
 }
 
+# 8️⃣ API Gateway HTTP API for worker Lambda
+resource "aws_apigatewayv2_api" "worker_api" {
+  name          = "${local.name}-apiGateway"
+  protocol_type = "HTTP"
+}
+
+# 9️⃣ API Gateway Integration
+resource "aws_apigatewayv2_integration" "worker_lambda_integration" {
+  api_id           = aws_apigatewayv2_api.worker_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.worker_lambda.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+# 🔟 API Gateway Routes
+resource "aws_apigatewayv2_route" "worker_api_route" {
+  api_id    = aws_apigatewayv2_api.worker_api.id
+  route_key = "ANY /{proxy+}"
+  target    = "integrations/${aws_apigatewayv2_integration.worker_lambda_integration.id}"
+}
+
+resource "aws_apigatewayv2_stage" "worker_api_stage" {
+  api_id      = aws_apigatewayv2_api.worker_api.id
+  name        = "$default"
+  auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
+  }
+}
+
+# 1️⃣1️⃣ Lambda permission for API Gateway
+resource "aws_lambda_permission" "api_gateway_permission" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.worker_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.worker_api.execution_arn}/*/*"
+}
+

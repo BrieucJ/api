@@ -32,3 +32,8 @@ output "ecr_repo_url" {
   description = "URL of the ECR repository"
   value       = aws_ecr_repository.repo.repository_url
 }
+
+output "worker_api_url" {
+  description = "URL of the worker API Gateway"
+  value       = aws_apigatewayv2_api.worker_api.api_endpoint
+}

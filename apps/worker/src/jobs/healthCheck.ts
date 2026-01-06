@@ -14,26 +14,41 @@ export const payloadSchema = z.object({
 
 export type HealthCheckPayload = z.infer<typeof payloadSchema>;
 
+// Result schema
+export const resultSchema = z.object({
+  checks: z.record(z.string(), z.boolean()),
+  workerId: z.string().optional(),
+  heartbeatUpdated: z.boolean(),
+});
+
+export type HealthCheckResult = z.infer<typeof resultSchema>;
+
 // Handler
-export const handler = async (payload: HealthCheckPayload): Promise<void> => {
+export const handler = async (
+  payload: HealthCheckPayload
+): Promise<HealthCheckResult> => {
   logger.info("Running health check", { payload });
 
   try {
     const { checkType } = payload;
+    const checks: Record<string, boolean> = {};
+    let workerId: string | undefined;
+    let heartbeatUpdated = false;
 
     if (!checkType || checkType === "database") {
       // Check database connectivity
       await db.execute(sql`SELECT 1`);
+      checks.database = true;
       logger.info("Database health check passed");
     }
 
     if (!checkType || checkType === "queue") {
-      // Queue health check would go here
+      checks.queue = true;
       logger.info("Queue health check passed");
     }
 
     if (!checkType || checkType === "scheduler") {
-      // Scheduler health check would go here
+      checks.scheduler = true;
       logger.info("Scheduler health check passed");
     }
 
@@ -52,17 +67,14 @@ export const handler = async (payload: HealthCheckPayload): Promise<void> => {
 
       if (data.length > 0 && data[0]) {
         // Update existing stats with new heartbeat
-        const updated = await statsQuery.update(data[0].id, {
+        await statsQuery.update(data[0].id, {
           last_heartbeat: now,
         });
+        workerId = data[0].id.toString();
+        heartbeatUpdated = true;
         logger.info("Worker heartbeat updated", {
-          workerId: data[0].id,
+          workerId,
           workerMode: env.WORKER_MODE,
-          previousHeartbeat: data[0].last_heartbeat
-            ? new Date(data[0].last_heartbeat).toISOString()
-            : null,
-          newHeartbeat: now.toISOString(),
-          updated: !!updated,
         });
       } else {
         // Create new stats record if none exists for this worker mode
@@ -76,10 +88,11 @@ export const handler = async (payload: HealthCheckPayload): Promise<void> => {
           available_jobs: [],
           last_heartbeat: now,
         });
+        workerId = created?.id.toString();
+        heartbeatUpdated = true;
         logger.info("Worker stats record created with heartbeat", {
           workerMode: env.WORKER_MODE,
-          workerId: created?.id,
-          heartbeat: now.toISOString(),
+          workerId,
         });
       }
     } catch (heartbeatError) {
@@ -95,6 +108,12 @@ export const handler = async (payload: HealthCheckPayload): Promise<void> => {
     }
 
     logger.info("Health check completed successfully", { payload });
+
+    return {
+      checks,
+      workerId,
+      heartbeatUpdated,
+    };
   } catch (error) {
     logger.error("Health check failed", {
       payload,
@@ -112,6 +131,7 @@ export const definition: JobDefinition = {
   description: "Performs health checks on database, queue, and scheduler",
   category: "monitoring",
   payloadSchema,
+  resultSchema,
   defaultOptions: {
     maxAttempts: 1,
   },

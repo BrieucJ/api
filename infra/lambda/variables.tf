@@ -60,3 +60,8 @@ variable "jwt_expires_in" {
   type        = string
   default     = "24h"
 }
+
+variable "worker_api_url" {
+  description = "URL of the worker API Gateway"
+  type        = string
+}

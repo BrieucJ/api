@@ -14,8 +14,19 @@ export const payloadSchema = z.object({
 
 export type CleanupLogsPayload = z.infer<typeof payloadSchema>;
 
+// Result schema
+export const resultSchema = z.object({
+  totalDeleted: z.number(),
+  batchesProcessed: z.number(),
+  olderThanDays: z.number(),
+});
+
+export type CleanupLogsResult = z.infer<typeof resultSchema>;
+
 // Handler
-export const handler = async (payload: CleanupLogsPayload): Promise<void> => {
+export const handler = async (
+  payload: CleanupLogsPayload
+): Promise<CleanupLogsResult> => {
   logger.info("Starting log cleanup", { payload });
 
   try {
@@ -24,6 +35,7 @@ export const handler = async (payload: CleanupLogsPayload): Promise<void> => {
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
     let deletedCount = 0;
+    let batchesProcessed = 0;
     let hasMore = true;
 
     while (hasMore) {
@@ -46,6 +58,7 @@ export const handler = async (payload: CleanupLogsPayload): Promise<void> => {
         ? result.length
         : (result as any).rowCount || 0;
       deletedCount += deleted;
+      batchesProcessed++;
       hasMore = deleted === batchSize;
 
       logger.debug(`Deleted ${deleted} logs in this batch`, {
@@ -62,7 +75,14 @@ export const handler = async (payload: CleanupLogsPayload): Promise<void> => {
     logger.info("Log cleanup completed", {
       payload,
       totalDeleted: deletedCount,
+      batchesProcessed,
     });
+
+    return {
+      totalDeleted: deletedCount,
+      batchesProcessed,
+      olderThanDays,
+    };
   } catch (error) {
     logger.error("Failed to cleanup logs", {
       payload,
@@ -80,6 +100,7 @@ export const definition: JobDefinition = {
   description: "Removes old log entries based on retention policy",
   category: "maintenance",
   payloadSchema,
+  resultSchema,
   defaultOptions: {
     maxAttempts: 3,
   },

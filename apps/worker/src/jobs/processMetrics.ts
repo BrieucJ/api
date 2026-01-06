@@ -11,10 +11,19 @@ export const payloadSchema = z.object({
 
 export type ProcessMetricsPayload = z.infer<typeof payloadSchema>;
 
+// Result schema
+export const resultSchema = z.object({
+  windowStart: z.string(),
+  windowEnd: z.string(),
+  aggregated: z.boolean(),
+});
+
+export type ProcessMetricsResult = z.infer<typeof resultSchema>;
+
 // Handler
 export const handler = async (
   payload: ProcessMetricsPayload
-): Promise<void> => {
+): Promise<ProcessMetricsResult> => {
   logger.info("Processing metrics aggregation", { payload });
 
   try {
@@ -27,6 +36,12 @@ export const handler = async (
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     logger.info("Metrics processing completed", { payload });
+
+    return {
+      windowStart,
+      windowEnd,
+      aggregated: true,
+    };
   } catch (error) {
     logger.error("Failed to process metrics", {
       payload,
@@ -44,6 +59,7 @@ export const definition: JobDefinition = {
   description: "Aggregates raw metrics data into time windows",
   category: "metrics",
   payloadSchema,
+  resultSchema,
   defaultOptions: {
     maxAttempts: 3,
   },
@@ -59,4 +75,3 @@ export const definition: JobDefinition = {
     },
   },
 };
-

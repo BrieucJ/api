@@ -17,8 +17,9 @@ export interface Job<T = unknown> {
   scheduledFor?: Date;
 }
 
-export interface JobHandler<T = unknown> {
-  (payload: T): Promise<void>;
+// Updated: JobHandler now returns a typed result
+export interface JobHandler<T = unknown, R = unknown> {
+  (payload: T): Promise<R>;
 }
 
 export interface JobOptions {
@@ -33,6 +34,7 @@ export interface JobMetadata {
   description: string;
   category?: string;
   payloadSchema: z.ZodSchema;
+  resultSchema: z.ZodSchema; // Required schema for result validation
   defaultOptions: JobOptions;
   settings?: Record<string, unknown>;
 }

@@ -149,14 +149,15 @@ resource "aws_lambda_function" "api_lambda" {
 
   environment {
     variables = {
-      DATABASE_URL  = var.database_url
-      LOG_LEVEL     = var.log_level
-      PORT          = var.port
-      NODE_ENV      = var.environment
-      REGION        = var.region
-      SQS_QUEUE_URL = var.worker_queue_url
-      API_URL       = aws_apigatewayv2_api.api_gateway.api_endpoint
-      JWT_SECRET    = var.jwt_secret
+      DATABASE_URL   = var.database_url
+      LOG_LEVEL      = var.log_level
+      PORT           = var.port
+      NODE_ENV       = var.environment
+      REGION         = var.region
+      SQS_QUEUE_URL  = var.worker_queue_url
+      WORKER_API_URL = var.worker_api_url
+      API_URL        = aws_apigatewayv2_api.api_gateway.api_endpoint
+      JWT_SECRET     = var.jwt_secret
       JWT_EXPIRES_IN = var.jwt_expires_in
     }
   }

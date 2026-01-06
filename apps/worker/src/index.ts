@@ -1,89 +1,134 @@
-import env from "@/env";
+import type {
+  SQSEvent,
+  SQSRecord,
+  EventBridgeEvent,
+  APIGatewayProxyEventV2,
+  Context,
+} from "aws-lambda";
 import { logger } from "@/utils/logger";
-import { getQueue } from "@/services/queue";
-import { getScheduler } from "@/services/scheduler";
-import { defaultCronJobs } from "@/services/scheduler/jobs";
-import { LocalQueue } from "@/services/queue/local";
-import { StatsPusher } from "@/services/statsPusher";
-import { processJob } from "@/utils/jobProcessor";
+import { JobType } from "@/jobs/types";
+import { SQSQueue } from "@/utils/sqs";
+import { getJobService } from "@/utils/jobService";
+import {
+  isSQSEvent,
+  isEventBridgeEvent,
+  isAPIGatewayEvent,
+  type EventBridgeJobEvent,
+} from "@/utils/events";
+import { ensureCronJobsScheduled } from "@/utils/cron";
 
-async function startWorker(): Promise<void> {
-  // Start HTTP server if in local mode
-  if (env.WORKER_MODE === "local") {
-    await import("./servers/http");
-  }
+export const handler = async (
+  event:
+    | SQSEvent
+    | EventBridgeEvent<"Scheduled Event", EventBridgeJobEvent>
+    | APIGatewayProxyEventV2,
+  context: Context
+): Promise<{ statusCode?: number; body?: string } | void> => {
+  await ensureCronJobsScheduled();
 
-  const queue = getQueue();
-  const scheduler = getScheduler(env.LAMBDA_ARN);
+  try {
+    let jobType: JobType;
+    let payload: unknown;
+    let receiptHandle: string | undefined;
+    let maxAttempts: number | undefined;
+    let attempts: number | undefined;
 
-  // Initialize and start stats pusher (30s interval for both local and lambda)
-  const statsPusher = new StatsPusher();
-  await statsPusher.pushStats(); // Push initial stats
-  statsPusher.startInterval(); // Start 30s interval
-  logger.info("Stats pusher initialized", { mode: env.WORKER_MODE });
+    // Extract job from event using type guards
+    if (isSQSEvent(event)) {
+      // SQS event
+      const record = event.Records[0] as SQSRecord;
+      const job = JSON.parse(record.body) as {
+        type: JobType;
+        payload: unknown;
+        maxAttempts?: number;
+      };
+      jobType = job.type;
+      payload = job.payload;
+      receiptHandle = record.receiptHandle;
+      maxAttempts = job.maxAttempts ?? 3;
 
-  // Schedule default CRON jobs
-  logger.info("Scheduling default CRON jobs", {
-    count: defaultCronJobs.length,
-    mode: env.WORKER_MODE,
-  });
+      // Get receive count from SQS attributes
+      // ApproximateReceiveCount is available in Lambda SQS events
+      const receiveCount = parseInt(
+        record.attributes?.ApproximateReceiveCount || "1",
+        10
+      );
+      attempts = receiveCount - 1; // receiveCount is 1-indexed, attempts is 0-indexed
 
-  for (const jobDef of defaultCronJobs) {
-    if (jobDef.enabled) {
-      await scheduler.schedule(
-        jobDef.cronExpression,
-        jobDef.jobType,
-        jobDef.payload
+      // Check if max attempts exceeded
+      if (receiveCount > maxAttempts) {
+        logger.error(`Job exceeded max attempts, deleting message`, {
+          jobType,
+          receiveCount,
+          maxAttempts,
+        });
+
+        // Delete message to prevent further retries
+        const queue = new SQSQueue();
+        await queue.deleteMessage(receiptHandle);
+
+        // For SQS, we don't return a response, but we've already deleted the message
+        // The message will not be retried by SQS since we deleted it
+        return;
+      }
+    } else if (isEventBridgeEvent(event)) {
+      // EventBridge event
+      const detail = event.detail as EventBridgeJobEvent;
+      jobType = detail.jobType;
+      payload = detail.payload;
+    } else if (isAPIGatewayEvent(event)) {
+      // API Gateway event
+      const body = JSON.parse(event.body || "{}");
+      jobType = body.type;
+      payload = body.payload;
+    } else {
+      throw new Error(
+        `Unknown event type: ${JSON.stringify(Object.keys(event))}`
       );
     }
-  }
 
-  // Start queue polling (only for local mode)
-  if (env.WORKER_MODE === "local" && queue instanceof LocalQueue) {
-    queue.startPolling(async (job) => {
-      await processJob(job);
-      await queue.acknowledge(job.id);
-    });
+    // Execute job
+    const jobService = getJobService();
+    const executionOptions = {
+      ...(maxAttempts !== undefined && { maxAttempts }),
+      ...(attempts !== undefined && { attempts }),
+      context: {
+        requestId: context.awsRequestId,
+      },
+    };
 
-    logger.info("Worker started in local mode", {
-      queueSize: queue.getQueueSize(),
-      processingCount: queue.getProcessingCount(),
-    });
-  } else {
-    logger.info("Worker started in lambda mode - waiting for events");
-  }
+    const result = await jobService.execute(jobType, payload, executionOptions);
 
-  // Graceful shutdown
-  const shutdown = async (signal: string) => {
-    logger.info(`Received ${signal}, shutting down gracefully...`);
-
-    // Stop stats pusher
-    statsPusher.stopInterval();
-
-    if (env.WORKER_MODE === "local") {
-      if (queue instanceof LocalQueue) {
-        queue.stopPolling();
-      }
-
-      const { LocalScheduler } = await import("./services/scheduler/local");
-      if (scheduler instanceof LocalScheduler) {
-        scheduler.stopAll();
-      }
+    // Delete SQS message only on success (no error)
+    if (receiptHandle && !result.error) {
+      const queue = new SQSQueue();
+      await queue.deleteMessage(receiptHandle);
+    } else if (receiptHandle && result.error) {
+      // Job failed - don't delete message, let SQS retry
+      logger.debug(`Job failed, message will be retried by SQS`, {
+        jobType,
+        attempts,
+        maxAttempts,
+        error: result.error,
+      });
     }
 
-    logger.info("Worker shutdown complete");
-    process.exit(0);
-  };
+    // Return result for API Gateway
+    if (isAPIGatewayEvent(event)) {
+      return {
+        statusCode: result.error ? 500 : 200,
+        body: JSON.stringify(result),
+      };
+    }
 
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
-  process.on("SIGINT", () => shutdown("SIGINT"));
-}
-
-// Start the worker
-startWorker().catch((error) => {
-  logger.fatal("Failed to start worker", {
-    error: error instanceof Error ? error.message : String(error),
-    stack: error instanceof Error ? error.stack : undefined,
-  });
-  process.exit(1);
-});
+    // SQS/EventBridge - no response needed
+    return;
+  } catch (error) {
+    logger.error("Lambda handler error", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      requestId: context.awsRequestId,
+    });
+    throw error;
+  }
+};
