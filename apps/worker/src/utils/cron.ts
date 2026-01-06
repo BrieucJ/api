@@ -11,6 +11,12 @@ let cronJobsInitialized = false;
 let cronJobsInitializing = false;
 
 export async function ensureCronJobsScheduled(): Promise<void> {
+  // Skip cron job scheduling if LAMBDA_ARN is not available
+  // (local mode uses node-cron in local.ts instead)
+  if (!env.LAMBDA_ARN) {
+    return;
+  }
+
   if (cronJobsInitialized) return;
   if (cronJobsInitializing) {
     while (!cronJobsInitialized) {
@@ -21,9 +27,6 @@ export async function ensureCronJobsScheduled(): Promise<void> {
 
   cronJobsInitializing = true;
   try {
-    if (!env.LAMBDA_ARN) {
-      throw new Error("LAMBDA_ARN is required to schedule cron jobs");
-    }
     const scheduler = new EventBridgeScheduler(env.LAMBDA_ARN);
     const defaultCronJobs = getAllCronJobs();
     logger.info("Scheduling default CRON jobs in Lambda", {

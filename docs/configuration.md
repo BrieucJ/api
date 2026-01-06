@@ -26,9 +26,9 @@ Environment variables are configured using `.env.dev` (or `.env` for legacy supp
 
 **Worker** (`apps/worker/.env.dev`):
 - `DATABASE_URL` (required) - PostgreSQL connection string
-- `WORKER_MODE` - `local` or `lambda` (default: `local`)
 - `LOG_LEVEL` (required) - Log level
-- `REGION`, `SQS_QUEUE_URL`, `LAMBDA_ARN` (required in production/staging/lambda mode)
+- `REGION`, `SQS_QUEUE_URL`, `LAMBDA_ARN` (required in production/staging or when `LAMBDA_ARN` is set)
+  - Worker mode is automatically determined: if `LAMBDA_ARN` is set, it runs in lambda mode; otherwise, it runs in local mode
 
 **Client** (`apps/client/.env`):
 - `VITE_BACKEND_URL` (optional) - Backend API URL (default: `http://localhost:8080`)

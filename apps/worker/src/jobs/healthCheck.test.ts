@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { handler } from "@/jobs/healthCheck";
-import { resetTestDatabase } from "@/tests/helpers/db-setup";
-import { withTransaction } from "@/tests/helpers/test-helpers";
+import { getJobService } from "@/utils/jobService";
+import { JobType } from "@/jobs/types";
+import { resetTestDatabase } from "@shared/utils";
+import { withTransaction } from "@shared/utils";
 import { workerStats } from "@shared/db";
 import { createQueryBuilder } from "@shared/db";
+import type { JobResult } from "@/utils/types";
 
 const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
 
@@ -17,8 +19,22 @@ describe("Health Check Handler", () => {
     withTransaction(async () => {
       const payload = {};
 
-      await handler(payload);
-      expect(true).toBe(true);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.HEALTH_CHECK,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
+      expect(result.metadata.jobType).toBe(JobType.HEALTH_CHECK);
+      expect(result.metadata.jobId).toBeDefined();
+      expect(result.metadata.executionTime).toBeGreaterThanOrEqual(0);
     })
   );
 
@@ -29,8 +45,20 @@ describe("Health Check Handler", () => {
         checkType: "database" as const,
       };
 
-      await handler(payload);
-      expect(true).toBe(true);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.HEALTH_CHECK,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
+      expect(result.metadata.jobType).toBe(JobType.HEALTH_CHECK);
     })
   );
 
@@ -39,7 +67,6 @@ describe("Health Check Handler", () => {
     withTransaction(async () => {
       // Create initial stats
       await statsQuery.create({
-        worker_mode: "local",
         queue_size: 0,
         processing_count: 0,
         scheduled_jobs_count: 0,
@@ -51,13 +78,24 @@ describe("Health Check Handler", () => {
       const beforeTime = new Date();
       const payload = {};
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.HEALTH_CHECK,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
 
       // Wait a bit for async operations
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const { data } = await statsQuery.list({
-        filters: { worker_mode__eq: "local" },
         limit: 1,
         order_by: { field: "last_heartbeat", order: "desc" },
       });
@@ -79,20 +117,31 @@ describe("Health Check Handler", () => {
     withTransaction(async () => {
       const payload = {};
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.HEALTH_CHECK,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
 
       // Wait a bit for async operations
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const { data } = await statsQuery.list({
-        filters: { worker_mode__eq: "local" },
         limit: 1,
       });
 
       expect(data.length).toBeGreaterThan(0);
       const stats = data[0];
       expect(stats).toBeDefined();
-      expect(stats?.worker_mode).toBe("local");
+      expect(stats?.last_heartbeat).toBeDefined();
     })
   );
 
@@ -103,9 +152,20 @@ describe("Health Check Handler", () => {
 
       for (const checkType of checkTypes) {
         const payload = { checkType };
-        await handler(payload);
+        const jobService = getJobService();
+        const result: JobResult = await jobService.execute(
+          JobType.HEALTH_CHECK,
+          payload
+        );
+
+        // Verify return type structure
+        expect(result).toHaveProperty("data");
+        expect(result).toHaveProperty("error");
+        expect(result).toHaveProperty("metadata");
+        expect(result.error).toBeNull();
+        expect(result.data).not.toBeNull();
+        expect(result.metadata).toBeDefined();
       }
-      expect(true).toBe(true);
     })
   );
 });

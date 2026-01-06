@@ -27,12 +27,6 @@ variable "port" {
   default     = "8080"
 }
 
-variable "worker_mode" {
-  description = "Worker mode"
-  type        = string
-  default     = "lambda"
-}
-
 variable "state_backend" {
   description = "Backend configuration"
   type        = string

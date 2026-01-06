@@ -39,7 +39,6 @@ async function checkWorkerHealth() {
   if (!latestStat) {
     return {
       status: "unknown" as const,
-      workerMode: "unknown" as const,
       error: "No worker heartbeat detected",
     };
   }
@@ -47,7 +46,6 @@ async function checkWorkerHealth() {
   if (!latestStat?.last_heartbeat) {
     return {
       status: "unknown" as const,
-      workerMode: "unknown" as const,
       error: "Worker heartbeat missing",
     };
   }
@@ -59,7 +57,6 @@ async function checkWorkerHealth() {
 
   return {
     status: isHealthy ? ("healthy" as const) : ("unhealthy" as const),
-    workerMode: latestStat.worker_mode as "local" | "lambda",
     lastHeartbeat: new Date(latestStat.last_heartbeat).toISOString(),
     heartbeatAge,
     queueSize: latestStat.queue_size,
@@ -96,7 +93,6 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
         ? workerResult.value
         : {
             status: "unhealthy" as const,
-            workerMode: "unknown" as const,
             error:
               workerResult.reason instanceof Error
                 ? workerResult.reason.message
@@ -155,7 +151,6 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
           },
           worker: {
             status: "unknown" as const,
-            workerMode: "unknown" as const,
             error: errorMessage || "Health check error",
           },
         },

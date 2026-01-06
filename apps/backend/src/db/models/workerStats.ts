@@ -20,7 +20,6 @@ extendZodWithOpenApi(z);
 export const workerStats = pgTable(
   "worker_stats",
   {
-    worker_mode: text("worker_mode").notNull(), // 'local' or 'lambda'
     queue_size: integer("queue_size").notNull().default(0),
     processing_count: integer("processing_count").notNull().default(0),
     scheduled_jobs_count: integer("scheduled_jobs_count").notNull().default(0),
@@ -40,9 +39,6 @@ export const workerStats = pgTable(
 );
 
 // Zod schemas
-const workerModeField = z
-  .enum(["local", "lambda"])
-  .openapi({ example: "lambda" });
 const queueSizeField = z.number().int().min(0).openapi({ example: 5 });
 const processingCountField = z.number().int().min(0).openapi({ example: 2 });
 const scheduledJobsCountField = z.number().int().min(0).openapi({ example: 3 });
@@ -73,7 +69,6 @@ export const workerStatsSelectSchema = createSelectSchema(workerStats)
 
 export const workerStatsInsertSchema = createInsertSchema(workerStats)
   .extend({
-    worker_mode: workerModeField,
     queue_size: queueSizeField,
     processing_count: processingCountField,
     scheduled_jobs_count: scheduledJobsCountField,
@@ -91,7 +86,6 @@ export const workerStatsInsertSchema = createInsertSchema(workerStats)
 
 export const workerStatsUpdateSchema = createUpdateSchema(workerStats)
   .extend({
-    worker_mode: workerModeField.optional(),
     queue_size: queueSizeField.optional(),
     processing_count: processingCountField.optional(),
     scheduled_jobs_count: scheduledJobsCountField.optional(),

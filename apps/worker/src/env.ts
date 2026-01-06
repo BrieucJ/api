@@ -41,7 +41,6 @@ expand(
 // Base schema with common fields
 const BaseEnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
-  WORKER_MODE: z.enum(["local", "lambda"]).default("local"),
   LOG_LEVEL: z.enum([
     "fatal",
     "error",
@@ -53,25 +52,25 @@ const BaseEnvSchema = z.object({
   ]),
   PORT: z.coerce.number().default(8081),
   DATABASE_URL: z.url(),
-  // Optional fields that may be required based on NODE_ENV and WORKER_MODE
+  // Optional fields that may be required based on NODE_ENV and LAMBDA_ARN
   REGION: z.string().optional(),
   SQS_QUEUE_URL: z.url().optional(),
   LAMBDA_ARN: z.string().optional(), // Required for Lambda mode to schedule EventBridge cron jobs
 });
 
-// Conditional validation based on NODE_ENV and WORKER_MODE
+// Conditional validation based on NODE_ENV and LAMBDA_ARN
 const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
   const isProduction = data.NODE_ENV === "production";
   const isStaging = data.NODE_ENV === "staging";
-  const isLambdaMode = data.WORKER_MODE === "lambda";
+  const isLambdaMode = !!data.LAMBDA_ARN;
 
-  // In production/staging or lambda mode, SQS_QUEUE_URL is required
+  // In production/staging or when LAMBDA_ARN is set, AWS resources are required
   if (isProduction || isStaging || isLambdaMode) {
     if (!data.SQS_QUEUE_URL) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "SQS_QUEUE_URL is required in production/staging environments or when WORKER_MODE is lambda",
+          "SQS_QUEUE_URL is required in production/staging environments or when LAMBDA_ARN is set",
         path: ["SQS_QUEUE_URL"],
       });
     }
@@ -79,7 +78,7 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "REGION is required in production/staging environments or when WORKER_MODE is lambda",
+          "REGION is required in production/staging environments or when LAMBDA_ARN is set",
         path: ["REGION"],
       });
     }
@@ -87,7 +86,7 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "LAMBDA_ARN is required in production/staging environments or when WORKER_MODE is lambda",
+          "LAMBDA_ARN is required in production/staging environments",
         path: ["LAMBDA_ARN"],
       });
     }

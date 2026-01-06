@@ -70,7 +70,6 @@ LOG_LEVEL=info
 NODE_ENV=production
 PORT=8081
 REGION=eu-west-3
-WORKER_MODE=lambda
 ```
 
 ## Step 5: Deploy Infrastructure

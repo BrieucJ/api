@@ -2,6 +2,8 @@ import { db } from "@/utils/db";
 import { sql } from "drizzle-orm";
 import postgres from "postgres";
 import env from "@/env";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * Get the database name from DATABASE_URL
@@ -41,7 +43,7 @@ export async function testDatabaseExists(): Promise<boolean> {
 }
 
 /**
- * Create test database if it doesn't exist
+ * Create test database
  */
 export async function createTestDatabase(): Promise<void> {
   const baseUrl = getBaseConnectionUrl();
@@ -49,20 +51,18 @@ export async function createTestDatabase(): Promise<void> {
   const dbName = getDatabaseName();
 
   try {
-    // Check if database exists
-    const exists = await testDatabaseExists();
-    if (exists) {
-      console.log(`Test database "${dbName}" already exists`);
-      await client.end();
-      return;
-    }
-
-    // Create database
+    // Create database (will fail if exists, but that's ok since we drop first)
     await client.unsafe(`CREATE DATABASE ${dbName}`);
     console.log(`✅ Created test database "${dbName}"`);
   } catch (error) {
-    console.error(`❌ Failed to create test database:`, error);
-    throw error;
+    // Ignore error if database already exists (shouldn't happen after drop, but be safe)
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("already exists")) {
+      console.log(`Test database "${dbName}" already exists`);
+    } else {
+      console.error(`❌ Failed to create test database:`, error);
+      throw error;
+    }
   } finally {
     await client.end();
   }
@@ -109,8 +109,18 @@ export async function migrateTestDatabase(): Promise<void> {
     const migrationClient = postgresDefault(env.DATABASE_URL, { max: 1 });
     const migrationDb = drizzle(migrationClient);
 
+    // Resolve migrations folder path relative to project root
+    const currentDir =
+      typeof import.meta.dir !== "undefined"
+        ? import.meta.dir
+        : path.dirname(fileURLToPath(import.meta.url));
+    const migrationsPath = path.resolve(
+      currentDir,
+      "../../../../backend/src/migrations"
+    );
+
     await migrate(migrationDb, {
-      migrationsFolder: "../../backend/src/migrations",
+      migrationsFolder: migrationsPath,
     });
 
     await migrationClient.end();
@@ -122,9 +132,11 @@ export async function migrateTestDatabase(): Promise<void> {
 }
 
 /**
- * Setup test database (create + migrate)
+ * Setup test database (drop + create + migrate)
  */
 export async function setupTestDatabase(): Promise<void> {
+  // Drop database if it exists to ensure fresh state with all migrations
+  await dropTestDatabase();
   await createTestDatabase();
   await migrateTestDatabase();
 }

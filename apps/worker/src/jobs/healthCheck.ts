@@ -6,6 +6,8 @@ import { workerStats, createQueryBuilder } from "@shared/db";
 import env from "@/env";
 import { JobType } from "./types";
 import type { JobDefinition } from "./types";
+import { getAllCronJobs, getAllJobs } from "./index";
+import { SQSQueue } from "@/utils/sqs";
 
 // Payload schema
 export const payloadSchema = z.object({
@@ -52,52 +54,88 @@ export const handler = async (
       logger.info("Scheduler health check passed");
     }
 
-    // Update worker heartbeat to indicate worker is alive
-    // Filter by worker_mode to ensure we update the correct record
+    // Collect real stats
+    let queueSize = 0;
+    if (env.SQS_QUEUE_URL) {
+      try {
+        const queue = new SQSQueue();
+        queueSize = await queue.getQueueSize();
+      } catch (error) {
+        logger.warn("Failed to get queue size", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    // Get scheduled and available jobs
+    const cronJobs = getAllCronJobs();
+    const scheduledJobs = cronJobs.map((job, index) => ({
+      id: `cron-${index}`,
+      cronExpression: job.cronExpression,
+      jobType: job.jobType,
+      payload: job.payload,
+      enabled: job.enabled,
+    }));
+
+    const availableJobs = getAllJobs().map((job) => ({
+      type: job.type,
+      name: job.name,
+      description: job.description,
+      category: job.category,
+    }));
+
     try {
       const statsQuery = createQueryBuilder<typeof workerStats>(workerStats);
       const now = new Date();
 
-      // Get the stats record for this worker mode (most recent by last_heartbeat)
+      // Get the most recent stats record
       const { data } = await statsQuery.list({
-        filters: { worker_mode__eq: env.WORKER_MODE },
         limit: 1,
         order_by: { field: "last_heartbeat", order: "desc" },
       });
 
       if (data.length > 0 && data[0]) {
-        // Update existing stats with new heartbeat
+        // Update existing stats with real values
         await statsQuery.update(data[0].id, {
           last_heartbeat: now,
+          queue_size: queueSize,
+          processing_count: 0, // Could track this if needed
+          scheduled_jobs_count: scheduledJobs.length,
+          available_jobs_count: availableJobs.length,
+          scheduled_jobs: scheduledJobs,
+          available_jobs: availableJobs,
         });
         workerId = data[0].id.toString();
         heartbeatUpdated = true;
-        logger.info("Worker heartbeat updated", {
+        logger.info("Worker stats updated", {
           workerId,
-          workerMode: env.WORKER_MODE,
+          queueSize,
+          scheduledJobsCount: scheduledJobs.length,
+          availableJobsCount: availableJobs.length,
         });
       } else {
-        // Create new stats record if none exists for this worker mode
+        // Create new stats record
         const created = await statsQuery.create({
-          worker_mode: env.WORKER_MODE,
-          queue_size: 0,
+          queue_size: queueSize,
           processing_count: 0,
-          scheduled_jobs_count: 0,
-          available_jobs_count: 0,
-          scheduled_jobs: [],
-          available_jobs: [],
+          scheduled_jobs_count: scheduledJobs.length,
+          available_jobs_count: availableJobs.length,
+          scheduled_jobs: scheduledJobs,
+          available_jobs: availableJobs,
           last_heartbeat: now,
         });
         workerId = created?.id.toString();
         heartbeatUpdated = true;
-        logger.info("Worker stats record created with heartbeat", {
-          workerMode: env.WORKER_MODE,
+        logger.info("Worker stats record created", {
           workerId,
+          queueSize,
+          scheduledJobsCount: scheduledJobs.length,
+          availableJobsCount: availableJobs.length,
         });
       }
     } catch (heartbeatError) {
-      // Log but don't fail the health check if heartbeat update fails
-      logger.error("Failed to update worker heartbeat", {
+      // Log but don't fail the health check if stats update fails
+      logger.error("Failed to update worker stats", {
         error:
           heartbeatError instanceof Error
             ? heartbeatError.message

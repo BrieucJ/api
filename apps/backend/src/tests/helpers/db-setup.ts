@@ -119,9 +119,11 @@ export async function migrateTestDatabase(): Promise<void> {
 }
 
 /**
- * Setup test database (create + migrate)
+ * Setup test database (drop + create + migrate)
  */
 export async function setupTestDatabase(): Promise<void> {
+  // Drop database if it exists to ensure fresh state with all migrations
+  await dropTestDatabase();
   await createTestDatabase();
   await migrateTestDatabase();
 }

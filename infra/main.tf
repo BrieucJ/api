@@ -26,7 +26,6 @@ module "worker" {
   environment   = var.environment
   database_url  = var.database_url
   region        = var.region
-  worker_mode   = var.worker_mode
   log_level     = var.log_level
   port          = var.port
   image_tag     = var.image_tag

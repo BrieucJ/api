@@ -109,9 +109,9 @@ describe("Health API", () => {
         const body = await res.json();
 
         expect(body.data.worker).toBeDefined();
-        expect(body.data.worker.workerMode).toBeDefined();
-        expect(["local", "lambda", "unknown"]).toContain(
-          body.data.worker.workerMode
+        expect(body.data.worker.status).toBeDefined();
+        expect(["healthy", "unhealthy", "unknown"]).toContain(
+          body.data.worker.status
         );
       })
     );

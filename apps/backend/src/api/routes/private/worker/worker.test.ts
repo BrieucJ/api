@@ -24,7 +24,6 @@ describe("Worker API", () => {
 
         // Create test worker stats
         await workerStatsQuery.create({
-          worker_mode: "lambda",
           queue_size: 5,
           processing_count: 2,
           scheduled_jobs_count: 3,
@@ -53,8 +52,6 @@ describe("Worker API", () => {
         expect(body.metadata.total).toBeGreaterThanOrEqual(1);
 
         const stats = body.data[0];
-        expect(stats.worker_mode).toBeDefined();
-        expect(["local", "lambda"]).toContain(stats.worker_mode);
         expect(stats.queue_size).toBeDefined();
         expect(typeof stats.queue_size).toBe("number");
         expect(stats.processing_count).toBeDefined();
@@ -82,7 +79,6 @@ describe("Worker API", () => {
 
         // Create multiple worker stats with different timestamps
         await workerStatsQuery.create({
-          worker_mode: "local",
           queue_size: 1,
           processing_count: 1,
           scheduled_jobs_count: 1,
@@ -95,7 +91,6 @@ describe("Worker API", () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
 
         await workerStatsQuery.create({
-          worker_mode: "lambda",
           queue_size: 10,
           processing_count: 5,
           scheduled_jobs_count: 3,
@@ -118,7 +113,6 @@ describe("Worker API", () => {
         expect(res.status).toBe(200);
         expect(body.data.length).toBe(1); // Should return only the most recent
         // Should return the most recent one (ordered by last_heartbeat desc)
-        expect(body.data[0].worker_mode).toBe("lambda");
         expect(body.data[0].queue_size).toBe(10);
       })
     );

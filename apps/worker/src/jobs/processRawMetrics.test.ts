@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { handler } from "@/jobs/processRawMetrics";
-import { resetTestDatabase } from "@/tests/helpers/db-setup";
-import { withTransaction, retryUntil } from "@/tests/helpers/test-helpers";
+import { getJobService } from "@/utils/jobService";
+import { JobType } from "@/jobs/types";
+import { resetTestDatabase, withTransaction, retryUntil } from "@shared/utils";
 import { metrics } from "@shared/db";
 import { createQueryBuilder } from "@shared/db";
+import type { JobResult } from "@/utils/types";
 
 const metricsQuery = createQueryBuilder<typeof metrics>(metrics);
 
@@ -43,19 +44,34 @@ describe("Process Raw Metrics Handler", () => {
         ],
       };
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.PROCESS_RAW_METRICS,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
+      expect(result.metadata.jobType).toBe(JobType.PROCESS_RAW_METRICS);
+      expect(result.metadata.jobId).toBeDefined();
+      expect(result.metadata.executionTime).toBeGreaterThanOrEqual(0);
 
       // Retry query to handle CI timing issues
       const { data } = await retryUntil(
         async () => {
-          const result = await metricsQuery.list({
+          const queryResult = await metricsQuery.list({
             filters: { endpoint__eq: "/api/v1/users" },
             limit: 10,
           });
-          if (result.data.length === 0) {
+          if (queryResult.data.length === 0) {
             throw new Error("No metrics found yet");
           }
-          return result;
+          return queryResult;
         },
         { maxAttempts: 10, delayMs: 100 }
       );
@@ -97,19 +113,31 @@ describe("Process Raw Metrics Handler", () => {
         ],
       };
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.PROCESS_RAW_METRICS,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
 
       // Retry query to handle CI timing issues
       const { data } = await retryUntil(
         async () => {
-          const result = await metricsQuery.list({
+          const queryResult = await metricsQuery.list({
             filters: { endpoint__eq: "/api/v1/test" },
             limit: 1,
           });
-          if (result.data.length === 0) {
+          if (queryResult.data.length === 0) {
             throw new Error("No metrics found yet");
           }
-          return result;
+          return queryResult;
         },
         { maxAttempts: 10, delayMs: 100 }
       );
@@ -146,7 +174,19 @@ describe("Process Raw Metrics Handler", () => {
         ],
       };
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.PROCESS_RAW_METRICS,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
 
       const { data } = await metricsQuery.list({
         filters: { endpoint__eq: "/api/v1/test" },
@@ -165,7 +205,19 @@ describe("Process Raw Metrics Handler", () => {
         metrics: [],
       };
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.PROCESS_RAW_METRICS,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
 
       // Should not throw and should not create any metrics
       const { data } = await metricsQuery.list({
@@ -191,19 +243,31 @@ describe("Process Raw Metrics Handler", () => {
         })),
       };
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.PROCESS_RAW_METRICS,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
 
       // Retry query to handle CI timing issues
       const { data } = await retryUntil(
         async () => {
-          const result = await metricsQuery.list({
+          const queryResult = await metricsQuery.list({
             filters: { endpoint__eq: "/api/v1/test" },
             limit: 1,
           });
-          if (result.data.length === 0) {
+          if (queryResult.data.length === 0) {
             throw new Error("No metrics found yet");
           }
-          return result;
+          return queryResult;
         },
         { maxAttempts: 10, delayMs: 100 }
       );
@@ -218,4 +282,3 @@ describe("Process Raw Metrics Handler", () => {
     })
   );
 });
-

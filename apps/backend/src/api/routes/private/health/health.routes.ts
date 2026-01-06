@@ -19,10 +19,6 @@ export const workerHealthSchema = z.object({
   status: z
     .enum(["healthy", "unhealthy", "unknown"])
     .openapi({ example: "healthy" }),
-  workerMode: z
-    .enum(["local", "lambda", "unknown"])
-    .optional()
-    .openapi({ example: "lambda" }),
   lastHeartbeat: z
     .string()
     .datetime()

@@ -49,12 +49,13 @@ export default function WorkerPage() {
       description: string;
       category?: string;
     }>) || [];
-  const workerMode = workerStats?.worker_mode || "unknown";
 
   return (
     <div className="space-y-3 md:space-y-6">
       <div>
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight">Worker Monitoring</h2>
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight">
+          Worker Monitoring
+        </h2>
         <p className="text-xs md:text-sm text-muted-foreground">
           Monitor queue statistics, scheduled jobs, and available job types
         </p>
@@ -64,7 +65,9 @@ export default function WorkerPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-3 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium">Queue Size</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium">
+              Queue Size
+            </CardTitle>
             <Database className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
@@ -79,7 +82,9 @@ export default function WorkerPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-3 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium">Processing</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium">
+              Processing
+            </CardTitle>
             <Loader2 className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground animate-spin" />
           </CardHeader>
           <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
@@ -88,19 +93,6 @@ export default function WorkerPage() {
             </div>
             <p className="text-[10px] md:text-xs text-muted-foreground">
               Jobs currently being processed
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-3 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium">Worker Mode</CardTitle>
-            <Settings className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
-            <div className="text-lg md:text-2xl font-bold capitalize">{workerMode}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground">
-              {workerMode === "local" ? "Local queue" : "SQS queue"}
             </p>
           </CardContent>
         </Card>
@@ -120,17 +112,25 @@ export default function WorkerPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs md:text-sm">Job Type</TableHead>
-                    <TableHead className="text-xs md:text-sm hidden sm:table-cell">Cron Expression</TableHead>
+                    <TableHead className="text-xs md:text-sm">
+                      Job Type
+                    </TableHead>
+                    <TableHead className="text-xs md:text-sm hidden sm:table-cell">
+                      Cron Expression
+                    </TableHead>
                     <TableHead className="text-xs md:text-sm">Status</TableHead>
-                    <TableHead className="text-xs md:text-sm hidden md:table-cell">ID</TableHead>
+                    <TableHead className="text-xs md:text-sm hidden md:table-cell">
+                      ID
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {scheduledJobs.map((job) => (
                     <TableRow key={job.id}>
                       <TableCell>
-                        <code className="text-[10px] md:text-sm">{job.jobType}</code>
+                        <code className="text-[10px] md:text-sm">
+                          {job.jobType}
+                        </code>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <code className="text-[10px] md:text-sm font-mono">
@@ -139,12 +139,18 @@ export default function WorkerPage() {
                       </TableCell>
                       <TableCell>
                         {job.enabled ? (
-                          <Badge variant="default" className="gap-0.5 md:gap-1 text-[10px] md:text-xs">
+                          <Badge
+                            variant="default"
+                            className="gap-0.5 md:gap-1 text-[10px] md:text-xs"
+                          >
                             <CheckCircle2 className="h-2 w-2 md:h-3 md:w-3" />
                             <span className="hidden sm:inline">Enabled</span>
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="gap-0.5 md:gap-1 text-[10px] md:text-xs">
+                          <Badge
+                            variant="secondary"
+                            className="gap-0.5 md:gap-1 text-[10px] md:text-xs"
+                          >
                             <XCircle className="h-2 w-2 md:h-3 md:w-3" />
                             <span className="hidden sm:inline">Disabled</span>
                           </Badge>
@@ -180,13 +186,21 @@ export default function WorkerPage() {
           {availableJobsList.length > 0 ? (
             <div className="space-y-3 md:space-y-4">
               {availableJobsList.map((job) => (
-                <div key={job.type} className="border rounded-lg p-3 md:p-4 space-y-1.5 md:space-y-2">
+                <div
+                  key={job.type}
+                  className="border rounded-lg p-3 md:p-4 space-y-1.5 md:space-y-2"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-1">
-                        <h3 className="font-semibold text-sm md:text-base">{job.name}</h3>
+                        <h3 className="font-semibold text-sm md:text-base">
+                          {job.name}
+                        </h3>
                         {job.category && (
-                          <Badge variant="outline" className="text-[10px] md:text-xs">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] md:text-xs"
+                          >
                             {job.category}
                           </Badge>
                         )}

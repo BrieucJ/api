@@ -1,5 +1,7 @@
 import { describe, it, expect } from "bun:test";
-import { handler } from "@/jobs/processMetrics";
+import { getJobService } from "@/utils/jobService";
+import { JobType } from "@/jobs/types";
+import type { JobResult } from "@/utils/types";
 
 describe("Process Metrics Handler", () => {
   it("should process metrics without throwing", async () => {
@@ -8,9 +10,22 @@ describe("Process Metrics Handler", () => {
       windowEnd: new Date().toISOString(),
     };
 
-    // Should not throw
-    await handler(payload);
-    expect(true).toBe(true);
+    const jobService = getJobService();
+    const result: JobResult = await jobService.execute(
+      JobType.PROCESS_METRICS,
+      payload
+    );
+
+    // Verify return type structure
+    expect(result).toHaveProperty("data");
+    expect(result).toHaveProperty("error");
+    expect(result).toHaveProperty("metadata");
+    expect(result.error).toBeNull();
+    expect(result.data).not.toBeNull();
+    expect(result.metadata).toBeDefined();
+    expect(result.metadata.jobType).toBe(JobType.PROCESS_METRICS);
+    expect(result.metadata.jobId).toBeDefined();
+    expect(result.metadata.executionTime).toBeGreaterThanOrEqual(0);
   });
 
   it("should handle valid date ranges", async () => {
@@ -19,8 +34,19 @@ describe("Process Metrics Handler", () => {
       windowEnd: new Date("2024-01-01T01:00:00Z").toISOString(),
     };
 
-    await handler(payload);
-    expect(true).toBe(true);
+    const jobService = getJobService();
+    const result: JobResult = await jobService.execute(
+      JobType.PROCESS_METRICS,
+      payload
+    );
+
+    // Verify return type structure
+    expect(result).toHaveProperty("data");
+    expect(result).toHaveProperty("error");
+    expect(result).toHaveProperty("metadata");
+    expect(result.error).toBeNull();
+    expect(result.data).not.toBeNull();
+    expect(result.metadata).toBeDefined();
   });
 
   it("should handle different time windows", async () => {
@@ -30,8 +56,18 @@ describe("Process Metrics Handler", () => {
       windowEnd: now.toISOString(),
     };
 
-    await handler(payload);
-    expect(true).toBe(true);
+    const jobService = getJobService();
+    const result: JobResult = await jobService.execute(
+      JobType.PROCESS_METRICS,
+      payload
+    );
+
+    // Verify return type structure
+    expect(result).toHaveProperty("data");
+    expect(result).toHaveProperty("error");
+    expect(result).toHaveProperty("metadata");
+    expect(result.error).toBeNull();
+    expect(result.data).not.toBeNull();
+    expect(result.metadata).toBeDefined();
   });
 });
-

@@ -333,13 +333,10 @@ export default function DashboardLayout() {
                         {healthStatus.worker?.status || "unknown"}
                       </span>
                     </div>
-                    {healthStatus.worker?.workerMode && (
+                    {healthStatus.worker?.queueSize !== undefined && (
                       <>
                         <div className="text-xs">
-                          Mode:{" "}
-                          <span className="capitalize">
-                            {healthStatus.worker.workerMode}
-                          </span>
+                          Queue: {healthStatus.worker.queueSize}
                         </div>
                         <div className="text-xs">
                           Last Heartbeat:{" "}

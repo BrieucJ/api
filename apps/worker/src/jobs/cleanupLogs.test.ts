@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { handler } from "@/jobs/cleanupLogs";
-import { resetTestDatabase } from "@/tests/helpers/db-setup";
-import { withTransaction } from "@/tests/helpers/test-helpers";
+import { getJobService } from "@/utils/jobService";
+import { JobType } from "@/jobs/types";
+import { resetTestDatabase } from "@shared/utils";
+import { withTransaction } from "@shared/utils";
 import { logs } from "@shared/db";
 import { createQueryBuilder } from "@shared/db";
 import { db } from "@/utils/db";
 import { sql } from "drizzle-orm";
+import type { JobResult } from "@/utils/types";
 
 const logQuery = createQueryBuilder<typeof logs>(logs);
 
@@ -44,7 +46,22 @@ describe("Cleanup Logs Handler", () => {
         batchSize: 1000,
       };
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.CLEANUP_LOGS,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
+      expect(result.metadata.jobType).toBe(JobType.CLEANUP_LOGS);
+      expect(result.metadata.jobId).toBeDefined();
+      expect(result.metadata.executionTime).toBeGreaterThanOrEqual(0);
 
       // Check that old log was deleted - filter by our test messages
       const { data } = await logQuery.list({
@@ -97,7 +114,20 @@ describe("Cleanup Logs Handler", () => {
         batchSize: 1000, // Use large batch size to delete all at once
       };
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.CLEANUP_LOGS,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
+      expect(result.metadata.jobType).toBe(JobType.CLEANUP_LOGS);
 
       // All old logs should be deleted
       const { data } = await logQuery.list({
@@ -131,7 +161,19 @@ describe("Cleanup Logs Handler", () => {
         batchSize: 1000,
       };
 
-      await handler(payload);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.CLEANUP_LOGS,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.metadata).toBeDefined();
 
       // Recent log should still exist - filter by our test message
       const { data } = await logQuery.list({
@@ -153,9 +195,17 @@ describe("Cleanup Logs Handler", () => {
         batchSize: 1000,
       };
 
-      // Should not throw
-      await handler(payload);
-      expect(true).toBe(true);
+      const jobService = getJobService();
+      const result: JobResult = await jobService.execute(
+        JobType.CLEANUP_LOGS,
+        payload
+      );
+
+      // Verify return type structure
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("error");
+      expect(result).toHaveProperty("metadata");
+      expect(result.metadata).toBeDefined();
     })
   );
 });

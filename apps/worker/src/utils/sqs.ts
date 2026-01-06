@@ -1,4 +1,8 @@
-import { SQSClient, DeleteMessageCommand } from "@aws-sdk/client-sqs";
+import {
+  SQSClient,
+  DeleteMessageCommand,
+  GetQueueAttributesCommand,
+} from "@aws-sdk/client-sqs";
 import { logger } from "@/utils/logger";
 import env from "@/env";
 
@@ -30,6 +34,25 @@ export class SQSQueue {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
+    }
+  }
+
+  async getQueueSize(): Promise<number> {
+    try {
+      const command = new GetQueueAttributesCommand({
+        QueueUrl: this.queueUrl,
+        AttributeNames: ["ApproximateNumberOfMessages"],
+      });
+
+      const response = await this.client.send(command);
+      const approximateMessages =
+        response.Attributes?.ApproximateNumberOfMessages;
+      return approximateMessages ? parseInt(approximateMessages, 10) : 0;
+    } catch (error) {
+      logger.error("Failed to get queue size from SQS", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return 0; // Return 0 on error to not break health check
     }
   }
 }

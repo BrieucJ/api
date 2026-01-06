@@ -98,7 +98,6 @@ jobs:
       TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
       TF_VAR_log_level: ${{ secrets.LOG_LEVEL || 'info' }}
       TF_VAR_port: ${{ secrets.PORT || '8080' }}
-      TF_VAR_worker_mode: lambda
       TF_VAR_image_tag: ${{ github.sha }}
       TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
       TF_VAR_jwt_expires_in: ${{ secrets.JWT_EXPIRES_IN || '24h' }}
