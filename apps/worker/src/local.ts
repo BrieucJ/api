@@ -8,7 +8,7 @@ import * as cron from "node-cron";
 
 // HTTP server for accepting job requests
 const server = serve({
-  port: env.PORT || 8081,
+  port: env.WORKER_PORT || 8081,
   async fetch(req) {
     const url = new URL(req.url);
 
@@ -53,11 +53,81 @@ const server = serve({
       }
     }
 
+    // Job enqueue endpoint (for async job processing)
+    if (url.pathname === "/jobs/enqueue" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as {
+          id: string;
+          type: JobType;
+          payload: unknown;
+          attempts?: number;
+          maxAttempts?: number;
+          createdAt?: string;
+          scheduledFor?: string;
+        };
+
+        // Execute job asynchronously (fire and forget)
+        // This mimics SQS behavior where jobs are enqueued and processed asynchronously
+        const jobService = getJobService();
+        jobService
+          .execute(body.type, body.payload, {
+            maxAttempts: body.maxAttempts ?? 3,
+            attempts: body.attempts ?? 0,
+          })
+          .then((result) => {
+            if (result.error) {
+              logger.error("Enqueued job failed", {
+                jobId: body.id,
+                jobType: body.type,
+                error: result.error,
+              });
+            } else {
+              logger.debug("Enqueued job completed", {
+                jobId: body.id,
+                jobType: body.type,
+              });
+            }
+          })
+          .catch((error) => {
+            logger.error("Enqueued job execution error", {
+              jobId: body.id,
+              jobType: body.type,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
+
+        // Return immediately with job ID (mimics SQS behavior)
+        return new Response(
+          JSON.stringify({
+            id: body.id,
+            status: "enqueued",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        logger.error("Failed to enqueue job via HTTP", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return new Response(
+          JSON.stringify({
+            error: error instanceof Error ? error.message : String(error),
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
     return new Response("Not Found", { status: 404 });
   },
 });
 
-logger.info(`Worker running in local mode on port ${env.PORT || 8081}`);
+logger.info(`Worker running in local mode on port ${env.WORKER_PORT || 8081}`);
 
 // Schedule cron jobs using node-cron
 const cronJobs = getAllCronJobs();

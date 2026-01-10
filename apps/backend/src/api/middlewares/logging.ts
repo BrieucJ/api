@@ -48,6 +48,18 @@ function serializeContext(
 const loggingMiddleware = createMiddleware(async (c: Context, next) => {
   const start = Date.now();
 
+  // Log ALL requests immediately for debugging - BEFORE anything else
+  try {
+    logger.info(`→ ${c.req.method} ${c.req.path}`, {
+      method: c.req.method,
+      path: c.req.path,
+      url: c.req.url,
+      headers: c.req.header(),
+    });
+  } catch (e) {
+    logger.error("Failed to log request", { error: e });
+  }
+
   // Capture request body for POST/PUT/PATCH requests
   let requestBody: any = null;
   let bodyText: string | null = null;
@@ -56,29 +68,43 @@ const loggingMiddleware = createMiddleware(async (c: Context, next) => {
     try {
       const contentType = c.req.header("content-type");
       if (contentType?.includes("application/json")) {
-        // Read the body as text first
-        bodyText = await c.req.text();
+        try {
+          // Read the body as text first
+          bodyText = await c.req.text();
 
-        // Parse it for logging
-        if (bodyText) {
-          try {
-            requestBody = JSON.parse(bodyText);
-          } catch (e) {
-            requestBody = bodyText;
+          // Parse it for logging
+          if (bodyText) {
+            try {
+              requestBody = JSON.parse(bodyText);
+            } catch (e) {
+              requestBody = bodyText;
+            }
           }
+
+          // Recreate the request with the body so it can be read again by validators
+          const newRequest = new Request(c.req.url, {
+            method: c.req.method,
+            headers: c.req.raw.headers,
+            body: bodyText,
+          });
+
+          // Replace the request in the context
+          (c.req as any).raw = newRequest;
+        } catch (bodyError) {
+          logger.error("Failed to read request body", {
+            error: bodyError,
+            method: c.req.method,
+            path: c.req.path,
+          });
+          // Don't throw - let the request continue, validators will handle it
         }
-
-        // Recreate the request with the body so it can be read again by validators
-        const newRequest = new Request(c.req.url, {
-          method: c.req.method,
-          headers: c.req.raw.headers,
-          body: bodyText,
-        });
-
-        // Replace the request in the context
-        (c.req as any).raw = newRequest;
       }
     } catch (e) {
+      logger.error("Error in body handling", {
+        error: e,
+        method: c.req.method,
+        path: c.req.path,
+      });
       // If we can't parse the request body, just skip it
       requestBody = null;
     }

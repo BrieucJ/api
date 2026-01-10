@@ -2,10 +2,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import {
   paginationWithOrderingSchema,
-  paginationSchema,
   responseSchema,
   createErrorSchema,
   notFoundSchema,
+  createListResponses,
 } from "@/utils/helpers";
 import { logSelectSchema } from "@/db/models/logs";
 
@@ -21,12 +21,9 @@ export const list = createRoute({
     query: paginationWithOrderingSchema(logSelectSchema),
   },
   responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "List of logs",
-      z.array(logSelectSchema), // data schema
-      null, // no error
-      paginationSchema // pagination metadata
-    ),
+    ...createListResponses("logs", logSelectSchema, {
+      customDescription: "List of logs",
+    }),
     [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
       "Not Found",
       null,

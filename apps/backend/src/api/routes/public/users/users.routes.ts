@@ -1,15 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import {
   jsonContentRequired,
-  createErrorSchema,
   idParamSchema,
-  requestBody,
-  notFoundSchema,
   paginationWithOrderingSchema,
-  paginationSchema,
-  responseSchema,
   selectFieldSchema,
+  createListResponses,
+  createGetResponses,
+  createCreateResponses,
+  createUpdateResponses,
+  createDeleteResponses,
 } from "@/utils/helpers";
 import {
   userInsertSchema,
@@ -27,14 +26,7 @@ export const list = createRoute({
   request: {
     query: paginationWithOrderingSchema(userSelectSchema),
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "List users",
-      z.array(userSelectSchema), // data schema
-      null, // no error
-      paginationSchema // pagination metadata
-    ),
-  },
+  responses: createListResponses("users", userSelectSchema),
 });
 
 export const get = createRoute({
@@ -45,20 +37,7 @@ export const get = createRoute({
     params: idParamSchema,
     ...selectFieldSchema(userSelectSchema),
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "Get user by ID",
-      userSelectSchema, // data schema
-      null, // no error
-      null // no metadata
-    ),
-    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
-      "User not found",
-      null, // no data
-      notFoundSchema,
-      null // no metadata
-    ),
-  },
+  responses: createGetResponses("user", userSelectSchema),
 });
 
 export const create = createRoute({
@@ -69,45 +48,19 @@ export const create = createRoute({
     ...selectFieldSchema(userSelectSchema),
   },
   tags,
-  responses: {
-    [HTTP_STATUS_CODES.CREATED]: responseSchema(
-      "The created user",
-      userSelectSchema,
-      null,
-      null
-    ),
-    [HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY]: responseSchema(
-      "Validation errors",
-      null,
-      createErrorSchema(userInsertSchema),
-      null
-    ),
-  },
+  responses: createCreateResponses("user", userSelectSchema, userInsertSchema),
 });
 
-export const patch = createRoute({
+export const put = createRoute({
   tags,
-  method: "patch",
+  method: "put",
   path: `${basePath}/{id}`,
   request: {
     params: idParamSchema,
     ...selectFieldSchema(userSelectSchema),
-    ...requestBody(userUpdateSchema),
+    body: jsonContentRequired(userUpdateSchema, "The user data to update"),
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "User updated",
-      userSelectSchema, // data schema
-      null, // no error
-      null // no metadata
-    ),
-    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
-      "User not found",
-      null, // no data
-      notFoundSchema,
-      null // no metadata
-    ),
-  },
+  responses: createUpdateResponses("user", userSelectSchema, userUpdateSchema),
 });
 
 export const remove = createRoute({
@@ -118,24 +71,11 @@ export const remove = createRoute({
     params: idParamSchema,
     ...selectFieldSchema(userSelectSchema),
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "User deleted",
-      userSelectSchema, // data schema
-      null, // no error
-      null // no metadata
-    ),
-    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
-      "User not found",
-      null, // no data
-      notFoundSchema,
-      null // no metadata
-    ),
-  },
+  responses: createDeleteResponses("user", userSelectSchema),
 });
 
 export type ListRoute = typeof list;
 export type CreateRoute = typeof create;
 export type GetRoute = typeof get;
-export type PatchRoute = typeof patch;
+export type PutRoute = typeof put;
 export type RemoveRoute = typeof remove;

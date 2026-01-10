@@ -1,27 +1,9 @@
-import { z } from "zod";
+// Node.js code with logger, db, etc.
 import { logger } from "@/utils/logger";
 import { db } from "@/utils/db";
 import { logs } from "@shared/db";
 import { sql } from "drizzle-orm";
-import { JobType } from "./types";
-import type { JobDefinition } from "./types";
-
-// Payload schema
-export const payloadSchema = z.object({
-  olderThanDays: z.number().int().positive().default(30),
-  batchSize: z.number().int().positive().default(1000),
-});
-
-export type CleanupLogsPayload = z.infer<typeof payloadSchema>;
-
-// Result schema
-export const resultSchema = z.object({
-  totalDeleted: z.number(),
-  batchesProcessed: z.number(),
-  olderThanDays: z.number(),
-});
-
-export type CleanupLogsResult = z.infer<typeof resultSchema>;
+import type { CleanupLogsPayload, CleanupLogsResult } from "./definition";
 
 // Handler
 export const handler = async (
@@ -91,29 +73,4 @@ export const handler = async (
     });
     throw error;
   }
-};
-
-// Job definition
-export const definition: JobDefinition = {
-  type: JobType.CLEANUP_LOGS,
-  name: "Cleanup Logs",
-  description: "Removes old log entries based on retention policy",
-  category: "maintenance",
-  payloadSchema,
-  resultSchema,
-  defaultOptions: {
-    maxAttempts: 3,
-  },
-  settings: {
-    defaultOlderThanDays: 30,
-    defaultBatchSize: 1000,
-  },
-  cron: {
-    expression: "0 0 * * *", // Daily at midnight
-    enabled: true,
-    defaultPayload: {
-      olderThanDays: 30,
-      batchSize: 1000,
-    },
-  },
 };

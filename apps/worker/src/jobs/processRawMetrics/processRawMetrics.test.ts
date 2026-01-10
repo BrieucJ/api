@@ -233,10 +233,11 @@ describe("Process Raw Metrics Handler", () => {
     "should calculate percentiles correctly",
     withTransaction(async () => {
       const now = Date.now();
+      const uniqueEndpoint = `/api/v1/percentile-test-${now}`;
       const latencies = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
       const payload = {
         metrics: latencies.map((latency, index) => ({
-          endpoint: "/api/v1/test",
+          endpoint: uniqueEndpoint,
           latency,
           status: 200,
           timestamp: now + index * 1000,
@@ -261,7 +262,7 @@ describe("Process Raw Metrics Handler", () => {
       const { data } = await retryUntil(
         async () => {
           const queryResult = await metricsQuery.list({
-            filters: { endpoint__eq: "/api/v1/test" },
+            filters: { endpoint__eq: uniqueEndpoint },
             limit: 1,
           });
           if (queryResult.data.length === 0) {
@@ -274,6 +275,9 @@ describe("Process Raw Metrics Handler", () => {
 
       expect(data.length).toBeGreaterThan(0);
       const metric = data[0];
+      // Verify we got the right metric
+      expect(metric?.endpoint).toBe(uniqueEndpoint);
+      expect(metric?.traffic_count).toBe(10);
       // P50 should be around 50, P95 around 95, P99 around 99
       expect(metric?.p50_latency).toBeGreaterThanOrEqual(40);
       expect(metric?.p50_latency).toBeLessThanOrEqual(60);

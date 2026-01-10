@@ -1,29 +1,12 @@
-import { z } from "zod";
+// Node.js code with logger, db, etc.
 import { logger } from "@/utils/logger";
 import { db } from "@/utils/db";
 import { sql } from "drizzle-orm";
 import { workerStats, createQueryBuilder } from "@shared/db";
 import env from "@/env";
-import { JobType } from "./types";
-import type { JobDefinition } from "./types";
-import { getAllCronJobs, getAllJobs } from "./index";
+import { getAllCronJobs, getAllJobs } from "../index";
 import { SQSQueue } from "@/utils/sqs";
-
-// Payload schema
-export const payloadSchema = z.object({
-  checkType: z.enum(["database", "queue", "scheduler"]).optional(),
-});
-
-export type HealthCheckPayload = z.infer<typeof payloadSchema>;
-
-// Result schema
-export const resultSchema = z.object({
-  checks: z.record(z.string(), z.boolean()),
-  workerId: z.string().optional(),
-  heartbeatUpdated: z.boolean(),
-});
-
-export type HealthCheckResult = z.infer<typeof resultSchema>;
+import type { HealthCheckPayload, HealthCheckResult } from "./definition";
 
 // Handler
 export const handler = async (
@@ -162,23 +145,3 @@ export const handler = async (
   }
 };
 
-// Job definition
-export const definition: JobDefinition = {
-  type: JobType.HEALTH_CHECK,
-  name: "Health Check",
-  description: "Performs health checks on database, queue, and scheduler",
-  category: "monitoring",
-  payloadSchema,
-  resultSchema,
-  defaultOptions: {
-    maxAttempts: 1,
-  },
-  settings: {},
-  cron: {
-    expression: "*/5 * * * *", // Every 5 minutes - heartbeat to keep Lambda active
-    enabled: true,
-    defaultPayload: {
-      checkType: "database",
-    },
-  },
-};

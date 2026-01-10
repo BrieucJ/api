@@ -20,7 +20,12 @@ import { timing } from "hono/timing";
 import { compress } from "hono/compress";
 import type { AppBindings } from "./types";
 import { onError, notFound } from "@/api/middlewares";
-import type { KeysOfZodObj, ZodSchema, ZodIssue } from "@/utils/types";
+import type {
+  KeysOfZodObj,
+  ZodSchema,
+  ZodSchema as ZodSchemaType,
+  ZodIssue,
+} from "@/utils/types";
 import env from "@/env";
 
 export const jsonContent = <T extends ZodSchema>(
@@ -120,6 +125,89 @@ function enumFromSchema<T extends z.ZodObject<any>>(schema: T) {
   return z.enum(keys as [KeysOfZodObj<T>, ...KeysOfZodObj<T>[]]);
 }
 
+/**
+ * Creates a reusable select field schema that accepts comma-separated strings or JSON arrays
+ * @param fieldEnum - The Zod enum of allowed field names
+ * @returns A Zod schema for the select parameter
+ */
+export function createSelectSchema<T extends z.ZodEnum<any>>(fieldEnum: T) {
+  return z
+    .preprocess((val) => {
+      if (typeof val === "string") {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return val
+            .split(",")
+            .map((f) => f.trim())
+            .filter(Boolean);
+        }
+      }
+      return val;
+    }, z.array(fieldEnum).min(1))
+    .optional()
+    .openapi({
+      param: {
+        name: "select",
+        in: "query",
+      },
+      description:
+        'Comma-separated list of fields to select, or JSON array. Example: \'id,email,role\' or \'["id","email","role"]\'',
+      example: "id,email,role",
+    });
+}
+
+/**
+ * Creates a reusable ordering schema that accepts objects, arrays, or JSON strings
+ * Querybuilder format: order_by={"field":"id","order":"asc"} or order_by=[{"field":"id","order":"asc"},{"field":"name","order":"desc"}]
+ * @param fieldEnum - The Zod enum of allowed field names
+ * @returns A Zod schema for the order_by parameter
+ */
+
+export function createOrderingSchema<T extends z.ZodEnum<any>>(fieldEnum: T) {
+  const orderItem = z.object({
+    field: fieldEnum,
+    order: z.enum(["asc", "desc"]),
+  });
+
+  return z
+    .preprocess((val) => {
+      // undefined, null, or empty string → treat as empty array
+      if (val === undefined || val === null || val === "") return [];
+
+      // if array or object already, leave it
+      if (typeof val === "object") return val;
+
+      // if string, try JSON.parse
+      if (typeof val === "string") {
+        try {
+          return JSON.parse(val);
+        } catch {
+          // optional: parse shorthand like "id:asc"
+          const [field, order] = val.split(":");
+          if (
+            fieldEnum.options.includes(field) &&
+            ["asc", "desc"].includes(order ?? "")
+          ) {
+            return [{ field, order }];
+          }
+          return []; // fallback to empty array
+        }
+      }
+
+      return val;
+    }, z.union([orderItem, z.array(orderItem)]))
+    .transform((val) => (Array.isArray(val) ? val : [val])) // always array// mark the whole thing optional for Hono
+    .openapi({
+      param: {
+        name: "order_by",
+        in: "query",
+      },
+      example: { field: "id", order: "asc" },
+    })
+    .optional();
+}
+
 // Complete pagination + ordering helper
 // Querybuilder format: order_by={"field":"id","order":"asc"} or order_by=[{"field":"id","order":"asc"},{"field":"name","order":"desc"}]
 export function paginationWithOrderingSchema<T extends z.ZodObject<any>>(
@@ -155,101 +243,8 @@ export function paginationWithOrderingSchema<T extends z.ZodObject<any>>(
           example: 0,
         })
         .default(0),
-      // Querybuilder format: order_by={"field":"id","order":"asc"} or order_by=[{"field":"id","order":"asc"},{"field":"name","order":"desc"}]
-      // Accepts both JSON string and object (for API tools like Scalar)
-      order_by: z
-        .union([
-          z.object({
-            field: orderByFieldEnum,
-            order: z.enum(["asc", "desc"]),
-          }),
-          z.array(
-            z.object({
-              field: orderByFieldEnum,
-              order: z.enum(["asc", "desc"]),
-            })
-          ),
-          z.string().transform((val, ctx) => {
-            // Parse as JSON for querybuilder format
-            try {
-              const parsed = JSON.parse(val);
-              // Validate it matches querybuilder format
-              if (typeof parsed === "object" && parsed !== null) {
-                if (Array.isArray(parsed)) {
-                  const orderByArraySchema = z.array(
-                    z.object({
-                      field: orderByFieldEnum,
-                      order: z.enum(["asc", "desc"]),
-                    })
-                  );
-                  return orderByArraySchema.parse(parsed);
-                } else if ("field" in parsed && "order" in parsed) {
-                  // Object format: {field: "id", order: "asc"}
-                  const orderByObjectSchema = z.object({
-                    field: orderByFieldEnum,
-                    order: z.enum(["asc", "desc"]),
-                  });
-                  return orderByObjectSchema.parse(parsed);
-                }
-              }
-              throw new Error("Invalid order_by format");
-            } catch (e) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: `order_by must be valid JSON matching querybuilder format: {"field":"id","order":"asc"} or [{"field":"id","order":"asc"}]`,
-              });
-              return z.NEVER;
-            }
-          }),
-        ])
-        .default({ field: "id", order: "asc" })
-        .openapi({
-          param: {
-            name: "order_by",
-            in: "query",
-          },
-          example: JSON.stringify({ field: "id", order: "asc" }),
-        }),
-      // Select specific fields to return
-      select: z
-        .union([
-          z.array(selectFieldEnum),
-          z.string().transform((val, ctx) => {
-            // Parse comma-separated string or JSON array
-            try {
-              // Try parsing as JSON first
-              const parsed = JSON.parse(val);
-              if (Array.isArray(parsed)) {
-                return z.array(selectFieldEnum).parse(parsed);
-              }
-              throw new Error("select must be an array");
-            } catch {
-              // If not JSON, treat as comma-separated string
-              const fields = val
-                .split(",")
-                .map((f) => f.trim())
-                .filter(Boolean);
-              if (fields.length === 0) {
-                ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  message: "select must contain at least one field",
-                });
-                return z.NEVER;
-              }
-              return z.array(selectFieldEnum).parse(fields);
-            }
-          }),
-        ])
-        .optional()
-        .openapi({
-          param: {
-            name: "select",
-            in: "query",
-          },
-          description:
-            'Comma-separated list of fields to select, or JSON array. Example: \'id,email,role\' or \'["id","email","role"]\'',
-          example: "id,email,role",
-        }),
+      order_by: createOrderingSchema(orderByFieldEnum),
+      select: createSelectSchema(selectFieldEnum),
       search: z.string().optional(),
       filters: z.string().optional()
         .describe(`Filter conditions as query parameters (AND by default).
@@ -265,7 +260,7 @@ For OR conditions, pass filters as JSON string:
 - ?filters=[{"name__eq":"John","age__gte":30},{"name__eq":"Bob","age__gte":25}] (complex OR)
   `),
     })
-    .loose();
+    .passthrough();
 }
 
 type NullableInfer<T extends ZodTypeAny | null> = T extends ZodTypeAny
@@ -283,9 +278,9 @@ export const responseSchema = <
   metadataSchema?: M
 ) => {
   const schema = z.object({
-    data: dataSchema ? dataSchema.nullable() : z.null(),
-    error: errorSchema ? errorSchema.nullable() : z.null(),
-    metadata: metadataSchema ? metadataSchema.nullable() : z.null(),
+    data: dataSchema ? dataSchema : z.null(),
+    error: errorSchema ? errorSchema : z.null(),
+    metadata: metadataSchema ? metadataSchema : z.null(),
   }) as z.ZodObject<{
     data: z.ZodType<NullableInfer<T>>;
     error: z.ZodType<NullableInfer<E>>;
@@ -360,8 +355,6 @@ export function createApp() {
   );
   // CSRF middleware that skips internal replay requests
   app.use(async (c, next) => {
-    // Skip CSRF for internal replay requests (identified by special header)
-    // or requests from localhost/127.0.0.1
     const isInternalReplay = c.req.header("x-internal-replay") === "true";
     const origin = c.req.header("origin");
     const host = c.req.header("host");
@@ -393,9 +386,7 @@ export function createApp() {
   app.use(geo);
   app.use(metrics);
   app.use(snapshot);
-  app.use("/api/v1/*", logging);
-  // Also apply logging to auth routes for debugging
-  app.use("/auth/*", logging);
+  app.use(logging);
   return app;
 }
 
@@ -413,6 +404,47 @@ export const notFoundSchema = z
   .object({ message: z.string() })
   .openapi({ example: { message: "Not Found" } });
 
+export const internalServerErrorSchema = z
+  .object({
+    name: z.string().openapi({ example: "Error" }),
+    message: z
+      .string()
+      .optional()
+      .openapi({ example: "Internal server error" }),
+    issues: z
+      .array(
+        z.object({
+          code: z.string(),
+          path: z.array(z.union([z.string(), z.number()])),
+          message: z.string().optional(),
+        })
+      )
+      .optional()
+      .openapi({
+        example: [
+          {
+            code: "internal_error",
+            path: [],
+            message: "An unexpected error occurred",
+          },
+        ],
+      }),
+    stack: z.string().optional().openapi({ example: undefined }),
+  })
+  .openapi({
+    example: {
+      name: "Error",
+      message: "Internal server error",
+      issues: [
+        {
+          code: "internal_error",
+          path: [],
+          message: "An unexpected error occurred",
+        },
+      ],
+    },
+  });
+
 export const paginationSchema = z.object({
   limit: z.number(),
   offset: z.number(),
@@ -428,42 +460,230 @@ export function selectFieldSchema<T extends z.ZodObject<any>>(schema: T) {
   const fieldEnum = enumFromSchema(schema);
   return {
     query: z.object({
-      select: z
-        .union([
-          z.array(fieldEnum),
-          z.string().transform((val, ctx) => {
-            try {
-              const parsed = JSON.parse(val);
-              if (Array.isArray(parsed)) {
-                return z.array(fieldEnum).parse(parsed);
-              }
-              throw new Error("select must be an array");
-            } catch {
-              const fields = val
-                .split(",")
-                .map((f) => f.trim())
-                .filter(Boolean);
-              if (fields.length === 0) {
-                ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  message: "select must contain at least one field",
-                });
-                return z.NEVER;
-              }
-              return z.array(fieldEnum).parse(fields);
-            }
-          }),
-        ])
-        .optional()
-        .openapi({
-          param: {
-            name: "select",
-            in: "query",
-          },
-          description:
-            'Comma-separated list of fields to select, or JSON array. Example: \'id,email,role\' or \'["id","email","role"]\'',
-          example: "id,email,role",
-        }),
+      select: createSelectSchema(fieldEnum),
     }),
   };
+}
+
+/**
+ * Creates standard responses for a list endpoint
+ * @param resourceName - Name of the resource (e.g., "users", "logs")
+ * @param selectSchema - The schema for a single item
+ * @param options - Optional configuration
+ */
+export function createListResponses<T extends ZodTypeAny>(
+  resourceName: string,
+  selectSchema: T,
+  options?: {
+    customDescription?: string;
+  }
+) {
+  const responses: Record<number, any> = {
+    [HTTP_STATUS_CODES.OK]: responseSchema(
+      options?.customDescription || `List ${resourceName}`,
+      z.array(selectSchema),
+      null,
+      paginationSchema
+    ),
+    [HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR]: responseSchema(
+      "Internal server error",
+      null,
+      internalServerErrorSchema,
+      null
+    ),
+  };
+
+  return responses;
+}
+
+/**
+ * Creates standard responses for a get (by ID) endpoint
+ * @param resourceName - Name of the resource (singular, e.g., "user", "log")
+ * @param selectSchema - The schema for the item
+ * @param options - Optional configuration
+ */
+export function createGetResponses<T extends ZodTypeAny>(
+  resourceName: string,
+  selectSchema: T,
+  options?: {
+    customDescription?: string;
+    customNotFoundMessage?: string;
+  }
+) {
+  const responses: Record<number, any> = {
+    [HTTP_STATUS_CODES.OK]: responseSchema(
+      options?.customDescription || `Get ${resourceName} by ID`,
+      selectSchema,
+      null,
+      null
+    ),
+    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
+      options?.customNotFoundMessage ||
+        `${
+          resourceName.charAt(0).toUpperCase() + resourceName.slice(1)
+        } not found`,
+      null,
+      notFoundSchema,
+      z.object({ id: z.number() })
+    ),
+    [HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR]: responseSchema(
+      "Internal server error",
+      null,
+      internalServerErrorSchema,
+      null
+    ),
+  };
+
+  return responses;
+}
+
+/**
+ * Creates standard responses for a create endpoint
+ * @param resourceName - Name of the resource (singular, e.g., "user")
+ * @param selectSchema - The schema for the created item
+ * @param insertSchema - The schema for the insert/input data
+ * @param options - Optional configuration
+ */
+export function createCreateResponses<
+  TSelect extends ZodTypeAny,
+  TInsert extends ZodTypeAny
+>(
+  resourceName: string,
+  selectSchema: TSelect,
+  insertSchema: TInsert,
+  options?: {
+    includeValidationErrors?: boolean;
+    customDescription?: string;
+  }
+) {
+  const responses: Record<number, any> = {
+    [HTTP_STATUS_CODES.CREATED]: responseSchema(
+      options?.customDescription || `The created ${resourceName}`,
+      selectSchema,
+      null,
+      null
+    ),
+  };
+
+  if (options?.includeValidationErrors !== false) {
+    responses[HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY] = responseSchema(
+      "Validation errors",
+      null,
+      createErrorSchema(insertSchema as unknown as ZodSchemaType),
+      null
+    );
+  }
+
+  responses[HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR] = responseSchema(
+    "Internal server error",
+    null,
+    internalServerErrorSchema,
+    null
+  );
+
+  return responses;
+}
+
+/**
+ * Creates standard responses for an update endpoint
+ * @param resourceName - Name of the resource (singular, e.g., "user")
+ * @param selectSchema - The schema for the updated item
+ * @param updateSchema - The schema for the update/input data
+ * @param options - Optional configuration
+ */
+export function createUpdateResponses<
+  TSelect extends ZodTypeAny,
+  TUpdate extends ZodTypeAny
+>(
+  resourceName: string,
+  selectSchema: TSelect,
+  updateSchema: TUpdate,
+  options?: {
+    includeValidationErrors?: boolean;
+    customDescription?: string;
+    customNotFoundMessage?: string;
+  }
+) {
+  const responses: Record<number, any> = {
+    [HTTP_STATUS_CODES.OK]: responseSchema(
+      options?.customDescription ||
+        `${
+          resourceName.charAt(0).toUpperCase() + resourceName.slice(1)
+        } updated`,
+      selectSchema,
+      null,
+      null
+    ),
+    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
+      options?.customNotFoundMessage ||
+        `${
+          resourceName.charAt(0).toUpperCase() + resourceName.slice(1)
+        } not found`,
+      null,
+      notFoundSchema,
+      z.object({ id: z.number() })
+    ),
+  };
+
+  if (options?.includeValidationErrors !== false) {
+    responses[HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY] = responseSchema(
+      "Validation errors",
+      null,
+      createErrorSchema(updateSchema as unknown as ZodSchemaType),
+      null
+    );
+  }
+
+  responses[HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR] = responseSchema(
+    "Internal server error",
+    null,
+    internalServerErrorSchema,
+    null
+  );
+
+  return responses;
+}
+
+/**
+ * Creates standard responses for a delete endpoint
+ * @param resourceName - Name of the resource (singular, e.g., "user")
+ * @param selectSchema - The schema for the deleted item (or a subset)
+ * @param options - Optional configuration
+ */
+export function createDeleteResponses<T extends ZodTypeAny>(
+  resourceName: string,
+  selectSchema: T,
+  options?: {
+    customDescription?: string;
+    customNotFoundMessage?: string;
+  }
+) {
+  const responses: Record<number, any> = {
+    [HTTP_STATUS_CODES.OK]: responseSchema(
+      options?.customDescription ||
+        `${
+          resourceName.charAt(0).toUpperCase() + resourceName.slice(1)
+        } deleted`,
+      selectSchema,
+      null,
+      null
+    ),
+    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
+      options?.customNotFoundMessage ||
+        `${
+          resourceName.charAt(0).toUpperCase() + resourceName.slice(1)
+        } not found`,
+      null,
+      notFoundSchema,
+      z.object({ id: z.number() })
+    ),
+    [HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR]: responseSchema(
+      "Internal server error",
+      null,
+      internalServerErrorSchema,
+      null
+    ),
+  };
+
+  return responses;
 }

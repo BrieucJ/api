@@ -50,7 +50,7 @@ const BaseEnvSchema = z.object({
     "trace",
     "silent",
   ]),
-  PORT: z.coerce.number().default(8081),
+  WORKER_PORT: z.coerce.number().default(8081),
   DATABASE_URL: z.url(),
   // Optional fields that may be required based on NODE_ENV and LAMBDA_ARN
   REGION: z.string().optional(),
@@ -85,8 +85,7 @@ const EnvSchema = BaseEnvSchema.superRefine((data, ctx) => {
     if (!data.LAMBDA_ARN) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message:
-          "LAMBDA_ARN is required in production/staging environments",
+        message: "LAMBDA_ARN is required in production/staging environments",
         path: ["LAMBDA_ARN"],
       });
     }

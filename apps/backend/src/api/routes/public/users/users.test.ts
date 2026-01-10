@@ -108,7 +108,7 @@ describe("Users API", () => {
     );
 
     it(
-      "should return null for non-existent user",
+      "should return 404 for non-existent user",
       withTransaction(async () => {
         const res = await client["/api/v1/users/:id"].$get({
           param: { id: "99999" },
@@ -116,8 +116,10 @@ describe("Users API", () => {
 
         const body = await res.json();
 
-        expect(res.status).toBe(200);
+        expect(res.status).toBe(404);
         expect(body.data).toBeNull();
+        expect(body.error.message).toBe("User not found");
+        expect(body.metadata.id).toBe(99999);
       })
     );
   });
@@ -164,7 +166,7 @@ describe("Users API", () => {
     );
   });
 
-  describe("PATCH /api/v1/users/:id", () => {
+  describe("PUT /api/v1/users/:id", () => {
     it(
       "should update user email",
       withTransaction(async () => {
@@ -174,7 +176,7 @@ describe("Users API", () => {
           "user"
         );
 
-        const res = await client["/api/v1/users/:id"].$patch({
+        const res = await client["/api/v1/users/:id"].$put({
           param: { id: user.id.toString() },
           json: { email: "updated@test.com" },
         });
@@ -203,7 +205,7 @@ describe("Users API", () => {
           .limit(1);
         const originalHash = originalUser?.password_hash;
 
-        await client["/api/v1/users/:id"].$patch({
+        await client["/api/v1/users/:id"].$put({
           param: { id: user.id.toString() },
           json: { password: "newpass123" },
         });
@@ -249,9 +251,47 @@ describe("Users API", () => {
           .limit(1);
         expect(deletedUser?.deleted_at).toBeDefined();
         expect(deletedUser?.deleted_at).not.toBeNull();
+      })
+    );
 
-        // Note: The querybuilder's baseQuery filter for deleted_at may need investigation
-        // but the soft delete functionality itself is working (deleted_at is set)
+    it(
+      "should return 404 on second delete call",
+      withTransaction(async () => {
+        const { user } = await createTestUser(
+          "delete2@test.com",
+          "password123",
+          "user"
+        );
+
+        // First delete should succeed
+        const firstRes = await client["/api/v1/users/:id"].$delete({
+          param: { id: user.id.toString() },
+        });
+        expect(firstRes.status).toBe(200);
+
+        // Second delete should return 404 (already deleted)
+        const secondRes = await client["/api/v1/users/:id"].$delete({
+          param: { id: user.id.toString() },
+        });
+        const secondBody = await secondRes.json();
+
+        expect(secondRes.status).toBe(404);
+        expect(secondBody.data).toBeNull();
+        expect(secondBody.error.message).toBe("User not found");
+      })
+    );
+
+    it(
+      "should return 404 for non-existent user",
+      withTransaction(async () => {
+        const res = await client["/api/v1/users/:id"].$delete({
+          param: { id: "99999" },
+        });
+        const body = await res.json();
+
+        expect(res.status).toBe(404);
+        expect(body.data).toBeNull();
+        expect(body.error.message).toBe("User not found");
       })
     );
   });

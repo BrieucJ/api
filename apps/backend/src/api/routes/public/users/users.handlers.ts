@@ -4,7 +4,7 @@ import type {
   ListRoute,
   GetRoute,
   CreateRoute,
-  PatchRoute,
+  PutRoute,
   RemoveRoute,
 } from "./users.routes";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
@@ -41,6 +41,18 @@ export const get: AppRouteHandler<GetRoute> = async (c) => {
   const query = c.req.valid("query");
   const { select } = query;
   const user = await userQuery.get(id, { select });
+
+  if (!user) {
+    return c.json(
+      {
+        data: null,
+        error: { message: "User not found" },
+        metadata: { id: id },
+      },
+      HTTP_STATUS_CODES.NOT_FOUND
+    );
+  }
+
   return c.json(
     {
       data: user,
@@ -67,6 +79,17 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
     { select }
   );
 
+  if (!created) {
+    return c.json(
+      {
+        data: null,
+        error: { message: "Failed to create user" },
+        metadata: null,
+      },
+      HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY
+    );
+  }
+
   return c.json(
     {
       data: created,
@@ -77,7 +100,7 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
   );
 };
 
-export const patch: AppRouteHandler<PatchRoute> = async (c) => {
+export const put: AppRouteHandler<PutRoute> = async (c) => {
   const { id } = c.req.valid("param");
   const query = c.req.valid("query");
   const input = c.req.valid("json");
@@ -90,13 +113,12 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
 
   const { select } = query;
   const updated = await userQuery.update(id, updateData, { select });
-
   if (!updated) {
     return c.json(
       {
         data: null,
         error: { message: "User not found" },
-        metadata: null,
+        metadata: { id: id },
       },
       HTTP_STATUS_CODES.NOT_FOUND
     );
@@ -118,13 +140,12 @@ export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
   const { select } = query;
 
   const deleted = await userQuery.delete(id, true, { select });
-
   if (!deleted) {
     return c.json(
       {
         data: null,
         error: { message: "User not found" },
-        metadata: null,
+        metadata: { id: id },
       },
       HTTP_STATUS_CODES.NOT_FOUND
     );

@@ -1146,13 +1146,15 @@ export class QueryBuilder<T extends Table> {
     const hasDeletedAt = this.columns.deleted_at !== undefined;
 
     if (soft && hasDeletedAt) {
-      // For soft delete, allow deleted_at to be selected since we're setting it
+      // For soft delete, check that record exists and is not already deleted
+      // Allow deleted_at to be selected since we're setting it
       const selectColumns = this.getSelectColumns(select, true);
+      const deletedAtColumn = this.columns.deleted_at!; // Safe because hasDeletedAt is true
       const [deleted] = await this.logQuery("delete (soft)", async () => {
         return await this.dbInstance
           .update(this.table)
           .set({ deleted_at: new Date() })
-          .where(eq((this.table as any).id, id))
+          .where(and(eq((this.table as any).id, id), isNull(deletedAtColumn))!)
           .returning(selectColumns);
       });
       return deleted || null;

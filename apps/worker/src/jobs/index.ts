@@ -1,5 +1,4 @@
 // Auto-discovery registry - imports all jobs
-import * as processMetrics from "./processMetrics";
 import * as processRawMetrics from "./processRawMetrics";
 import * as cleanupLogs from "./cleanupLogs";
 import * as healthCheck from "./healthCheck";
@@ -7,7 +6,6 @@ import type { JobType, JobHandler, JobDefinition, JobMetadata } from "./types";
 
 // Export all jobs
 export const jobs = {
-  processMetrics,
   processRawMetrics,
   cleanupLogs,
   healthCheck,
@@ -37,9 +35,7 @@ export function hasJobHandler(jobType: JobType): boolean {
   return jobRegistry.has(jobType);
 }
 
-export function getJobDefinition(
-  jobType: JobType
-): JobDefinition | undefined {
+export function getJobDefinition(jobType: JobType): JobDefinition | undefined {
   return jobRegistry.get(jobType)?.definition;
 }
 
@@ -69,4 +65,3 @@ export function getAllCronJobs() {
       enabled: true,
     }));
 }
-

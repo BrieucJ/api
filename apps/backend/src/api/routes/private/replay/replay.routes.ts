@@ -2,9 +2,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import {
   paginationWithOrderingSchema,
-  paginationSchema,
   responseSchema,
   idParamSchema,
+  createListResponses,
+  createGetResponses,
 } from "@/utils/helpers";
 import { snapshotSelectSchema } from "@/db/models/requestSnapshots";
 
@@ -73,14 +74,9 @@ export const list = createRoute({
         }),
     }),
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "List of request snapshots",
-      z.array(snapshotSelectSchema),
-      null,
-      paginationSchema
-    ),
-  },
+  responses: createListResponses("replay", snapshotSelectSchema, {
+    customDescription: "List of request snapshots",
+  }),
 });
 
 export const get = createRoute({
@@ -91,20 +87,10 @@ export const get = createRoute({
   request: {
     params: idParamSchema,
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "Request snapshot details",
-      snapshotSelectSchema,
-      null,
-      null
-    ),
-    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
-      "Snapshot not found",
-      null,
-      z.object({ message: z.string() }),
-      null
-    ),
-  },
+  responses: createGetResponses("snapshot", snapshotSelectSchema, {
+    customDescription: "Request snapshot details",
+    customNotFoundMessage: "Snapshot not found",
+  }),
 });
 
 export const replay = createRoute({

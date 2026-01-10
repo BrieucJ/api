@@ -1,0 +1,156 @@
+# API Response Format Standard
+
+All API responses MUST follow the standard format with three required fields: `data`, `error`, and `metadata`.
+
+## Response Structure
+
+Every API response must have this structure:
+
+```typescript
+{
+  data: T | null,      // The response data (null on error)
+  error: E | null,     // Error object (null on success)
+  metadata: M | null   // Metadata like pagination (null if not applicable)
+}
+```
+
+## Success Responses
+
+On success, return:
+```typescript
+return c.json(
+  {
+    data: <response_data>,
+    error: null,
+    metadata: <metadata_or_null>,
+  },
+  HTTP_STATUS_CODES.OK
+);
+```
+
+## Error Responses
+
+### Non-Validation Errors (400, 401, 403, 404, 500, etc.)
+
+For non-validation errors, use the simple error format:
+```typescript
+return c.json(
+  {
+    data: null,
+    error: {
+      name: "ErrorName",
+      message: "Error message description",
+    },
+    metadata: null,
+  },
+  HTTP_STATUS_CODES.<STATUS>
+);
+```
+
+### Validation Errors (422)
+
+For validation errors, use `createErrorSchema`:
+```typescript
+// In route definition:
+[HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY]: responseSchema(
+  "Validation error",
+  null,
+  createErrorSchema(requestSchema),
+  null
+)
+
+// In handler (handled automatically by defaultHook, but if manual):
+return c.json(
+  {
+    data: null,
+    error: {
+      name: "ZodError",
+      issues: [
+        {
+          code: "invalid_type",
+          path: ["fieldName"],
+          message: "Expected string, received undefined",
+        },
+      ],
+    },
+    metadata: null,
+  },
+  HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY
+);
+```
+
+## Route Definition
+
+Always use `responseSchema` helper which enforces this format:
+
+```typescript
+responses: {
+  [HTTP_STATUS_CODES.OK]: responseSchema(
+    "Description",
+    dataSchema,      // Zod schema for data
+    errorSchema,     // Zod schema for error (null for success responses)
+    metadataSchema   // Zod schema for metadata (null if not applicable)
+  ),
+  [HTTP_STATUS_CODES.BAD_REQUEST]: responseSchema(
+    "Error description",
+    null,
+    z.object({
+      name: z.string(),
+      message: z.string(),
+    }),
+    null
+  ),
+}
+```
+
+## Examples
+
+### Success with data
+```typescript
+return c.json(
+  {
+    data: { id: 1, name: "Example" },
+    error: null,
+    metadata: null,
+  },
+  HTTP_STATUS_CODES.OK
+);
+```
+
+### Success with pagination
+```typescript
+return c.json(
+  {
+    data: [...items],
+    error: null,
+    metadata: { limit: 20, offset: 0, total: 100 },
+  },
+  HTTP_STATUS_CODES.OK
+);
+```
+
+### Error response
+```typescript
+return c.json(
+  {
+    data: null,
+    error: {
+      name: "NotFoundError",
+      message: "Resource not found",
+    },
+    metadata: null,
+  },
+  HTTP_STATUS_CODES.NOT_FOUND
+);
+```
+
+## Rules
+
+1. **ALWAYS** include all three fields: `data`, `error`, `metadata`
+2. **NEVER** omit any of these fields
+3. **ALWAYS** use `responseSchema` helper in route definitions
+4. **ALWAYS** set `data: null` on errors
+5. **ALWAYS** set `error: null` on success
+6. **ALWAYS** set `metadata: null` if not applicable
+7. Use simple `{ name, message }` format for non-validation errors
+8. Use `createErrorSchema` for validation errors (422)

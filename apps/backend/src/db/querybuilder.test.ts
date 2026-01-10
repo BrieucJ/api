@@ -320,6 +320,38 @@ describe("QueryBuilder – pagination & CRUD", () => {
     const res = await qb.list({});
     expect(res.data.find((r) => r.id === 2)).toBeUndefined();
   });
+
+  it("soft delete returns null on second call", async () => {
+    // First delete should succeed
+    const firstDelete = await qb.delete(1);
+    expect(firstDelete).toBeDefined();
+    expect(firstDelete?.id).toBe(1);
+
+    // Second delete should return null (already deleted)
+    const secondDelete = await qb.delete(1);
+    expect(secondDelete).toBeNull();
+  });
+
+  it("soft delete returns null for non-existent record", async () => {
+    const deleted = await qb.delete(999);
+    expect(deleted).toBeNull();
+  });
+
+  it("hard delete returns null on second call", async () => {
+    // First delete should succeed
+    const firstDelete = await qb.delete(2, false);
+    expect(firstDelete).toBeDefined();
+    expect(firstDelete?.id).toBe(2);
+
+    // Second delete should return null (record no longer exists)
+    const secondDelete = await qb.delete(2, false);
+    expect(secondDelete).toBeNull();
+  });
+
+  it("hard delete returns null for non-existent record", async () => {
+    const deleted = await qb.delete(999, false);
+    expect(deleted).toBeNull();
+  });
 });
 
 describe("QueryBuilder – count, exists, getBy", () => {

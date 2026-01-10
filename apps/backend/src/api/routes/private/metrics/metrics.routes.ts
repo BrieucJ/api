@@ -2,8 +2,8 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import {
   paginationWithOrderingSchema,
-  paginationSchema,
   responseSchema,
+  createListResponses,
 } from "@/utils/helpers";
 import { metricsSelectSchema } from "@/db/models/metrics";
 
@@ -51,14 +51,7 @@ export const list = createRoute({
         }),
     }),
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "List of metrics",
-      z.array(metricsSelectSchema),
-      null,
-      paginationSchema
-    ),
-  },
+  responses: createListResponses("metrics", metricsSelectSchema),
 });
 
 export const aggregate = createRoute({

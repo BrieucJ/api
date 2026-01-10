@@ -15,12 +15,6 @@ describe("Job Registry", () => {
       expect(typeof handler).toBe("function");
     });
 
-    it("should return handler for PROCESS_METRICS", () => {
-      const handler = getJobHandler(JobType.PROCESS_METRICS);
-      expect(handler).toBeDefined();
-      expect(typeof handler).toBe("function");
-    });
-
     it("should return handler for CLEANUP_LOGS", () => {
       const handler = getJobHandler(JobType.CLEANUP_LOGS);
       expect(handler).toBeDefined();
@@ -37,12 +31,12 @@ describe("Job Registry", () => {
   describe("hasJobHandler", () => {
     it("should return true for valid job types", () => {
       expect(hasJobHandler(JobType.PROCESS_RAW_METRICS)).toBe(true);
-      expect(hasJobHandler(JobType.PROCESS_METRICS)).toBe(true);
       expect(hasJobHandler(JobType.CLEANUP_LOGS)).toBe(true);
       expect(hasJobHandler(JobType.HEALTH_CHECK)).toBe(true);
     });
 
     it("should return false for invalid job types", () => {
+      expect(hasJobHandler(JobType.PROCESS_METRICS)).toBe(false);
       expect(hasJobHandler("INVALID_TYPE" as JobType)).toBe(false);
     });
   });
@@ -60,7 +54,6 @@ describe("Job Registry", () => {
     it("should return metadata for all job types", () => {
       const allTypes = [
         JobType.PROCESS_RAW_METRICS,
-        JobType.PROCESS_METRICS,
         JobType.CLEANUP_LOGS,
         JobType.HEALTH_CHECK,
       ];
@@ -83,7 +76,7 @@ describe("Job Registry", () => {
       const jobs = getAllJobs();
       expect(jobs).toBeInstanceOf(Array);
       expect(jobs.length).toBeGreaterThan(0);
-      expect(jobs.length).toBe(4); // All 4 job types
+      expect(jobs.length).toBe(3); // All 3 job types
     });
 
     it("should include all required fields in metadata", () => {

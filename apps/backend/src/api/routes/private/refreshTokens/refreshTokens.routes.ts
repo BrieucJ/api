@@ -1,11 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import * as HTTP_STATUS_CODES from "@/utils/http-status-codes";
 import {
   idParamSchema,
-  notFoundSchema,
   paginationWithOrderingSchema,
-  paginationSchema,
-  responseSchema,
+  createListResponses,
+  createGetResponses,
+  createDeleteResponses,
 } from "@/utils/helpers";
 import { refreshTokenSelectSchema } from "@/db/models/refreshTokens";
 
@@ -20,14 +19,7 @@ export const list = createRoute({
   request: {
     query: paginationWithOrderingSchema(refreshTokenSelectSchema),
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "List refresh tokens",
-      z.array(refreshTokenSelectSchema),
-      null,
-      paginationSchema
-    ),
-  },
+  responses: createListResponses("refresh_tokens", refreshTokenSelectSchema),
 });
 
 export const get = createRoute({
@@ -38,20 +30,7 @@ export const get = createRoute({
   request: {
     params: idParamSchema,
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "Get refresh token by ID",
-      refreshTokenSelectSchema,
-      null,
-      null
-    ),
-    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
-      "Refresh token not found",
-      null,
-      notFoundSchema,
-      null
-    ),
-  },
+  responses: createGetResponses("refresh token", refreshTokenSelectSchema),
 });
 
 export const remove = createRoute({
@@ -62,20 +41,7 @@ export const remove = createRoute({
   request: {
     params: idParamSchema,
   },
-  responses: {
-    [HTTP_STATUS_CODES.OK]: responseSchema(
-      "Refresh token deleted",
-      refreshTokenSelectSchema.pick({ id: true }),
-      null,
-      null
-    ),
-    [HTTP_STATUS_CODES.NOT_FOUND]: responseSchema(
-      "Refresh token not found",
-      null,
-      notFoundSchema,
-      null
-    ),
-  },
+  responses: createDeleteResponses("refresh token", refreshTokenSelectSchema),
 });
 
 export type ListRoute = typeof list;

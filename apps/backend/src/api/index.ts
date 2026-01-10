@@ -22,8 +22,6 @@ import packageJSON from "../../package.json";
 // Store server start time for uptime calculation
 export const SERVER_START_TIME = Date.now();
 
-logger.info(`🚀 Server is running on http://localhost:${env.PORT}`);
-
 const app = createApp();
 
 configureOpenAPI(app);
